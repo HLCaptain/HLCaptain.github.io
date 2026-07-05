@@ -1,0 +1,20 @@
+---
+import PageHeader from "@components/PageHeader.astro";
+import ProjectCard from "@components/ProjectCard.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { getPublishedProjects } from "@lib/content";
+
+const projects = await getPublishedProjects();
+---
+
+<BaseLayout title="Work" description="Selected portfolio projects by HLCaptain.">
+  <PageHeader
+    eyebrow="Portfolio"
+    title="Selected work"
+    description="A compact project index for shipped work, active experiments, and interface systems."
+  />
+
+  <div class="entry-list">
+    {projects.map((project) => <ProjectCard project={project} />)}
+  </div>
+</BaseLayout>

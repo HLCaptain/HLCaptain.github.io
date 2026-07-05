@@ -1,0 +1,20 @@
+---
+import ArticleCard from "@components/ArticleCard.astro";
+import PageHeader from "@components/PageHeader.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { getPublishedArticles } from "@lib/content";
+
+const articles = await getPublishedArticles();
+---
+
+<BaseLayout title="Articles" description="Markdown-based articles and field notes by HLCaptain.">
+  <PageHeader
+    eyebrow="Archive"
+    title="Articles"
+    description="Field notes, implementation writeups, and design decisions collected as Markdown."
+  />
+
+  <div class="entry-list">
+    {articles.map((article) => <ArticleCard article={article} />)}
+  </div>
+</BaseLayout>

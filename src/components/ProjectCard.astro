@@ -1,0 +1,25 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { formatDate } from "@lib/content";
+import EntryCard from "./EntryCard.astro";
+
+type Props = {
+  project: CollectionEntry<"projects">;
+};
+
+const { project } = Astro.props;
+---
+
+<EntryCard
+  href={`/work/${project.id}/`}
+  ariaLabel={`Open ${project.data.title}`}
+  glyph="work"
+  title={project.data.title}
+  description={project.data.description}
+  tags={project.data.tags}
+  meta={[
+    { label: formatDate(project.data.publishedAt), datetime: project.data.publishedAt.toISOString() },
+    { label: project.data.status }
+  ]}
+  project
+/>

@@ -1,0 +1,41 @@
+---
+import ArrowIcon from "./ArrowIcon.astro";
+import PixelGlyph from "./PixelGlyph.astro";
+
+type MetaItem = {
+  label: string;
+  datetime?: string;
+};
+
+type Props = {
+  href: string;
+  ariaLabel: string;
+  glyph: string;
+  title: string;
+  description: string;
+  tags: string[];
+  meta: MetaItem[];
+  project?: boolean;
+};
+
+const { href, ariaLabel, glyph, title, description, tags, meta, project = false } = Astro.props;
+---
+
+<article class:list={["entry-card", project && "entry-card--project"]}>
+  <a href={href} class="entry-card__link" aria-label={ariaLabel}>
+    <span class="entry-card__glyph"><PixelGlyph name={glyph} /></span>
+    <span class="entry-card__meta">
+      {meta.map((item) =>
+        item.datetime ? <time datetime={item.datetime}>{item.label}</time> : <span>{item.label}</span>
+      )}
+    </span>
+    <h2>{title}</h2>
+    <p>{description}</p>
+    {tags.length > 0 && (
+      <span class="tag-row" aria-label="Tags">
+        {tags.map((tag) => <span>{tag}</span>)}
+      </span>
+    )}
+    <ArrowIcon class="entry-card__arrow" role="card" />
+  </a>
+</article>

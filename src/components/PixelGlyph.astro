@@ -1,0 +1,27 @@
+---
+type GlyphName = "home" | "person" | "archive" | "writing" | "feed" | "work" | "link" | "mail";
+
+type Props = {
+  name: GlyphName | string;
+  label?: string;
+};
+
+const { name, label } = Astro.props;
+
+const patterns: Record<string, number[]> = {
+  home: [0, 1, 0, 1, 1, 1, 1, 0, 1],
+  person: [0, 1, 0, 0, 1, 0, 1, 0, 1],
+  archive: [1, 1, 1, 1, 0, 1, 1, 1, 1],
+  writing: [1, 0, 0, 1, 1, 0, 0, 1, 1],
+  feed: [1, 0, 0, 0, 1, 0, 1, 1, 1],
+  work: [1, 1, 1, 1, 0, 1, 0, 1, 0],
+  link: [1, 0, 1, 0, 1, 0, 1, 0, 1],
+  mail: [1, 0, 1, 0, 1, 0, 1, 1, 1]
+};
+
+const cells = patterns[name] ?? patterns.link;
+---
+
+<span class="pixel-glyph" aria-label={label} aria-hidden={label ? undefined : "true"}>
+  {cells.map((cell) => <i class:list={[cell && "is-on"]}></i>)}
+</span>

@@ -1,0 +1,47 @@
+---
+import PageHeader from "@components/PageHeader.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { siteConfig } from "../site.config";
+---
+
+<BaseLayout title="About" description="About HLCaptain and the work collected on this site.">
+  <PageHeader
+    eyebrow="Profile"
+    title="Clear interfaces, fast systems, durable notes."
+    description="This site collects portfolio work and upcoming writing around software design, frontend implementation, and product-shaped engineering decisions."
+  />
+
+  <section class="split-section">
+    <div>
+      <h2>Current direction</h2>
+      <p>
+        I care about interfaces that feel light without becoming thin: visible state, precise motion,
+        accessible navigation, and performance that holds up on everyday devices.
+      </p>
+      <p>
+        The writing archive is Markdown-first, so publishing a new note is just a repository change
+        and a static rebuild.
+      </p>
+    </div>
+    <div class="fact-panel">
+      <dl>
+        <div>
+          <dt>Name</dt>
+          <dd>{siteConfig.author.name}</dd>
+        </div>
+        <div>
+          <dt>Role</dt>
+          <dd>{siteConfig.author.role}</dd>
+        </div>
+        <div>
+          <dt>Location</dt>
+          <dd>{siteConfig.author.location}</dd>
+        </div>
+        <div>
+          <dt>Email</dt>
+          <dd><a href={`mailto:${siteConfig.author.email}`}>{siteConfig.author.email}</a></dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+</BaseLayout>

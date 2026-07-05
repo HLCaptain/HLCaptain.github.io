@@ -1,0 +1,109 @@
+---
+import ArticleCard from "@components/ArticleCard.astro";
+import ArrowIcon from "@components/ArrowIcon.astro";
+import ProjectCard from "@components/ProjectCard.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { formatDate, getPublishedArticles, getPublishedProjects } from "@lib/content";
+
+const articles = await getPublishedArticles();
+const projects = await getPublishedProjects();
+const featuredArticles = articles.filter((entry) => entry.data.featured).slice(0, 3);
+const featuredProjects = projects.filter((entry) => entry.data.featured).slice(0, 3);
+const previewItems = [
+  ...articles.slice(0, 2).map((article) => ({
+    kind: "Article",
+    title: article.data.title,
+    description: article.data.description,
+    href: `/articles/${article.id}/`,
+    meta: formatDate(article.data.publishedAt),
+    image: "/visuals/article-preview.svg"
+  })),
+  ...projects.slice(0, 1).map((project) => ({
+    kind: "Project",
+    title: project.data.title,
+    description: project.data.description,
+    href: `/work/${project.id}/`,
+    meta: project.data.status,
+    image: "/visuals/project-preview.svg"
+  })),
+  {
+    kind: "Profile",
+    title: "About HLCaptain",
+    description:
+      "A compact profile for the work style behind the portfolio: precise interfaces, fast systems, and durable notes.",
+    href: "/about/",
+    meta: "about",
+    image: "/visuals/about-preview.svg"
+  }
+];
+---
+
+<BaseLayout>
+  <section class="home-hero" aria-labelledby="home-title">
+    <div class="home-hero__copy">
+      <p class="eyebrow">Portfolio / writing archive</p>
+      <h1 id="home-title">HLCaptain</h1>
+      <p>
+        A compact personal site for interface craft, software projects, and field notes on building
+        fast, legible systems.
+      </p>
+      <div class="hero-actions">
+        <a href="/articles/" class="button-link">Read articles</a>
+        <a href="/work/" class="button-link button-link--ghost">View work</a>
+      </div>
+    </div>
+
+    <div class="preview-feed" data-preview-feed style={`--item-count:${previewItems.length}; --active-index:0`} aria-label="Site preview feed">
+      <div class="preview-feed__rail" aria-hidden="true">
+        <span data-preview-rail></span>
+      </div>
+      <div class="preview-feed__items">
+        {previewItems.map((item, index) => (
+          <article class:list={["preview-feed__item", index === 0 && "is-active"]} data-preview-item data-preview-href={item.href}>
+            <button
+              class="preview-feed__trigger"
+              type="button"
+              data-preview-trigger
+              aria-expanded={index === 0 ? "true" : "false"}
+            >
+              <span class="preview-feed__kind">{item.kind}</span>
+              <strong>{item.title}</strong>
+              <span>{item.meta}</span>
+            </button>
+            <div class="preview-feed__detail" data-preview-detail>
+              <div class="preview-feed__media">
+                <img src={item.image} alt="" loading={index === 0 ? "eager" : "lazy"} />
+                <span class="preview-feed__arrow" aria-hidden="true">
+                  <ArrowIcon class="arrow-icon--inline" role="link" />
+                </span>
+              </div>
+              <p>{item.description}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="content-band" aria-labelledby="latest-articles">
+    <div class="section-heading">
+      <p class="eyebrow">Writing</p>
+      <h2 id="latest-articles">Latest articles</h2>
+      <a href="/articles/">All articles</a>
+    </div>
+    <div class="entry-grid">
+      {featuredArticles.map((article) => <ArticleCard article={article} />)}
+    </div>
+  </section>
+
+  <section class="content-band" aria-labelledby="selected-work">
+    <div class="section-heading">
+      <p class="eyebrow">Work</p>
+      <h2 id="selected-work">Selected projects</h2>
+      <a href="/work/">All projects</a>
+    </div>
+    <div class="entry-grid">
+      {featuredProjects.map((project) => <ProjectCard project={project} />)}
+    </div>
+  </section>
+</BaseLayout>

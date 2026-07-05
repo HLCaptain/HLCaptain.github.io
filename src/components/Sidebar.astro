@@ -1,0 +1,117 @@
+---
+import { siteConfig, type NavItem } from "../site.config";
+import { stripTrailingSlash } from "@lib/content";
+import ArrowIcon from "./ArrowIcon.astro";
+import ExternalLinkIcon from "./ExternalLinkIcon.astro";
+import PixelGlyph from "./PixelGlyph.astro";
+import { Icon } from "astro-icon/components";
+
+type Props = {
+  currentPath: string;
+};
+
+const { currentPath } = Astro.props;
+const normalizedPath = stripTrailingSlash(currentPath);
+
+const isExternal = (item: NavItem) => "external" in item && item.external === true;
+
+const isActive = (item: NavItem) => {
+  if (isExternal(item)) return false;
+  const href = stripTrailingSlash(item.href);
+  if (href === "/") return normalizedPath === "/";
+  return normalizedPath === href || normalizedPath.startsWith(`${href}/`);
+};
+
+let navIndex = 0;
+const navigation = siteConfig.navigation.map((group) => ({
+  ...group,
+  items: group.items.map((item) => ({
+    ...item,
+    navIndex: navIndex++
+  }))
+}));
+---
+
+<button class="mobile-menu-button" type="button" data-sidebar-open aria-controls="site-sidebar" aria-expanded="false">
+  <span></span>
+  <span></span>
+  <span></span>
+  <span class="sr-only">Open navigation</span>
+</button>
+
+<div class="sidebar-backdrop" data-sidebar-close></div>
+
+<aside id="site-sidebar" class="site-sidebar" data-sidebar>
+  <div class="sidebar-panel">
+    <header class="sidebar-brand">
+      <button class="sidebar-toggle" type="button" data-sidebar-collapse aria-label="Collapse sidebar" aria-pressed="false">
+        <ArrowIcon class="arrow-icon--toggle" role="sidebar-toggle" />
+      </button>
+      <a href="/" class="brand-mark" aria-label={`${siteConfig.name} home`}>
+        <span class="brand-symbol" aria-hidden="true">
+          <i></i><i></i><i></i><i></i>
+        </span>
+        <span class="brand-copy">
+          <strong>{siteConfig.name}</strong>
+          <small>portfolio / notes</small>
+        </span>
+      </a>
+    </header>
+
+    <nav class="sidebar-nav" aria-label="Primary navigation">
+      {navigation.map((group) => (
+        <details class="nav-group" open={group.open} data-nav-group>
+          <summary>
+            <span class="nav-group__icon">
+              <Icon name="lucide:chevron-right" class="group-toggle-icon" aria-hidden="true" />
+              <PixelGlyph name={group.glyph} />
+            </span>
+            <span class="nav-group__label">{group.label}</span>
+          </summary>
+          <div class="nav-items">
+            {group.items.map((item) => (
+              <a
+                href={item.href}
+                class:list={["nav-item", isActive(item) && "is-active"]}
+                aria-label={item.label}
+                aria-current={isActive(item) ? "page" : undefined}
+                target={isExternal(item) ? "_blank" : undefined}
+                rel={isExternal(item) ? "noreferrer" : undefined}
+                data-nav-index={isExternal(item) ? undefined : item.navIndex}
+              >
+                <PixelGlyph name={item.glyph} />
+                <span class="nav-item__label">{item.label}</span>
+                {isExternal(item) && <ExternalLinkIcon />}
+              </a>
+            ))}
+          </div>
+        </details>
+      ))}
+    </nav>
+
+    <section class="accent-panel" aria-labelledby="accent-title">
+      <div>
+        <p id="accent-title">Surface</p>
+        <button type="button" data-accent-reset>Auto</button>
+      </div>
+      <div class="theme-switch" aria-label="Theme">
+        <button type="button" data-theme-value="light" aria-pressed="true">Light</button>
+        <button type="button" data-theme-value="black" aria-pressed="false">Black</button>
+      </div>
+      <div class="accent-controls">
+        <input type="color" value="#b9843b" aria-label="Custom accent color" data-accent-input />
+        <div class="accent-swatches" aria-label="Accent presets">
+          {siteConfig.accentPresets.map((preset) => (
+            <button
+              type="button"
+              title={preset.label}
+              aria-label={`${preset.label} accent`}
+              style={`--swatch:${preset.value}`}
+              data-accent-value={preset.value}
+            ></button>
+          ))}
+        </div>
+      </div>
+    </section>
+  </div>
+</aside>

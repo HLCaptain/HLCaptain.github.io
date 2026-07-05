@@ -1,0 +1,24 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { formatDate } from "@lib/content";
+import EntryCard from "./EntryCard.astro";
+
+type Props = {
+  article: CollectionEntry<"articles">;
+};
+
+const { article } = Astro.props;
+---
+
+<EntryCard
+  href={`/articles/${article.id}/`}
+  ariaLabel={`Read ${article.data.title}`}
+  glyph="writing"
+  title={article.data.title}
+  description={article.data.description}
+  tags={article.data.tags}
+  meta={[
+    { label: formatDate(article.data.publishedAt), datetime: article.data.publishedAt.toISOString() },
+    ...(article.data.readingTime ? [{ label: article.data.readingTime }] : [])
+  ]}
+/>

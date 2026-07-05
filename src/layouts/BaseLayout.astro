@@ -1,0 +1,180 @@
+---
+import { ClientRouter } from "astro:transitions";
+import Sidebar from "@components/Sidebar.astro";
+import { siteConfig } from "../site.config";
+import "@styles/global.css";
+
+type Props = {
+  title?: string;
+  description?: string;
+  image?: string;
+};
+
+const title = Astro.props.title ? `${Astro.props.title} - ${siteConfig.name}` : siteConfig.title;
+const description = Astro.props.description ?? siteConfig.description;
+const canonical = new URL(Astro.url.pathname, siteConfig.url);
+const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toString() : undefined;
+---
+
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <script is:inline>
+      (() => {
+        const root = document.documentElement;
+        const accentKey = "hlcaptain-accent";
+        const themeKey = "hlcaptain-theme";
+        const sidebarKey = "hlcaptain-sidebar";
+        const arrowKey = "hlcaptain-arrow-style";
+        const hex = (rgb) =>
+          `#${[rgb.r, rgb.g, rgb.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+        const rgb = (value, alpha = 1) => `rgb(${Math.round(value.r)} ${Math.round(value.g)} ${Math.round(value.b)} / ${alpha})`;
+        const parse = (value) => {
+          const match = /^#?([a-f\d]{3}|[a-f\d]{6})$/i.exec(value || "");
+          if (!match) return null;
+          const full = match[1].length === 3 ? match[1].split("").map((c) => c + c).join("") : match[1];
+          return {
+            r: Number.parseInt(full.slice(0, 2), 16),
+            g: Number.parseInt(full.slice(2, 4), 16),
+            b: Number.parseInt(full.slice(4, 6), 16)
+          };
+        };
+        const mix = (a, b, weight) => ({
+          r: a.r + (b.r - a.r) * weight,
+          g: a.g + (b.g - a.g) * weight,
+          b: a.b + (b.b - a.b) * weight
+        });
+        const lum = (rgb) => {
+          const channels = [rgb.r, rgb.g, rgb.b].map((v) => {
+            const s = v / 255;
+            return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+          });
+          return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+        };
+        const contrast = (a, b) => {
+          const high = Math.max(lum(a), lum(b));
+          const low = Math.min(lum(a), lum(b));
+          return (high + 0.05) / (low + 0.05);
+        };
+        const normalize = (value, theme) => {
+          const source = parse(value);
+          if (!source) return null;
+          let accent = source;
+          const min = theme === "black" ? 0.34 : 0.22;
+          const max = theme === "black" ? 0.74 : 0.68;
+          for (let i = 0; i < 12 && lum(accent) < min; i += 1) accent = mix(accent, { r: 255, g: 255, b: 255 }, 0.1);
+          for (let i = 0; i < 12 && lum(accent) > max; i += 1) accent = mix(accent, { r: 0, g: 0, b: 0 }, 0.1);
+          const bg = theme === "black" ? { r: 26, g: 25, b: 18 } : { r: 228, g: 223, b: 205 };
+          const target = lum(bg) > 0.5 ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
+          let readable = accent;
+          for (let i = 0; i < 12 && contrast(readable, bg) < 3.8; i += 1) readable = mix(readable, target, 0.12);
+          const tint = mix(theme === "black" ? { r: 75, g: 68, b: 50 } : { r: 184, g: 170, b: 138 }, accent, theme === "black" ? 0.34 : 0.5);
+          const base =
+            theme === "black"
+              ? {
+                  canvas: { r: 6, g: 6, b: 4 },
+                  surface: { r: 22, g: 21, b: 15 },
+                  surfaceSoft: { r: 33, g: 31, b: 22 },
+                  surfaceStrong: { r: 44, g: 41, b: 29 },
+                  line: { r: 75, g: 68, b: 50 },
+                  lineStrong: { r: 151, g: 139, b: 105 }
+                }
+              : {
+                  canvas: { r: 241, g: 238, b: 226 },
+                  surface: { r: 228, g: 223, b: 205 },
+                  surfaceSoft: { r: 247, g: 244, b: 232 },
+                  surfaceStrong: { r: 215, g: 207, b: 185 },
+                  line: { r: 198, g: 190, b: 168 },
+                  lineStrong: { r: 138, g: 128, b: 109 }
+                };
+          const amount = theme === "black" ? 0.16 : 0.14;
+          return {
+            accent: hex(accent),
+            readable: hex(readable),
+            tint: hex(tint),
+            tokens: {
+              "--canvas": hex(mix(base.canvas, tint, amount * 0.45)),
+              "--surface": hex(mix(base.surface, tint, amount)),
+              "--surface-soft": hex(mix(base.surfaceSoft, tint, amount)),
+              "--surface-strong": hex(mix(base.surfaceStrong, tint, amount * 1.2)),
+              "--line": hex(mix(base.line, tint, amount * 1.1)),
+              "--line-strong": hex(mix(base.lineStrong, tint, amount * 1.4)),
+              "--panel-hover": hex(mix(base.surfaceSoft, tint, amount * 1.35)),
+              "--active-fill": hex(mix(base.surfaceStrong, tint, amount * 1.6)),
+              "--grid-line": rgb(tint, theme === "black" ? 0.24 : 0.145),
+              "--grid-line-soft": rgb(tint, theme === "black" ? 0.12 : 0.068)
+            }
+          };
+        };
+        try {
+          const theme = localStorage.getItem(themeKey) === "black" ? "black" : "light";
+          const accent = localStorage.getItem(accentKey);
+          const arrow = localStorage.getItem(arrowKey);
+          root.dataset.theme = theme;
+          root.dataset.arrowStyle = ["tabler", "lucide", "heroicons", "phosphor", "solar", "remix", "material", "carbon", "fluent", "radix", "pixelart"].includes(arrow) ? arrow : "tabler";
+          root.classList.toggle("sidebar-collapsed", localStorage.getItem(sidebarKey) === "collapsed");
+          if (accent) {
+            const normalized = normalize(accent, theme);
+            if (normalized) {
+              root.dataset.accent = "custom";
+              root.style.setProperty("--accent", normalized.accent);
+              root.style.setProperty("--accent-readable", normalized.readable);
+              root.style.setProperty("--accent-tint", normalized.tint);
+              Object.entries(normalized.tokens).forEach(([property, value]) => root.style.setProperty(property, value));
+              root.style.setProperty("accent-color", normalized.accent);
+            }
+          }
+        } catch {}
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#171712" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title={`${siteConfig.name} RSS`} href="/rss.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    {image && <meta property="og:image" content={image} />}
+    <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
+    <ClientRouter />
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
+    <div class="site-frame">
+      <Sidebar currentPath={Astro.url.pathname} transition:persist />
+      <main id="main-content" class="site-main" transition:name="page-content">
+        <slot />
+      </main>
+    </div>
+    <button class="debug-fab" type="button" data-debug-toggle aria-expanded="false" aria-controls="debug-panel">
+      <span class="pixel-glyph" aria-hidden="true"><i class="is-on"></i><i></i><i class="is-on"></i><i></i><i class="is-on"></i><i></i><i class="is-on"></i><i></i><i class="is-on"></i></span>
+      <span class="sr-only">Open debug menu</span>
+    </button>
+    <section id="debug-panel" class="debug-panel" data-debug-panel aria-label="Debug menu" hidden>
+      <header>
+        <p class="eyebrow">Debug</p>
+        <button type="button" data-debug-close aria-label="Close debug menu">Close</button>
+      </header>
+      <fieldset>
+        <legend>Arrow icon set</legend>
+        <button type="button" data-arrow-style="tabler">Tabler</button>
+        <button type="button" data-arrow-style="lucide">Lucide</button>
+        <button type="button" data-arrow-style="heroicons">Heroicons</button>
+        <button type="button" data-arrow-style="phosphor">Phosphor</button>
+        <button type="button" data-arrow-style="solar">Solar</button>
+        <button type="button" data-arrow-style="remix">Remix</button>
+        <button type="button" data-arrow-style="material">Material</button>
+        <button type="button" data-arrow-style="carbon">Carbon</button>
+        <button type="button" data-arrow-style="fluent">Fluent</button>
+        <button type="button" data-arrow-style="radix">Radix</button>
+        <button type="button" data-arrow-style="pixelart">Pixelart</button>
+      </fieldset>
+    </section>
+    <script is:inline src="/scripts/site-shell.js" defer data-astro-rerun></script>
+  </body>
+</html>
