@@ -112,6 +112,9 @@ const customThemeProperties = [
   "--grid-line-soft"
 ];
 
+const gridParallaxProperties = ["--grid-parallax-x", "--grid-parallax-y"];
+let lastSettledPath = null;
+
 function buildThemeTokens(theme, tint) {
   const base =
     theme === "black"
@@ -249,22 +252,221 @@ function initAccentControls() {
   });
 }
 
+function initBackgroundParallax() {
+  if (window.__hlGridParallaxBound) return;
+  window.__hlGridParallaxBound = true;
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+  const root = document.documentElement;
+  let pointerX = 0.5;
+  let pointerY = 0.5;
+  let frame = 0;
+
+  const reset = () => {
+    root.style.setProperty("--grid-parallax-x", "0px");
+    root.style.setProperty("--grid-parallax-y", "0px");
+  };
+
+  const gridSize = () => Number.parseFloat(getComputedStyle(root).getPropertyValue("--grid-size")) || 28;
+  const wrap = (value, size) => {
+    const shifted = value % size;
+    return shifted < 0 ? shifted + size : shifted;
+  };
+  const round = (value) => Math.round(value * 100) / 100;
+
+  const update = () => {
+    frame = 0;
+    if (reduceMotion.matches) {
+      reset();
+      return;
+    }
+
+    const size = gridSize();
+    const viewportWidth = Math.max(window.innerWidth, 1);
+    const viewportHeight = Math.max(window.innerHeight, 1);
+    const pointerShiftX = finePointer.matches ? (pointerX - 0.5) * Math.min(8, viewportWidth * 0.006) : 0;
+    const pointerShiftY = finePointer.matches ? (pointerY - 0.5) * Math.min(6, viewportHeight * 0.006) : 0;
+    const scrollShiftY = window.scrollY * -0.045;
+
+    root.style.setProperty("--grid-parallax-x", `${round(wrap(pointerShiftX, size))}px`);
+    root.style.setProperty("--grid-parallax-y", `${round(wrap(scrollShiftY + pointerShiftY, size))}px`);
+  };
+
+  const requestUpdate = () => {
+    if (!frame) frame = window.requestAnimationFrame(update);
+  };
+
+  window.addEventListener("scroll", requestUpdate, { passive: true });
+  window.addEventListener("resize", requestUpdate, { passive: true });
+  window.addEventListener(
+    "pointermove",
+    (event) => {
+      if (!finePointer.matches) return;
+      pointerX = event.clientX / Math.max(window.innerWidth, 1);
+      pointerY = event.clientY / Math.max(window.innerHeight, 1);
+      requestUpdate();
+    },
+    { passive: true }
+  );
+  reduceMotion.addEventListener?.("change", requestUpdate);
+  finePointer.addEventListener?.("change", requestUpdate);
+  requestUpdate();
+}
+
 function initSidebar() {
   const root = document.documentElement;
+  const sidebar = document.querySelector("[data-sidebar]");
   const openButton = document.querySelector("[data-sidebar-open]");
   const closeTargets = document.querySelectorAll("[data-sidebar-close]");
   const collapseButton = document.querySelector("[data-sidebar-collapse]");
+  const desktopOverlayQuery = window.matchMedia("(min-width: 721px)");
+  const overlayOpenPadding = 2;
+  const overlayExitPadding = 6;
+  const overlayCloseDelay = 90;
+  let overlayCloseTimer = 0;
+  let lastOverlayPointer = null;
+
+  const clearOverlayCloseTimer = () => {
+    if (overlayCloseTimer) {
+      window.clearTimeout(overlayCloseTimer);
+      overlayCloseTimer = 0;
+    }
+  };
 
   const setOpen = (open) => {
     root.classList.toggle("sidebar-open", open);
     openButton?.setAttribute("aria-expanded", String(open));
   };
 
+  const canUseOverlay = () => root.classList.contains("sidebar-collapsed") && desktopOverlayQuery.matches;
+
+  const setOverlayOpen = (open) => {
+    if (open) clearOverlayCloseTimer();
+    root.classList.toggle("sidebar-overlay-open", Boolean(open && canUseOverlay()));
+  };
+
+  const capturePointer = (event) => {
+    lastOverlayPointer = {
+      clientX: event.clientX,
+      clientY: event.clientY
+    };
+    return lastOverlayPointer;
+  };
+
+  const numberToken = (name, fallback) => {
+    const value = Number.parseFloat(getComputedStyle(root).getPropertyValue(name));
+    return Number.isFinite(value) ? value : fallback;
+  };
+
+  const overlayRects = () => {
+    const panel = sidebar?.querySelector(".sidebar-panel");
+    const sidebarRect = sidebar?.getBoundingClientRect();
+    const panelRect = panel?.getBoundingClientRect();
+    if (!sidebarRect && !panelRect) return null;
+
+    const outerPadding = numberToken("--sidebar-outer-padding", 14);
+    const collapsedWidth = numberToken("--sidebar-collapsed-width", sidebarRect?.width ?? 84);
+    const expandedWidth = numberToken("--sidebar-width", 292);
+    const railLeft = sidebarRect?.left ?? (panelRect ? panelRect.left - outerPadding : 0);
+    const railTop = sidebarRect?.top ?? (panelRect ? panelRect.top - outerPadding : 0);
+    const railBottom = sidebarRect?.bottom ?? (panelRect ? panelRect.bottom + outerPadding : window.innerHeight);
+    const panelLeft = panelRect?.left ?? railLeft + outerPadding;
+    const panelTop = panelRect?.top ?? railTop + outerPadding;
+    const panelBottom = panelRect?.bottom ?? railBottom - outerPadding;
+
+    return {
+      rail: {
+        left: railLeft,
+        right: railLeft + collapsedWidth,
+        top: railTop,
+        bottom: railBottom
+      },
+      overlay: {
+        left: panelLeft,
+        right: panelLeft + Math.max(0, expandedWidth - outerPadding * 2),
+        top: panelTop,
+        bottom: panelBottom
+      }
+    };
+  };
+
+  const rectContainsPointer = (rect, pointer, padding = 0) =>
+    pointer.clientX >= rect.left - padding &&
+    pointer.clientX <= rect.right + padding &&
+    pointer.clientY >= rect.top - padding &&
+    pointer.clientY <= rect.bottom + padding;
+
+  const pointerIsInsideOpenRail = (pointer) => {
+    const rects = overlayRects();
+    return Boolean(rects && rectContainsPointer(rects.rail, pointer, overlayOpenPadding));
+  };
+
+  const pointerIsInsideOpenOverlay = (pointer) => {
+    const rects = overlayRects();
+    return Boolean(
+      rects &&
+        (rectContainsPointer(rects.rail, pointer, overlayExitPadding) ||
+          rectContainsPointer(rects.overlay, pointer, overlayExitPadding))
+    );
+  };
+
+  const closeOverlayIfPointerOutside = (event, immediate = false) => {
+    const pointer = capturePointer(event);
+    if (!root.classList.contains("sidebar-overlay-open")) return;
+    if (pointerIsInsideOpenOverlay(pointer)) {
+      clearOverlayCloseTimer();
+      return;
+    }
+
+    if (immediate) {
+      clearOverlayCloseTimer();
+      setOverlayOpen(false);
+      return;
+    }
+
+    if (overlayCloseTimer) return;
+    overlayCloseTimer = window.setTimeout(() => {
+      overlayCloseTimer = 0;
+      if (
+        root.classList.contains("sidebar-overlay-open") &&
+        lastOverlayPointer &&
+        !pointerIsInsideOpenOverlay(lastOverlayPointer)
+      ) {
+        setOverlayOpen(false);
+      }
+    }, overlayCloseDelay);
+  };
+
+  const syncOverlayFromPointer = (event) => {
+    const pointer = capturePointer(event);
+    if (!canUseOverlay()) {
+      setOverlayOpen(false);
+      return;
+    }
+
+    if (!root.classList.contains("sidebar-overlay-open") && pointerIsInsideOpenRail(pointer)) {
+      setOverlayOpen(true);
+      return;
+    }
+    closeOverlayIfPointerOutside(event);
+  };
+
   setOpen(root.classList.contains("sidebar-open"));
+  setOverlayOpen(root.classList.contains("sidebar-overlay-open"));
 
   openButton?.addEventListener("click", () => setOpen(true), { signal: getSignal(openButton, "sidebar") });
   closeTargets.forEach((target) => {
     target.addEventListener("click", () => setOpen(false), { signal: getSignal(target, "sidebar") });
+  });
+  document.addEventListener("pointermove", syncOverlayFromPointer, { signal: getSignal(sidebar ?? root, "sidebar") });
+  document.addEventListener("pointerdown", (event) => closeOverlayIfPointerOutside(event, true), { signal: getSignal(sidebar ?? root, "sidebar") });
+  document.addEventListener("pointercancel", () => {
+    clearOverlayCloseTimer();
+    setOverlayOpen(false);
+  }, { signal: getSignal(sidebar ?? root, "sidebar") });
+  desktopOverlayQuery.addEventListener?.("change", () => {
+    if (!canUseOverlay()) setOverlayOpen(false);
   });
 
   if (collapseButton && !collapseButton.dataset.bound) {
@@ -275,14 +477,122 @@ function initSidebar() {
     collapseButton.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
 
     collapseButton.addEventListener("click", (event) => {
+      if (event.detail > 0) capturePointer(event);
       const next = !root.classList.contains("sidebar-collapsed");
       root.classList.toggle("sidebar-collapsed", next);
       collapseButton.setAttribute("aria-pressed", String(next));
       collapseButton.setAttribute("aria-label", next ? "Expand sidebar" : "Collapse sidebar");
       window.localStorage.setItem(sidebarKey, next ? "collapsed" : "expanded");
+      setOverlayOpen(next && Boolean(lastOverlayPointer && pointerIsInsideOpenOverlay(lastOverlayPointer)));
       if (next && event.detail > 0) collapseButton.blur();
     });
   }
+}
+
+function initNavGroups() {
+  document.querySelectorAll("[data-nav-group]").forEach((group) => {
+    if (group.dataset.bound) return;
+    group.dataset.bound = "true";
+
+    const summary = group.querySelector("summary");
+    const items = group.querySelector(".nav-items");
+    if (!summary || !items) return;
+
+    summary.addEventListener(
+      "click",
+      (event) => {
+        event.preventDefault();
+
+        group._navGroupCancel?.();
+
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          group.open = !group.open;
+          return;
+        }
+
+        const wasOpen = group.open;
+        let complete = false;
+        let timeout = null;
+        let frame = 0;
+        const initialTransition = items.style.transition;
+
+        const clearFrame = () => {
+          if (!frame) return;
+          window.cancelAnimationFrame(frame);
+          frame = 0;
+        };
+
+        const clearItemStyles = (quietHeightReset = false) => {
+          if (quietHeightReset) items.style.transition = "none";
+          items.style.display = "";
+          items.style.height = "";
+          items.style.overflow = "";
+          if (quietHeightReset) {
+            items.getBoundingClientRect();
+            items.style.transition = initialTransition;
+          }
+        };
+
+        const finish = () => {
+          if (complete) return;
+          complete = true;
+          clearFrame();
+          window.clearTimeout(timeout);
+          items.removeEventListener("transitionend", onTransitionEnd);
+          if (wasOpen) group.open = false;
+          group.classList.remove("is-expanding", "is-collapsing");
+          clearItemStyles(!wasOpen);
+          if (group._navGroupCancel === cancel) group._navGroupCancel = null;
+        };
+
+        const cancel = () => {
+          if (complete) return;
+          complete = true;
+          clearFrame();
+          window.clearTimeout(timeout);
+          items.removeEventListener("transitionend", onTransitionEnd);
+          group.classList.remove("is-expanding", "is-collapsing");
+          clearItemStyles();
+          items.style.transition = initialTransition;
+          if (group._navGroupCancel === cancel) group._navGroupCancel = null;
+        };
+
+        const onTransitionEnd = (transitionEvent) => {
+          if (transitionEvent.propertyName === "height") finish();
+        };
+
+        group._navGroupCancel = cancel;
+        group.classList.remove("is-expanding", "is-collapsing");
+        items.style.display = "grid";
+        items.style.overflow = "hidden";
+
+        if (wasOpen) {
+          items.style.height = `${items.getBoundingClientRect().height}px`;
+          items.getBoundingClientRect();
+          group.classList.add("is-collapsing");
+          frame = requestAnimationFrame(() => {
+            items.style.height = "0px";
+          });
+        } else {
+          items.style.transition = "none";
+          group.open = true;
+          group.classList.add("is-expanding");
+          items.style.height = "";
+          const targetHeight = items.getBoundingClientRect().height;
+          items.style.height = "0px";
+          items.getBoundingClientRect();
+          items.style.transition = initialTransition;
+          frame = requestAnimationFrame(() => {
+            items.style.height = `${targetHeight}px`;
+          });
+        }
+
+        items.addEventListener("transitionend", onTransitionEnd);
+        timeout = window.setTimeout(finish, 420);
+      },
+      { signal: getSignal(group, "navGroup") }
+    );
+  });
 }
 
 function initDebugMenu() {
@@ -327,8 +637,11 @@ function preserveShellState(event) {
   nextRoot.dataset.theme = currentTheme();
   nextRoot.dataset.arrowStyle = document.documentElement.dataset.arrowStyle || "tabler";
   nextRoot.dataset.pageDirection = document.documentElement.dataset.pageDirection || "down";
+  const keepOverlay =
+    root.classList.contains("sidebar-overlay-open") || root.dataset.keepSidebarOverlay === "true";
   nextRoot.classList.toggle("sidebar-collapsed", root.classList.contains("sidebar-collapsed"));
   nextRoot.classList.toggle("sidebar-open", root.classList.contains("sidebar-open"));
+  nextRoot.classList.toggle("sidebar-overlay-open", keepOverlay);
   event.newDocument
     ?.querySelector("[data-sidebar-open]")
     ?.setAttribute("aria-expanded", String(root.classList.contains("sidebar-open")));
@@ -347,6 +660,11 @@ function preserveShellState(event) {
       nextRoot.style.removeProperty(property);
     }
   });
+
+  gridParallaxProperties.forEach((property) => {
+    const value = root.style.getPropertyValue(property);
+    if (value) nextRoot.style.setProperty(property, value);
+  });
 }
 
 function normalizePath(value) {
@@ -360,19 +678,40 @@ function normalizePath(value) {
   }
 }
 
-function navIndexForPath(path) {
-  const navLinks = Array.from(document.querySelectorAll("[data-nav-index]"));
-  const matches = navLinks
+function updateSettledPath() {
+  const path = normalizePath(window.location.href);
+  if (path) lastSettledPath = path;
+}
+
+function navEntries(scope = document) {
+  return Array.from(scope.querySelectorAll("[data-nav-index]"))
     .map((link) => ({
+      link,
       index: Number(link.dataset.navIndex),
       path: normalizePath(link.getAttribute("href") || "")
     }))
     .filter((entry) => Number.isFinite(entry.index) && entry.path)
     .sort((a, b) => b.path.length - a.path.length);
+}
 
-  const exact = matches.find((entry) => entry.path === path);
-  if (exact) return exact.index;
-  return matches.find((entry) => entry.path !== "/" && path.startsWith(`${entry.path}/`))?.index;
+function navMatchesForPath(path, scope = document) {
+  const matches = navEntries(scope);
+  const exact = matches.filter((entry) => entry.path === path);
+  if (exact.length > 0) return exact;
+  return matches.filter((entry) => entry.path !== "/" && path.startsWith(`${entry.path}/`));
+}
+
+function navIndexForPath(path) {
+  return navMatchesForPath(path)[0]?.index;
+}
+
+function navLinkForPath(path) {
+  return navMatchesForPath(path)[0]?.link;
+}
+
+function activeNavPath() {
+  const active = document.querySelector("[data-nav-index][aria-current='page']");
+  return active ? normalizePath(active.getAttribute("href") || "") : null;
 }
 
 function currentNavIndex() {
@@ -381,18 +720,170 @@ function currentNavIndex() {
   return navIndexForPath(normalizePath(window.location.href));
 }
 
-function setPageDirection(targetIndex) {
+function pathDepth(path) {
+  return path.split("/").filter(Boolean).length;
+}
+
+function pageDirectionBetweenPaths(fromPath, toPath) {
+  const fromIndex = navIndexForPath(fromPath);
+  const toIndex = navIndexForPath(toPath);
+  if (!Number.isFinite(fromIndex) || !Number.isFinite(toIndex)) return "down";
+  if (toIndex < fromIndex) return "up";
+  if (toIndex > fromIndex) return "down";
+
+  const fromDepth = pathDepth(fromPath);
+  const toDepth = pathDepth(toPath);
+  return toPath === fromPath ? "same" : toDepth < fromDepth ? "up" : "down";
+}
+
+function setPageDirectionBetweenPaths(fromPath, toPath) {
+  document.documentElement.dataset.pageDirection = pageDirectionBetweenPaths(fromPath, toPath);
+}
+
+function setPageDirection(targetIndex, targetPath = normalizePath(window.location.href)) {
   const currentIndex = currentNavIndex();
+  const currentPath = normalizePath(window.location.href);
   if (!Number.isFinite(targetIndex) || !Number.isFinite(currentIndex)) {
     document.documentElement.dataset.pageDirection = "down";
     return;
   }
 
+  if (targetIndex < currentIndex) {
+    document.documentElement.dataset.pageDirection = "up";
+    return;
+  }
+
+  if (targetIndex > currentIndex) {
+    document.documentElement.dataset.pageDirection = "down";
+    return;
+  }
+
+  const targetDepth = pathDepth(targetPath);
+  const currentDepth = pathDepth(currentPath);
   document.documentElement.dataset.pageDirection =
-    targetIndex < currentIndex ? "up" : targetIndex > currentIndex ? "down" : "same";
+    targetPath === currentPath ? "same" : targetDepth < currentDepth ? "up" : "down";
+}
+
+const navSelectionTimers = new WeakMap();
+
+function restartNavSelectionAnimation(link, className, duration = 320) {
+  const timers = navSelectionTimers.get(link) || {};
+  window.clearTimeout(timers[className]);
+  link.classList.remove(className);
+  link.getBoundingClientRect();
+  link.classList.add(className);
+  timers[className] = window.setTimeout(() => {
+    link.classList.remove(className);
+    delete timers[className];
+  }, duration);
+  navSelectionTimers.set(link, timers);
+}
+
+function setSidebarActivePath(path, { animate = true } = {}) {
+  const target = navLinkForPath(path);
+  if (!target) return false;
+
+  const activeLinks = Array.from(document.querySelectorAll("[data-nav-index].is-active, [data-nav-index][aria-current='page']"));
+  const alreadyActive =
+    activeLinks.length === 1 && activeLinks[0] === target && target.classList.contains("is-active");
+
+  activeLinks.forEach((link) => {
+    if (link === target) return;
+    link.removeAttribute("aria-current");
+    link.classList.remove("is-active", "is-selection-entering");
+    if (animate) {
+      restartNavSelectionAnimation(link, "is-selection-leaving", 260);
+    } else {
+      link.classList.remove("is-selection-leaving");
+    }
+  });
+
+  target.setAttribute("aria-current", "page");
+  target.classList.remove("is-selection-leaving");
+  target.classList.add("is-active");
+  if (animate && !alreadyActive) {
+    restartNavSelectionAnimation(target, "is-selection-entering", 500);
+  }
+  return true;
+}
+
+function sidebarNavLinkAtPoint(x, y) {
+  return Array.from(document.querySelectorAll("[data-nav-index]")).find((link) => {
+    const rect = link.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return false;
+    const style = getComputedStyle(link);
+    if (style.display === "none" || style.visibility === "hidden" || style.pointerEvents === "none") return false;
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+  });
+}
+
+let interceptedSidebarNavigationClick = null;
+
+function shouldConsumeInterceptedClick(event) {
+  if (!interceptedSidebarNavigationClick) return false;
+  const elapsed = performance.now() - interceptedSidebarNavigationClick.time;
+  const closeToPointer =
+    Math.abs(event.clientX - interceptedSidebarNavigationClick.x) <= 3 &&
+    Math.abs(event.clientY - interceptedSidebarNavigationClick.y) <= 3;
+  if (elapsed > 700 || !closeToPointer) {
+    interceptedSidebarNavigationClick = null;
+    return false;
+  }
+  interceptedSidebarNavigationClick = null;
+  event.preventDefault();
+  event.stopImmediatePropagation?.();
+  return true;
+}
+
+function handleTransitionSidebarPointer(event) {
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    !document.documentElement.hasAttribute("data-astro-transition")
+  ) {
+    return;
+  }
+
+  const link = sidebarNavLinkAtPoint(event.clientX, event.clientY);
+  if (!link) return;
+
+  const path = normalizePath(link.href);
+  if (!path) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  interceptedSidebarNavigationClick = {
+    x: event.clientX,
+    y: event.clientY,
+    time: performance.now()
+  };
+
+  const targetIndex = Number(link.dataset.navIndex);
+  setPageDirection(targetIndex, path);
+  setSidebarActivePath(path, { animate: true });
+  if (document.documentElement.classList.contains("sidebar-overlay-open")) {
+    document.documentElement.dataset.keepSidebarOverlay = "true";
+  }
+  navigateWithTransition(link.href, link, { updateActive: false, updateDirection: false });
+}
+
+function handleTransitionPreparation(event) {
+  const path = normalizePath(event.to?.href);
+  const fromPath =
+    lastSettledPath && lastSettledPath !== path
+      ? lastSettledPath
+      : activeNavPath() || normalizePath(event.from?.href);
+  if (fromPath && path) setPageDirectionBetweenPaths(fromPath, path);
+  if (path) setSidebarActivePath(path, { animate: true });
 }
 
 function handleNavigationIntent(event) {
+  if (shouldConsumeInterceptedClick(event)) return;
+
   const link = event.target.closest?.("a[href]");
   if (!link) return;
   if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -401,7 +892,35 @@ function handleNavigationIntent(event) {
   const path = normalizePath(link.href);
   if (!path) return;
   const targetIndex = link.dataset.navIndex ? Number(link.dataset.navIndex) : navIndexForPath(path);
-  setPageDirection(targetIndex);
+  setPageDirection(targetIndex, path);
+  if (Number.isFinite(targetIndex)) setSidebarActivePath(path, { animate: true });
+  if (document.documentElement.classList.contains("sidebar-overlay-open")) {
+    document.documentElement.dataset.keepSidebarOverlay = "true";
+  }
+
+  if (link.hasAttribute("data-nav-index")) {
+    event.preventDefault();
+    navigateWithTransition(link.href, link, { updateActive: false, updateDirection: false });
+  }
+}
+
+function navigateWithTransition(href, sourceElement, options = {}) {
+  const path = normalizePath(href);
+  const updateActive = options.updateActive !== false;
+  const updateDirection = options.updateDirection !== false;
+
+  if (path) {
+    const targetIndex = navIndexForPath(path);
+    if (updateDirection) setPageDirection(targetIndex, path);
+    if (updateActive && Number.isFinite(targetIndex)) setSidebarActivePath(path, { animate: true });
+  }
+
+  if (typeof window.__hlNavigate === "function") {
+    window.__hlNavigate(href, { sourceElement });
+    return;
+  }
+
+  window.location.assign(href);
 }
 
 function initPreviewFeeds() {
@@ -447,6 +966,7 @@ function initPreviewFeeds() {
             event.preventDefault();
             select(index);
             start();
+            if (event.detail > 0 && document.activeElement instanceof HTMLElement) document.activeElement.blur();
             return;
           }
 
@@ -456,7 +976,7 @@ function initPreviewFeeds() {
             window.open(href, "_blank", "noopener");
             return;
           }
-          window.location.assign(href);
+          navigateWithTransition(href, item);
         },
         { signal: getSignal(item, "preview") }
       );
@@ -481,15 +1001,22 @@ function getSignal(element, key) {
 
 function init() {
   initAccentControls();
+  initBackgroundParallax();
   initSidebar();
+  initNavGroups();
   initDebugMenu();
   initPreviewFeeds();
+  delete document.documentElement.dataset.keepSidebarOverlay;
 }
 
 if (!window.__hlShellEventsBound) {
   window.__hlShellEventsBound = true;
+  updateSettledPath();
+  document.addEventListener("pointerdown", handleTransitionSidebarPointer, { capture: true });
   document.addEventListener("click", handleNavigationIntent, { capture: true });
+  document.addEventListener("astro:before-preparation", handleTransitionPreparation);
   document.addEventListener("astro:before-swap", preserveShellState);
+  document.addEventListener("astro:after-swap", updateSettledPath);
   document.addEventListener("astro:page-load", init);
 }
 

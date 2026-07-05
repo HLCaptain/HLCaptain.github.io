@@ -89,6 +89,38 @@ test.describe("site shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("background grid parallax uses a composited transform layer", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const grid = page.locator(".background-grid");
+    await expect(grid).toHaveCount(1);
+
+    const layerState = await grid.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        position: style.position,
+        pointerEvents: style.pointerEvents,
+        willChange: style.willChange,
+        backgroundImage: style.backgroundImage
+      };
+    });
+    expect(layerState.position).toBe("fixed");
+    expect(layerState.pointerEvents).toBe("none");
+    expect(layerState.willChange).toContain("transform");
+    expect(layerState.backgroundImage).toContain("linear-gradient");
+
+    const before = await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue("--grid-parallax-y").trim()
+    );
+    await page.evaluate(() => window.scrollTo(0, 420));
+    await expect
+      .poll(async () =>
+        page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--grid-parallax-y").trim())
+      )
+      .not.toBe(before);
+  });
+
   test("navigation reaches articles and marks the active route", async ({ page, isMobile }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
@@ -127,6 +159,54 @@ test.describe("site shell", () => {
       "page"
     );
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("article card navigation enters with a vertical page direction", async ({ page }) => {
+    await page.goto("/articles/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    await page.getByRole("link", { name: /^Read / }).first().click();
+
+    await expect(page).toHaveURL(/\/articles\/[^/]+\/$/);
+    await expect(root).toHaveAttribute("data-page-direction", "down");
+    const pageEnterY = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--page-enter-y").trim());
+    expect(pageEnterY).not.toBe("0px");
+  });
+
+  test("all articles navigation keeps transition geometry stable from scrolled overview", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const allArticles = page.getByRole("link", { name: "All articles" });
+    await allArticles.scrollIntoViewIfNeeded();
+    const overviewScrollY = await page.evaluate(() => window.scrollY);
+    expect(overviewScrollY).toBeGreaterThan(100);
+
+    await allArticles.click();
+    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect.poll(async () => page.evaluate(() => window.scrollY)).toBe(0);
+
+    const pageContentGroupStyle = await page.evaluate(() =>
+      Array.from(document.styleSheets)
+        .flatMap((sheet) => {
+          try {
+            return Array.from(sheet.cssRules);
+          } catch {
+            return [];
+          }
+        })
+        .filter((rule): rule is CSSStyleRule => "selectorText" in rule && "style" in rule)
+        .find((rule) => rule.selectorText === "::view-transition-group(page-content)")
+        ?.style.animationName
+    );
+    expect(pageContentGroupStyle).toBe("none");
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    await expect
+      .poll(async () => page.evaluate(() => window.scrollY))
+      .toBeGreaterThanOrEqual(overviewScrollY - 120);
   });
 
   test("mobile sidebar overlay stays open during navigation", async ({ page, isMobile }) => {
@@ -169,6 +249,83 @@ test.describe("site shell", () => {
     await expect(root).toHaveAttribute("data-page-direction", "down");
   });
 
+  test("browser history navigation follows sidebar route order", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only browser history direction check");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+
+    await nav.getByRole("link", { name: "Articles", exact: true }).click();
+    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(root).toHaveAttribute("data-page-direction", "down");
+
+    await nav.getByRole("link", { name: "About", exact: true }).click();
+    await expect(page).toHaveURL(/\/about\/$/);
+    await expect(root).toHaveAttribute("data-page-direction", "up");
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(root).toHaveAttribute("data-page-direction", "down");
+
+    await page.goForward();
+    await expect(page).toHaveURL(/\/about\/$/);
+    await expect(root).toHaveAttribute("data-page-direction", "up");
+  });
+
+  test("sidebar navigation can interrupt an active page transition", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only transition interruption check");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+
+    await nav.getByRole("link", { name: "Articles", exact: true }).click({ noWaitAfter: true });
+    await nav.getByRole("link", { name: "Projects", exact: true }).click({ noWaitAfter: true });
+    await expect(page).toHaveURL(/\/work\/$/);
+    await expect(page.getByRole("heading", { name: "Selected work", level: 1 })).toBeVisible();
+  });
+
+  test("sidebar selection responds during the visible page transition", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only transition hit-test check");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const articles = nav.getByRole("link", { name: "Articles", exact: true });
+    const projects = nav.getByRole("link", { name: "Projects", exact: true });
+
+    await articles.click({ noWaitAfter: true });
+    await expect(articles).toHaveClass(/is-selection-entering/);
+    const selectionEffect = await articles.evaluate((node) => {
+      const layer = getComputedStyle(node, "::after");
+      return {
+        animationName: layer.animationName,
+        pointerEvents: layer.pointerEvents,
+        willChange: layer.willChange
+      };
+    });
+    expect(selectionEffect.animationName).toContain("nav-selection-sweep");
+    expect(selectionEffect.pointerEvents).toBe("none");
+    expect(selectionEffect.willChange).toContain("transform");
+    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(root).toHaveAttribute("data-astro-transition", /forward|back/);
+
+    const box = await projects.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.click((box?.x ?? 0) + (box?.width ?? 0) / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2);
+
+    await expect(projects).toHaveAttribute("aria-current", "page");
+    await expect(projects).toHaveClass(/is-active/);
+    await expect(page).toHaveURL(/\/work\/$/);
+    await expect(page.getByRole("heading", { name: "Selected work", level: 1 })).toBeVisible();
+  });
+
   test("rss endpoint returns XML", async ({ request }) => {
     const response = await request.get("/rss.xml");
     expect(response.ok()).toBe(true);
@@ -191,26 +348,62 @@ test.describe("site shell", () => {
     const toggleBox = await page.getByRole("button", { name: "Collapse sidebar" }).boundingBox();
     const brandBox = await page.getByRole("link", { name: "HLCaptain home" }).boundingBox();
     expect(toggleBox?.x ?? 9999).toBeLessThan(brandBox?.x ?? 0);
+    await expect(page.locator(".sidebar-toggle .menu-icon svg")).toHaveCount(1);
+    await expect(page.locator(".sidebar-toggle .arrow-icon")).toHaveCount(0);
 
-    const expandedGroupToggle = await page.locator(".nav-group").nth(1).locator(".group-toggle-icon").boundingBox();
-    const expandedGroupGlyph = await page.locator(".nav-group").nth(1).locator(".pixel-glyph").first().boundingBox();
-    const expandedItemGlyph = await nav.getByRole("link", { name: "Articles", exact: true }).locator(".pixel-glyph").boundingBox();
-    expect(expandedGroupToggle?.width ?? 99).toBeLessThan(expandedItemGlyph?.width ?? 0);
-    expect(expandedGroupGlyph?.width ?? 99).toBeLessThan(expandedItemGlyph?.width ?? 0);
-    const expandedGroupColors = await page.locator(".nav-group").nth(1).evaluate((group) => {
-      const groupGlyph = group.querySelector(".pixel-glyph");
-      const itemGlyph = document.querySelector(".nav-item .pixel-glyph");
+    const aboutLink = nav.getByRole("link", { name: "About", exact: true });
+    const expandedAboutBox = await aboutLink.boundingBox();
+    await aboutLink.hover();
+    await expect
+      .poll(async () => {
+        const shadow = await aboutLink.evaluate((node) => getComputedStyle(node).boxShadow);
+        return shadow !== "none" && !/rgba\(0, 0, 0, 0\)|\/ 0/.test(shadow);
+      })
+      .toBe(true);
+    await page.mouse.move(1000, 520);
+
+    const expandedMetrics = await page.locator(".nav-group").nth(1).evaluate((group) => {
+      const groupRow = group.querySelector(".sidebar-row--group")!;
+      const groupIcon = group.querySelector(".sidebar-row__icon")!;
+      const groupGlyph = group.querySelector(".pixel-glyph")!;
+      const groupToggle = group.querySelector(".group-toggle-icon")!;
+      const itemRow = document.querySelector(".nav-item")!;
+      const itemIcon = itemRow.querySelector(".sidebar-row__icon")!;
+      const itemGlyph = itemRow.querySelector(".pixel-glyph")!;
+      const groupStyle = getComputedStyle(groupRow);
+      const itemStyle = getComputedStyle(itemRow);
       return {
-        group: groupGlyph ? getComputedStyle(groupGlyph).color : "",
-        item: itemGlyph ? getComputedStyle(itemGlyph).color : "",
+        groupIconWidth: Math.round(groupIcon.getBoundingClientRect().width),
+        itemIconWidth: Math.round(itemIcon.getBoundingClientRect().width),
+        groupGlyphWidth: Math.round(groupGlyph.getBoundingClientRect().width),
+        itemGlyphWidth: Math.round(itemGlyph.getBoundingClientRect().width),
+        groupToggleWidth: Math.round(groupToggle.getBoundingClientRect().width),
+        groupColor: groupStyle.color,
+        itemColor: itemStyle.color,
+        groupPaddingLeft: groupStyle.paddingLeft,
+        itemPaddingLeft: itemStyle.paddingLeft,
         selectedArrowInsideGroup: Boolean(group.querySelector(".arrow-icon__svg"))
       };
     });
-    expect(expandedGroupColors.group).not.toBe(expandedGroupColors.item);
-    expect(expandedGroupColors.selectedArrowInsideGroup).toBe(false);
+    expect(expandedMetrics.groupIconWidth).toBe(expandedMetrics.itemIconWidth);
+    expect(expandedMetrics.groupGlyphWidth).toBe(expandedMetrics.itemGlyphWidth);
+    expect(expandedMetrics.groupToggleWidth).toBe(expandedMetrics.itemGlyphWidth);
+    expect(expandedMetrics.groupColor).toBe(expandedMetrics.itemColor);
+    expect(expandedMetrics.groupPaddingLeft).toBe(expandedMetrics.itemPaddingLeft);
+    expect(expandedMetrics.selectedArrowInsideGroup).toBe(false);
+    const expandedActive = await nav.getByRole("link", { name: "Articles", exact: true }).evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        border: style.borderColor,
+        boxShadow: style.boxShadow,
+        background: style.backgroundColor
+      };
+    });
+    expect(expandedActive.boxShadow).not.toBe("none");
 
     await page.getByRole("button", { name: "Collapse sidebar" }).click();
     await expect(root).toHaveClass(/sidebar-collapsed/);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
     const expandButton = page.getByRole("button", { name: "Expand sidebar" });
     await expect(expandButton).toBeVisible();
     const collapsedToggleMetrics = await page.evaluate(() => {
@@ -226,6 +419,20 @@ test.describe("site shell", () => {
       };
     });
     expect(Math.abs(collapsedToggleMetrics.buttonCenter - collapsedToggleMetrics.sidebarCenter)).toBeLessThanOrEqual(1);
+
+    const overlayInteriorPoint = await panel.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const rootStyle = getComputedStyle(document.documentElement);
+      const expandedPanelWidth =
+        Number.parseFloat(rootStyle.getPropertyValue("--sidebar-width")) -
+        Number.parseFloat(rootStyle.getPropertyValue("--sidebar-outer-padding")) * 2;
+      return {
+        x: rect.left + Math.min(220, expandedPanelWidth - 16),
+        y: rect.top + 24
+      };
+    });
+    await page.mouse.move(overlayInteriorPoint.x, overlayInteriorPoint.y);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
 
     await page.mouse.move(1000, 520);
     await expect
@@ -244,6 +451,41 @@ test.describe("site shell", () => {
         page.locator(".site-frame").evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(" ")[0])
       )
       .toBe("84px");
+
+    const collapsedSidebarBox = await sidebar.boundingBox();
+    await page.mouse.move((collapsedSidebarBox?.x ?? 0) + 6, (collapsedSidebarBox?.y ?? 0) + 120);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(240);
+
+    await page.mouse.move(1000, 520);
+    await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+
+    await page.mouse.move((collapsedSidebarBox?.x ?? 0) + 6, (collapsedSidebarBox?.y ?? 0) + 120);
+    await expect.poll(async () => panel.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(260);
+    const openPanelBox = await panel.boundingBox();
+    expect(openPanelBox).not.toBeNull();
+    const edgeY = (openPanelBox?.y ?? 0) + 120;
+    const justOutsideEdgeX = (openPanelBox?.x ?? 0) + (openPanelBox?.width ?? 0) + 8;
+    const justInsideEdgeX = (openPanelBox?.x ?? 0) + (openPanelBox?.width ?? 0) - 14;
+    const closingTrailX = (openPanelBox?.x ?? 0) + 150;
+    await page.mouse.move(justOutsideEdgeX, edgeY);
+    await page.waitForTimeout(30);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await page.mouse.move(justInsideEdgeX, edgeY);
+    await page.waitForTimeout(120);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+
+    await page.mouse.move(justOutsideEdgeX, edgeY);
+    await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
+    await page.mouse.move(closingTrailX, edgeY);
+    await page.waitForTimeout(140);
+    await expect(root).not.toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+    await page.mouse.move((collapsedSidebarBox?.x ?? 0) + 140, (collapsedSidebarBox?.y ?? 0) + 120);
+    await page.waitForTimeout(120);
+    await expect(root).not.toHaveClass(/sidebar-overlay-open/);
+
     const collapsedMainBox = await main.boundingBox();
 
     await sidebar.hover();
@@ -272,6 +514,32 @@ test.describe("site shell", () => {
       .toBe("block");
     const hoverMainBox = await main.boundingBox();
     expect(Math.abs((hoverMainBox?.x ?? 0) - (collapsedMainBox?.x ?? 0))).toBeLessThanOrEqual(2);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+
+    await expect
+      .poll(async () => {
+        const overlayAboutBox = await aboutLink.boundingBox();
+        return Math.abs((overlayAboutBox?.x ?? 0) - (expandedAboutBox?.x ?? 0));
+      })
+      .toBeLessThanOrEqual(1);
+    await expect
+      .poll(async () => {
+        const overlayAboutBox = await aboutLink.boundingBox();
+        return Math.abs((overlayAboutBox?.width ?? 0) - (expandedAboutBox?.width ?? 0));
+      })
+      .toBeLessThanOrEqual(1);
+    await aboutLink.hover();
+    await expect
+      .poll(async () => {
+        const shadow = await aboutLink.evaluate((node) => getComputedStyle(node).boxShadow);
+        return shadow !== "none" && !/rgba\(0, 0, 0, 0\)|\/ 0/.test(shadow);
+      })
+      .toBe(true);
+
+    await aboutLink.focus();
+    await page.mouse.move(1000, 520);
+    await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
 
     await page.mouse.move(1000, 520);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
@@ -284,9 +552,16 @@ test.describe("site shell", () => {
     expect(labelDisplay).toBe("none");
     const collapsedActive = await nav.getByRole("link", { name: "Articles", exact: true }).evaluate((node) => {
       const style = getComputedStyle(node);
-      return { border: style.borderColor, background: style.backgroundColor, paddingLeft: style.paddingLeft, paddingRight: style.paddingRight };
+      return {
+        border: style.borderColor,
+        boxShadow: style.boxShadow,
+        background: style.backgroundColor,
+        paddingLeft: style.paddingLeft,
+        paddingRight: style.paddingRight
+      };
     });
-    expect(collapsedActive.border).not.toBe("rgba(0, 0, 0, 0)");
+    expect(collapsedActive.border).toBe(expandedActive.border);
+    expect(collapsedActive.boxShadow).toBe(expandedActive.boxShadow);
     expect(collapsedActive.background).not.toBe("rgba(0, 0, 0, 0)");
     expect(collapsedActive.paddingLeft).toBe(collapsedActive.paddingRight);
     const collapsedSpacing = await page.evaluate(() => {
@@ -302,6 +577,8 @@ test.describe("site shell", () => {
         panelPadding: number(panel.paddingLeft),
         panelGap: number(panel.rowGap),
         navGap: number(nav.rowGap),
+        navOverflowX: nav.overflowX,
+        navOverflowY: nav.overflowY,
         navPaddingLeft: number(nav.paddingLeft),
         navPaddingRight: number(nav.paddingRight),
         groupPaddingTop: number(group.paddingTop),
@@ -317,6 +594,8 @@ test.describe("site shell", () => {
       panelPadding: 10,
       panelGap: 10,
       navGap: 6,
+      navOverflowX: "visible",
+      navOverflowY: "visible",
       navPaddingLeft: 0,
       navPaddingRight: 0,
       groupPaddingTop: 0,
@@ -352,7 +631,7 @@ test.describe("site shell", () => {
       const groupDeltas = Array.from(document.querySelectorAll(".nav-group__icon"))
         .filter(isVisible)
         .map((icon) => Math.abs(centerOf(icon) - panelCenter));
-      const itemDeltas = Array.from(document.querySelectorAll(".nav-item > .pixel-glyph"))
+      const itemDeltas = Array.from(document.querySelectorAll(".nav-item .sidebar-row__icon"))
         .filter(isVisible)
         .map((icon) => Math.abs(centerOf(icon) - panelCenter));
       const group = document.querySelector(".nav-group");
@@ -418,6 +697,26 @@ test.describe("site shell", () => {
     });
     expect(hoverIconState.arrowVisibility).toBe("visible");
     expect(hoverIconState.glyphVisibility).toBe("hidden");
+    const hoverIconAlignment = await activeSummary.evaluate((summary) => {
+      const icon = summary.querySelector(".nav-group__icon")!;
+      const arrow = summary.querySelector(".group-toggle-icon")!;
+      const iconRect = icon.getBoundingClientRect();
+      const arrowRect = arrow.getBoundingClientRect();
+      const style = getComputedStyle(arrow);
+      const center = (rect: DOMRect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+      const iconCenter = center(iconRect);
+      const arrowCenter = center(arrowRect);
+      return {
+        centerDeltaX: Math.abs(arrowCenter.x - iconCenter.x),
+        centerDeltaY: Math.abs(arrowCenter.y - iconCenter.y),
+        transformBox: style.getPropertyValue("transform-box"),
+        transformOrigin: style.transformOrigin
+      };
+    });
+    expect(hoverIconAlignment.centerDeltaX).toBeLessThanOrEqual(1);
+    expect(hoverIconAlignment.centerDeltaY).toBeLessThanOrEqual(1);
+    expect(hoverIconAlignment.transformBox).toBe("border-box");
+    expect(hoverIconAlignment.transformOrigin).toBe("8px 8px");
 
     const networkGroup = page.locator(".nav-group").last();
     await expect.poll(async () => networkGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
@@ -428,6 +727,124 @@ test.describe("site shell", () => {
     await page.getByRole("button", { name: "Expand sidebar" }).click();
     await expect(root).not.toHaveClass(/sidebar-collapsed/);
     await expect(page.getByRole("button", { name: "Collapse sidebar" })).toBeVisible();
+  });
+
+  test("desktop collapsed overlay stays layered during navigation transition", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only collapsed overlay navigation check");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const sidebar = page.locator("[data-sidebar]");
+    const panel = page.locator(".sidebar-panel");
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+
+    await page.getByRole("button", { name: "Collapse sidebar" }).click();
+    await sidebar.hover();
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+
+    await nav.getByRole("link", { name: "Articles", exact: true }).click();
+    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(root).toHaveClass(/sidebar-collapsed/);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBeGreaterThan(240);
+    const transitionLayers = await page.evaluate(() =>
+      Array.from(document.styleSheets)
+        .flatMap((sheet) => {
+          try {
+            return Array.from(sheet.cssRules).map((rule) => rule.cssText);
+          } catch {
+            return [];
+          }
+        })
+        .filter((rule) => rule.includes("sidebar-shell") || rule.includes("view-transition-group(page-content)"))
+    );
+    expect(transitionLayers.some((rule) => rule.includes("view-transition-group(sidebar-shell)") && rule.includes("z-index: 8"))).toBe(true);
+    expect(transitionLayers.some((rule) => rule.includes("view-transition-group(page-content)") && rule.includes("z-index: 1"))).toBe(true);
+
+    await page.mouse.move(1000, 520);
+    await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+  });
+
+  test("sidebar group item lists animate open and closed", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    if ((page.viewportSize()?.width ?? 0) <= 720) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+    }
+
+    const archiveGroup = page.locator(".nav-group").nth(1);
+    const archiveItems = archiveGroup.locator(".nav-items");
+    const initialHeight = await archiveItems.evaluate((node) => node.getBoundingClientRect().height);
+    expect(initialHeight).toBeGreaterThan(40);
+
+    await archiveGroup.locator("summary").click();
+    await expect.poll(async () => archiveGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
+    await expect
+      .poll(async () => archiveItems.evaluate((node) => node.getBoundingClientRect().height))
+      .toBeLessThan(initialHeight);
+    await expect.poll(async () => archiveGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
+    const closedState = await archiveItems.evaluate((node) => ({
+      display: getComputedStyle(node).display,
+      visibility: getComputedStyle(node).visibility,
+      height: node.getBoundingClientRect().height
+    }));
+    expect(closedState.display).toBe("grid");
+    expect(closedState.visibility).toBe("hidden");
+    expect(closedState.height).toBe(0);
+
+    const expandSamples = archiveGroup.evaluate(
+      (node) =>
+        new Promise<Array<{ height: number; expanding: boolean }>>((resolve) => {
+          const items = node.querySelector(".nav-items")!;
+          const samples: Array<{ height: number; expanding: boolean }> = [];
+          const start = performance.now();
+
+          const sample = () => {
+            samples.push({
+              height: items.getBoundingClientRect().height,
+              expanding: node.classList.contains("is-expanding")
+            });
+
+            if (performance.now() - start < 520) {
+              requestAnimationFrame(sample);
+            } else {
+              resolve(samples);
+            }
+          };
+
+          requestAnimationFrame(sample);
+        })
+    );
+
+    await archiveGroup.locator("summary").click();
+    await expect.poll(async () => archiveGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
+    await expect.poll(async () => archiveGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    await expect
+      .poll(async () => archiveItems.evaluate((node) => node.getBoundingClientRect().height))
+      .toBeGreaterThan(40);
+    const samples = await expandSamples;
+    const cleanupIndex = samples.findIndex((sample, index) => index > 0 && samples[index - 1].expanding && !sample.expanding);
+    expect(cleanupIndex).toBeGreaterThan(0);
+    expect(Math.abs(samples[cleanupIndex].height - samples[cleanupIndex - 1].height)).toBeLessThanOrEqual(4);
+    await expect
+      .poll(async () =>
+        archiveGroup.evaluate((node) => ({
+          open: (node as HTMLDetailsElement).open,
+          animating: node.classList.contains("is-expanding") || node.classList.contains("is-collapsing"),
+          display: getComputedStyle(node.querySelector(".nav-items")!).display,
+          height: Math.round(node.querySelector(".nav-items")!.getBoundingClientRect().height)
+        }))
+      )
+      .toEqual({
+        open: true,
+        animating: false,
+        display: "grid",
+        height: Math.round(initialHeight)
+      });
   });
 
   test("theme and accent controls recolor surfaces", async ({ page }) => {
@@ -534,19 +951,18 @@ test.describe("site shell", () => {
 
     const root = page.locator("html");
     const debugToggle = page.getByRole("button", { name: "Open debug menu" });
+    const firstArrow = page.locator(".entry-card__arrow").first();
     await debugToggle.click();
     await expect(page.locator("[data-debug-panel]")).toBeVisible();
     await expect(page.locator("button[data-arrow-style]")).toHaveCount(11);
-    await expect(page.locator(".sidebar-toggle .arrow-icon__svg[data-icon-style]")).toHaveCount(11);
+    await expect(firstArrow.locator(".arrow-icon__svg[data-icon-style]")).toHaveCount(11);
 
     await page.getByRole("button", { name: "Phosphor" }).click();
     await expect(root).toHaveAttribute("data-arrow-style", "phosphor");
     await expect(page.getByRole("button", { name: "Phosphor" })).toHaveAttribute("aria-pressed", "true");
-    const iconWidth = await page
-      .locator(".sidebar-toggle .arrow-icon")
-      .evaluate((node) => getComputedStyle(node).width);
+    const iconWidth = await firstArrow.evaluate((node) => getComputedStyle(node).width);
     expect(Number.parseFloat(iconWidth)).toBeGreaterThanOrEqual(24);
-    await expect(page.locator('.sidebar-toggle .arrow-icon__svg[data-icon-style="phosphor"]')).toBeVisible();
+    await expect(firstArrow.locator('.arrow-icon__svg[data-icon-style="phosphor"]')).toBeVisible();
 
     await page.getByRole("link", { name: "Read articles" }).click();
     await expect(page).toHaveURL(/\/articles\/$/);
@@ -615,9 +1031,36 @@ test.describe("site shell", () => {
     await secondItem.click();
     await expect(secondItem).toHaveClass(/is-active/);
     await expect(page).toHaveURL(/\/$/);
+    await page.mouse.move(20, 20);
+    await expect
+      .poll(async () => secondItem.evaluate((node) => getComputedStyle(node).boxShadow))
+      .toBe("none");
+    await expect
+      .poll(async () =>
+        secondItem.locator(".preview-feed__arrow").evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))
+      )
+      .toBeLessThan(0.2);
 
+    await page.evaluate(() => {
+      const state = window as typeof window & { __hlSignalTransitionEvents?: number };
+      state.__hlSignalTransitionEvents = 0;
+      document.addEventListener(
+        "astro:before-swap",
+        () => {
+          state.__hlSignalTransitionEvents = (state.__hlSignalTransitionEvents ?? 0) + 1;
+        },
+        { once: true }
+      );
+    });
     await secondItem.click();
     await expect(page).toHaveURL(/\/articles\/interface-motion\/$/);
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          () => (window as typeof window & { __hlSignalTransitionEvents?: number }).__hlSignalTransitionEvents ?? 0
+        )
+      )
+      .toBeGreaterThan(0);
   });
 
   test("preview feed thumbnail hover arrow uses elevated card affordance", async ({ page }) => {
@@ -646,6 +1089,9 @@ test.describe("site shell", () => {
         transform: style.transform,
         arrowOpacity: Number.parseFloat(arrowStyle.opacity),
         arrowTransform: arrowStyle.transform,
+        arrowWidth: Number.parseFloat(arrowStyle.width),
+        arrowHeight: Number.parseFloat(arrowStyle.height),
+        arrowIconWidth: Number.parseFloat(getComputedStyle(node.querySelector(".preview-feed__arrow .arrow-icon")!).width),
         arrowBackground: arrowStyle.backgroundColor,
         arrowColor: arrowStyle.color
       };
@@ -654,8 +1100,19 @@ test.describe("site shell", () => {
     expect(hoverState.transform).not.toBe("none");
     expect(hoverState.arrowOpacity).toBeGreaterThan(0.7);
     expect(hoverState.arrowTransform).not.toBe("none");
+    expect(hoverState.arrowWidth).toBeGreaterThanOrEqual(42);
+    expect(hoverState.arrowHeight).toBeGreaterThanOrEqual(42);
+    expect(hoverState.arrowIconWidth).toBeGreaterThanOrEqual(20);
     expect(contrast(parseColor(hoverState.arrowBackground), parseColor(hoverState.arrowColor))).toBeGreaterThan(3);
     await expect(arrow).toBeVisible();
+
+    await page.mouse.move(20, 20);
+    await expect.poll(async () => firstItem.evaluate((node) => getComputedStyle(node).boxShadow)).toBe("none");
+    await expect
+      .poll(async () =>
+        firstItem.locator(".preview-feed__arrow").evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))
+      )
+      .toBeLessThan(0.2);
   });
 
   test("preview feed uses a vertical compact layout without text overflow", async ({ page }) => {
@@ -663,11 +1120,13 @@ test.describe("site shell", () => {
     await page.waitForLoadState("networkidle");
 
     const feed = page.locator("[data-preview-feed]");
+    const activeItem = feed.locator("[data-preview-item].is-active");
     const trigger = feed.locator("[data-preview-trigger]").first();
     const title = trigger.locator("strong");
     const kind = trigger.locator(".preview-feed__kind");
     const meta = trigger.locator("span").last();
     const detail = feed.locator("[data-preview-item].is-active .preview-feed__detail");
+    const media = detail.locator(".preview-feed__media");
     const description = detail.locator("p").first();
 
     await expect(title).toBeVisible();
@@ -690,16 +1149,70 @@ test.describe("site shell", () => {
 
     const detailColumns = await detail.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
     expect(detailColumns.trim().split(/\s+/)).toHaveLength(1);
+    const detailSpacing = await detail.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        columnGap: style.columnGap,
+        rowGap: style.rowGap,
+        paddingLeft: style.paddingLeft,
+        paddingRight: style.paddingRight
+      };
+    });
+    expect(detailSpacing.columnGap).toBe("0px");
+    expect(detailSpacing.rowGap).toBe("0px");
+    expect(detailSpacing.paddingLeft).toBe("0px");
+    expect(detailSpacing.paddingRight).toBe("0px");
 
-    const descriptionBox = await description.evaluate((node) => ({
-      scrollWidth: node.scrollWidth,
-      clientWidth: node.clientWidth,
-      lineClamp: getComputedStyle(node).getPropertyValue("-webkit-line-clamp"),
-      backdropFilter:
-        getComputedStyle(node).backdropFilter || getComputedStyle(node).getPropertyValue("-webkit-backdrop-filter")
-    }));
+    const [detailBox, mediaBox, descriptionOuterBox] = await Promise.all([
+      detail.boundingBox(),
+      media.boundingBox(),
+      description.boundingBox()
+    ]);
+    expect(Math.abs((mediaBox?.x ?? 0) - (detailBox?.x ?? 0))).toBeLessThanOrEqual(1);
+    expect(Math.abs((mediaBox?.width ?? 0) - (detailBox?.width ?? 0))).toBeLessThanOrEqual(1);
+    expect(Math.abs((mediaBox?.width ?? 0) / (mediaBox?.height ?? 1) - 16 / 9)).toBeLessThan(0.03);
+    expect(Math.abs((descriptionOuterBox?.y ?? 0) - ((mediaBox?.y ?? 0) + (mediaBox?.height ?? 0)))).toBeLessThanOrEqual(1);
+
+    const descriptionBox = await description.evaluate((node) => {
+      const text = node.querySelector("span")!;
+      const style = getComputedStyle(node);
+      return {
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
+        lineClamp: getComputedStyle(text).getPropertyValue("-webkit-line-clamp"),
+        paddingTop: style.paddingTop,
+        paddingBottom: style.paddingBottom,
+        backdropFilter:
+          style.backdropFilter || style.getPropertyValue("-webkit-backdrop-filter"),
+        borderStyle: style.borderStyle
+      };
+    });
+    const itemBlur = await activeItem.evaluate((node) => {
+      const style = getComputedStyle(node, "::after");
+      return {
+        content: style.content,
+        position: style.position,
+        insetBlockEnd: style.insetBlockEnd || style.bottom,
+        height: Number.parseFloat(style.height),
+        opacity: Number.parseFloat(style.opacity),
+        pointerEvents: style.pointerEvents,
+        backdropFilter: style.backdropFilter || style.getPropertyValue("-webkit-backdrop-filter"),
+        maskImage: style.maskImage || style.getPropertyValue("-webkit-mask-image")
+      };
+    });
     expect(descriptionBox.scrollWidth).toBeLessThanOrEqual(descriptionBox.clientWidth + 1);
     expect(descriptionBox.lineClamp).toBe("4");
-    expect(descriptionBox.backdropFilter).toContain("blur");
+    expect(descriptionBox.paddingTop).toBe("5px");
+    expect(descriptionBox.paddingBottom).toBe("0px");
+    expect(descriptionBox.backdropFilter === "none" || descriptionBox.backdropFilter === "").toBe(true);
+    expect(descriptionBox.borderStyle).toBe("none");
+    expect(itemBlur.content).not.toBe("none");
+    expect(itemBlur.position).toBe("absolute");
+    expect(itemBlur.insetBlockEnd).toBe("0px");
+    expect(itemBlur.height).toBeGreaterThanOrEqual(54);
+    expect(itemBlur.opacity).toBeGreaterThan(0.9);
+    expect(itemBlur.pointerEvents).toBe("none");
+    expect(itemBlur.backdropFilter).toContain("blur");
+    expect(itemBlur.maskImage).toContain("linear-gradient");
   });
 });

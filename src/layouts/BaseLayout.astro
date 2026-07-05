@@ -144,6 +144,7 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
     <ClientRouter />
   </head>
   <body>
+    <div class="background-grid" aria-hidden="true"></div>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <div class="site-frame">
       <Sidebar currentPath={Astro.url.pathname} transition:persist />
@@ -175,6 +176,11 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         <button type="button" data-arrow-style="pixelart">Pixelart</button>
       </fieldset>
     </section>
+    <script>
+      import { navigate } from "astro:transitions/client";
+
+      (globalThis as typeof globalThis & { __hlNavigate?: typeof navigate }).__hlNavigate = navigate;
+    </script>
     <script is:inline src="/scripts/site-shell.js" defer data-astro-rerun></script>
   </body>
 </html>

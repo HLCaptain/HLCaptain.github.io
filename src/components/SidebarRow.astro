@@ -1,0 +1,45 @@
+---
+import { Icon } from "astro-icon/components";
+import ExternalLinkIcon from "./ExternalLinkIcon.astro";
+import PixelGlyph from "./PixelGlyph.astro";
+
+type Props = {
+  type: "group" | "link";
+  label: string;
+  glyph: string;
+  href?: string;
+  active?: boolean;
+  external?: boolean;
+  navIndex?: number;
+};
+
+const { type, label, glyph, href = "#", active = false, external = false, navIndex } = Astro.props;
+const iconClass = ["sidebar-row__icon", type === "group" ? "nav-group__icon" : "nav-item__icon"].join(" ");
+const labelClass = ["sidebar-row__label", type === "group" ? "nav-group__label" : "nav-item__label"].join(" ");
+---
+
+{type === "group" ? (
+  <summary class="sidebar-row sidebar-row--group">
+    <span class={iconClass}>
+      <Icon name="lucide:chevron-right" class="group-toggle-icon" aria-hidden="true" />
+      <PixelGlyph name={glyph} />
+    </span>
+    <span class={labelClass}>{label}</span>
+  </summary>
+) : (
+  <a
+    href={href}
+    class:list={["sidebar-row", "sidebar-row--item", "nav-item", active && "is-active"]}
+    aria-label={label}
+    aria-current={active ? "page" : undefined}
+    target={external ? "_blank" : undefined}
+    rel={external ? "noreferrer" : undefined}
+    data-nav-index={external ? undefined : navIndex}
+  >
+    <span class={iconClass}>
+      <PixelGlyph name={glyph} />
+    </span>
+    <span class={labelClass}>{label}</span>
+    {external && <ExternalLinkIcon />}
+  </a>
+)}

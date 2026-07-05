@@ -1,10 +1,8 @@
 ---
 import { siteConfig, type NavItem } from "../site.config";
 import { stripTrailingSlash } from "@lib/content";
-import ArrowIcon from "./ArrowIcon.astro";
-import ExternalLinkIcon from "./ExternalLinkIcon.astro";
-import PixelGlyph from "./PixelGlyph.astro";
 import { Icon } from "astro-icon/components";
+import SidebarRow from "./SidebarRow.astro";
 
 type Props = {
   currentPath: string;
@@ -33,9 +31,9 @@ const navigation = siteConfig.navigation.map((group) => ({
 ---
 
 <button class="mobile-menu-button" type="button" data-sidebar-open aria-controls="site-sidebar" aria-expanded="false">
-  <span></span>
-  <span></span>
-  <span></span>
+  <span class="menu-icon" aria-hidden="true">
+    <Icon name="lucide:menu" />
+  </span>
   <span class="sr-only">Open navigation</span>
 </button>
 
@@ -45,7 +43,9 @@ const navigation = siteConfig.navigation.map((group) => ({
   <div class="sidebar-panel">
     <header class="sidebar-brand">
       <button class="sidebar-toggle" type="button" data-sidebar-collapse aria-label="Collapse sidebar" aria-pressed="false">
-        <ArrowIcon class="arrow-icon--toggle" role="sidebar-toggle" />
+        <span class="menu-icon" aria-hidden="true">
+          <Icon name="lucide:menu" />
+        </span>
       </button>
       <a href="/" class="brand-mark" aria-label={`${siteConfig.name} home`}>
         <span class="brand-symbol" aria-hidden="true">
@@ -61,28 +61,18 @@ const navigation = siteConfig.navigation.map((group) => ({
     <nav class="sidebar-nav" aria-label="Primary navigation">
       {navigation.map((group) => (
         <details class="nav-group" open={group.open} data-nav-group>
-          <summary>
-            <span class="nav-group__icon">
-              <Icon name="lucide:chevron-right" class="group-toggle-icon" aria-hidden="true" />
-              <PixelGlyph name={group.glyph} />
-            </span>
-            <span class="nav-group__label">{group.label}</span>
-          </summary>
+          <SidebarRow type="group" label={group.label} glyph={group.glyph} />
           <div class="nav-items">
             {group.items.map((item) => (
-              <a
+              <SidebarRow
+                type="link"
+                label={item.label}
+                glyph={item.glyph}
                 href={item.href}
-                class:list={["nav-item", isActive(item) && "is-active"]}
-                aria-label={item.label}
-                aria-current={isActive(item) ? "page" : undefined}
-                target={isExternal(item) ? "_blank" : undefined}
-                rel={isExternal(item) ? "noreferrer" : undefined}
-                data-nav-index={isExternal(item) ? undefined : item.navIndex}
-              >
-                <PixelGlyph name={item.glyph} />
-                <span class="nav-item__label">{item.label}</span>
-                {isExternal(item) && <ExternalLinkIcon />}
-              </a>
+                active={isActive(item)}
+                external={isExternal(item)}
+                navIndex={item.navIndex}
+              />
             ))}
           </div>
         </details>
