@@ -183,7 +183,23 @@ test.describe("site shell", () => {
     const overviewScrollY = await page.evaluate(() => window.scrollY);
     expect(overviewScrollY).toBeGreaterThan(100);
 
-    await allArticles.click();
+    await allArticles.click({ noWaitAfter: true });
+    await expect(page.locator("html")).toHaveAttribute("data-astro-transition", /forward|back/);
+    await expect
+      .poll(async () =>
+        page.locator("html").evaluate((node) => node.style.getPropertyValue("--page-old-scroll-offset-y").trim())
+      )
+      .toBe(`${-Math.round(overviewScrollY)}px`);
+    await expect
+      .poll(async () =>
+        page.locator("html").evaluate((node, expectedScrollY) => {
+          const transform = getComputedStyle(node, "::view-transition-old(page-content)").transform;
+          if (transform === "none") return false;
+          const matrix = new DOMMatrixReadOnly(transform);
+          return Math.abs(matrix.m42 + expectedScrollY) <= 80;
+        }, Math.round(overviewScrollY))
+      )
+      .toBe(true);
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect.poll(async () => page.evaluate(() => window.scrollY)).toBe(0);
 
@@ -229,6 +245,9 @@ test.describe("site shell", () => {
   test("sidebar navigation direction follows item order and accepts rapid clicks", async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only rapid sidebar navigation check");
 
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
@@ -247,6 +266,7 @@ test.describe("site shell", () => {
     await nav.getByRole("link", { name: "Projects", exact: true }).click();
     await expect(page).toHaveURL(/\/work\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
+    expect(pageErrors.filter((message) => message.includes("interceptedSidebarNavigationClick"))).toEqual([]);
   });
 
   test("browser history navigation follows sidebar route order", async ({ page }) => {
@@ -346,8 +366,8 @@ test.describe("site shell", () => {
     const panel = page.locator(".sidebar-panel");
     const main = page.locator("#main-content");
     const toggleBox = await page.getByRole("button", { name: "Collapse sidebar" }).boundingBox();
-    const brandBox = await page.getByRole("link", { name: "HLCaptain home" }).boundingBox();
-    expect(toggleBox?.x ?? 9999).toBeLessThan(brandBox?.x ?? 0);
+    await expect(page.locator(".brand-mark")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "HLCaptain home" })).toHaveCount(0);
     await expect(page.locator(".sidebar-toggle .menu-icon svg")).toHaveCount(1);
     await expect(page.locator(".sidebar-toggle .arrow-icon")).toHaveCount(0);
 
@@ -372,6 +392,7 @@ test.describe("site shell", () => {
       const itemGlyph = itemRow.querySelector(".pixel-glyph")!;
       const groupStyle = getComputedStyle(groupRow);
       const itemStyle = getComputedStyle(itemRow);
+      const panelStyle = getComputedStyle(document.querySelector(".sidebar-panel")!);
       return {
         groupIconWidth: Math.round(groupIcon.getBoundingClientRect().width),
         itemIconWidth: Math.round(itemIcon.getBoundingClientRect().width),
@@ -380,6 +401,7 @@ test.describe("site shell", () => {
         groupToggleWidth: Math.round(groupToggle.getBoundingClientRect().width),
         groupColor: groupStyle.color,
         itemColor: itemStyle.color,
+        panelBackground: panelStyle.backgroundColor,
         groupPaddingLeft: groupStyle.paddingLeft,
         itemPaddingLeft: itemStyle.paddingLeft,
         selectedArrowInsideGroup: Boolean(group.querySelector(".arrow-icon__svg"))
@@ -388,7 +410,9 @@ test.describe("site shell", () => {
     expect(expandedMetrics.groupIconWidth).toBe(expandedMetrics.itemIconWidth);
     expect(expandedMetrics.groupGlyphWidth).toBe(expandedMetrics.itemGlyphWidth);
     expect(expandedMetrics.groupToggleWidth).toBe(expandedMetrics.itemGlyphWidth);
-    expect(expandedMetrics.groupColor).toBe(expandedMetrics.itemColor);
+    expect(contrast(parseColor(expandedMetrics.groupColor), parseColor(expandedMetrics.panelBackground))).toBeLessThan(
+      contrast(parseColor(expandedMetrics.itemColor), parseColor(expandedMetrics.panelBackground))
+    );
     expect(expandedMetrics.groupPaddingLeft).toBe(expandedMetrics.itemPaddingLeft);
     expect(expandedMetrics.selectedArrowInsideGroup).toBe(false);
     const expandedActive = await nav.getByRole("link", { name: "Articles", exact: true }).evaluate((node) => {
@@ -400,12 +424,47 @@ test.describe("site shell", () => {
       };
     });
     expect(expandedActive.boxShadow).not.toBe("none");
+    const expandedSurfaceControls = await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll(".accent-panel .surface-control__label")).map((node) => getComputedStyle(node).display);
+      const rectOf = (selector: string) => {
+        const rect = document.querySelector(selector)!.getBoundingClientRect();
+        return {
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height)
+        };
+      };
+      return {
+        labels,
+        controls: rectOf(".surface-controls"),
+        theme: rectOf(".surface-control--theme"),
+        accent: rectOf(".surface-control--accent"),
+        reset: rectOf(".surface-control--reset"),
+        swatchesCount: document.querySelectorAll(".accent-swatches").length,
+        themeGrid: getComputedStyle(document.querySelector(".surface-control--theme")!).gridTemplateColumns,
+        resetWidth: Math.round(document.querySelector(".surface-control--reset")!.getBoundingClientRect().width)
+      };
+    });
+    expect(expandedSurfaceControls.labels.every((display) => display !== "none")).toBe(true);
+    expect(expandedSurfaceControls.swatchesCount).toBe(0);
+    expect(expandedSurfaceControls.themeGrid).toContain("18px");
+    expect(expandedSurfaceControls.theme.width).toBe(expandedSurfaceControls.controls.width);
+    expect(expandedSurfaceControls.theme.y).toBeLessThan(expandedSurfaceControls.accent.y);
+    expect(Math.abs(expandedSurfaceControls.accent.y - expandedSurfaceControls.reset.y)).toBeLessThanOrEqual(1);
+    expect(expandedSurfaceControls.reset.x).toBeGreaterThan(expandedSurfaceControls.accent.x);
+    expect(expandedSurfaceControls.resetWidth).toBe(38);
 
     await page.getByRole("button", { name: "Collapse sidebar" }).click();
     await expect(root).toHaveClass(/sidebar-collapsed/);
     await expect(root).toHaveClass(/sidebar-overlay-open/);
     const expandButton = page.getByRole("button", { name: "Expand sidebar" });
     await expect(expandButton).toBeVisible();
+
+    await page.mouse.move(1000, 520);
+    await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+
     const collapsedToggleMetrics = await page.evaluate(() => {
       const centerOf = (selector: string) => {
         const element = document.querySelector(selector);
@@ -419,22 +478,46 @@ test.describe("site shell", () => {
       };
     });
     expect(Math.abs(collapsedToggleMetrics.buttonCenter - collapsedToggleMetrics.sidebarCenter)).toBeLessThanOrEqual(1);
-
-    const overlayInteriorPoint = await panel.evaluate((node) => {
-      const rect = node.getBoundingClientRect();
-      const rootStyle = getComputedStyle(document.documentElement);
-      const expandedPanelWidth =
-        Number.parseFloat(rootStyle.getPropertyValue("--sidebar-width")) -
-        Number.parseFloat(rootStyle.getPropertyValue("--sidebar-outer-padding")) * 2;
+    await expect
+      .poll(async () =>
+        page.locator(".site-frame").evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(" ")[0])
+      )
+      .toBe("84px");
+    const compactSurfaceControls = await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll(".accent-panel .surface-control__label")).map((node) => getComputedStyle(node).display);
+      const controls = Array.from(document.querySelectorAll(".accent-panel .surface-control")).map((node) => {
+        const style = getComputedStyle(node);
+        return {
+          display: style.display,
+          width: Math.round(node.getBoundingClientRect().width)
+        };
+      });
       return {
-        x: rect.left + Math.min(220, expandedPanelWidth - 16),
-        y: rect.top + 24
+        labels,
+        controls,
+        swatchesCount: document.querySelectorAll(".accent-swatches").length
       };
     });
-    await page.mouse.move(overlayInteriorPoint.x, overlayInteriorPoint.y);
-    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    expect(compactSurfaceControls.labels.every((display) => display === "none")).toBe(true);
+    expect(compactSurfaceControls.swatchesCount).toBe(0);
+    expect(compactSurfaceControls.controls).toEqual([
+      { display: "grid", width: 34 },
+      { display: "grid", width: 34 },
+      { display: "none", width: 0 }
+    ]);
 
-    await page.mouse.move(1000, 520);
+    const collapsedSidebarBox = await sidebar.boundingBox();
+    await page.mouse.move((collapsedSidebarBox?.x ?? 0) + 6, (collapsedSidebarBox?.y ?? 0) + 120);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(240);
+    await expect
+      .poll(async () =>
+        page.evaluate(() => ({
+          panelWidth: Math.round(document.querySelector(".sidebar-panel")!.getBoundingClientRect().width),
+          shellWidth: Math.round(document.querySelector(".site-sidebar")!.getBoundingClientRect().width)
+        }))
+      )
+      .toEqual({ panelWidth: 264, shellWidth: 84 });
     await expect
       .poll(async () =>
         nav
@@ -443,19 +526,101 @@ test.describe("site shell", () => {
           .last()
           .evaluate((node) => getComputedStyle(node).display)
       )
-      .toBe("none");
+      .toBe("block");
+    const overlaySurfaceControls = await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll(".accent-panel .surface-control__label")).map((node) => getComputedStyle(node).display);
+      const rectOf = (selector: string) => {
+        const rect = document.querySelector(selector)!.getBoundingClientRect();
+        return {
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
+          width: Math.round(rect.width)
+        };
+      };
+      return {
+        labels,
+        controls: rectOf(".surface-controls"),
+        theme: rectOf(".surface-control--theme"),
+        accent: rectOf(".surface-control--accent"),
+        reset: rectOf(".surface-control--reset"),
+        swatchesCount: document.querySelectorAll(".accent-swatches").length,
+        resetWidth: Math.round(document.querySelector(".surface-control--reset")!.getBoundingClientRect().width)
+      };
+    });
+    expect(overlaySurfaceControls.labels.every((display) => display !== "none")).toBe(true);
+    expect(overlaySurfaceControls.swatchesCount).toBe(0);
+    expect(overlaySurfaceControls.theme.width).toBe(overlaySurfaceControls.controls.width);
+    expect(overlaySurfaceControls.theme.y).toBeLessThan(overlaySurfaceControls.accent.y);
+    expect(Math.abs(overlaySurfaceControls.accent.y - overlaySurfaceControls.reset.y)).toBeLessThanOrEqual(1);
+    expect(overlaySurfaceControls.reset.x).toBeGreaterThan(overlaySurfaceControls.accent.x);
+    expect(overlaySurfaceControls.resetWidth).toBe(38);
 
+    await page.mouse.move(1000, 520);
+    await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
-    await expect
-      .poll(async () =>
-        page.locator(".site-frame").evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(" ")[0])
-      )
-      .toBe("84px");
 
-    const collapsedSidebarBox = await sidebar.boundingBox();
-    await page.mouse.move((collapsedSidebarBox?.x ?? 0) + 6, (collapsedSidebarBox?.y ?? 0) + 120);
+    const collapsedArticlesBox = await nav.getByRole("link", { name: "Articles", exact: true }).boundingBox();
+    expect(collapsedArticlesBox).not.toBeNull();
+    await page.mouse.move(
+      (collapsedArticlesBox?.x ?? 0) + (collapsedArticlesBox?.width ?? 0) / 2,
+      (collapsedArticlesBox?.y ?? 0) + (collapsedArticlesBox?.height ?? 0) / 2
+    );
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await page.waitForTimeout(160);
     await expect(root).toHaveClass(/sidebar-overlay-open/);
     await expect.poll(async () => panel.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(240);
+
+    const scribbleResultPromise = page.evaluate(
+      async () =>
+        new Promise<{ removals: number; minWidth: number; maxWidth: number }>((resolve) => {
+          const rootNode = document.documentElement;
+          const panelNode = document.querySelector(".sidebar-panel")!;
+          let removals = 0;
+          let sawOpen = rootNode.classList.contains("sidebar-overlay-open");
+          let minWidth = panelNode.getBoundingClientRect().width;
+          let maxWidth = minWidth;
+
+          const observer = new MutationObserver(() => {
+            const isOpen = rootNode.classList.contains("sidebar-overlay-open");
+            if (sawOpen && !isOpen) removals += 1;
+            sawOpen = isOpen;
+          });
+          observer.observe(rootNode, { attributes: true, attributeFilter: ["class"] });
+
+          const sample = () => {
+            const width = panelNode.getBoundingClientRect().width;
+            minWidth = Math.min(minWidth, width);
+            maxWidth = Math.max(maxWidth, width);
+          };
+          const sampler = window.setInterval(sample, 16);
+
+          window.setTimeout(() => {
+            sample();
+            window.clearInterval(sampler);
+            observer.disconnect();
+            resolve({ removals, minWidth, maxWidth });
+          }, 520);
+        })
+    );
+    const openPanelBoxForScribble = await panel.boundingBox();
+    expect(openPanelBoxForScribble).not.toBeNull();
+    const scribbleLeft = (openPanelBoxForScribble?.x ?? 0) + 24;
+    const scribbleRight = (openPanelBoxForScribble?.x ?? 0) + (openPanelBoxForScribble?.width ?? 0) - 24;
+    const scribbleTop = (openPanelBoxForScribble?.y ?? 0) + 32;
+    const scribbleBottom = (openPanelBoxForScribble?.y ?? 0) + (openPanelBoxForScribble?.height ?? 0) - 92;
+    for (let index = 0; index < 28; index += 1) {
+      const progress = index / 27;
+      const x = index % 2 === 0 ? scribbleLeft + (scribbleRight - scribbleLeft) * progress : scribbleRight - (scribbleRight - scribbleLeft) * progress;
+      const y = scribbleTop + ((index * 53) % Math.max(1, scribbleBottom - scribbleTop));
+      await page.mouse.move(x, y, { steps: 2 });
+    }
+    const scribbleResult = await scribbleResultPromise;
+    expect(scribbleResult).toEqual(
+      expect.objectContaining({
+        removals: 0
+      })
+    );
+    expect(scribbleResult.minWidth).toBeGreaterThan(240);
 
     await page.mouse.move(1000, 520);
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
@@ -744,8 +909,33 @@ test.describe("site shell", () => {
     await sidebar.hover();
     await expect(root).toHaveClass(/sidebar-overlay-open/);
 
-    await nav.getByRole("link", { name: "Articles", exact: true }).click();
-    await expect(page).toHaveURL(/\/articles\/$/);
+    const projectsLink = nav.getByRole("link", { name: "Projects", exact: true });
+    const projectsBox = await projectsLink.boundingBox();
+    expect(projectsBox).not.toBeNull();
+    await page.mouse.move(
+      (projectsBox?.x ?? 0) + (projectsBox?.width ?? 0) - 8,
+      (projectsBox?.y ?? 0) + (projectsBox?.height ?? 0) / 2
+    );
+    await page.mouse.down();
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await page.mouse.up();
+    await expect(root).toHaveAttribute("data-astro-transition", /forward|back/);
+    const sidebarTransitionSnapshot = await root.evaluate((node) => {
+      const oldStyle = getComputedStyle(node, "::view-transition-old(sidebar-shell)");
+      const newStyle = getComputedStyle(node, "::view-transition-new(sidebar-shell)");
+      return {
+        oldOpacity: Number(oldStyle.opacity),
+        newOpacity: Number(newStyle.opacity)
+      };
+    });
+    expect(sidebarTransitionSnapshot).toEqual({
+      oldOpacity: 0,
+      newOpacity: 1
+    });
+    await page.mouse.move(1000, 520);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await expect(page).toHaveURL(/\/work\/$/);
+    await expect(projectsLink).toHaveAttribute("aria-current", "page");
     await expect(root).toHaveClass(/sidebar-collapsed/);
     await expect(root).toHaveClass(/sidebar-overlay-open/);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBeGreaterThan(240);
@@ -763,9 +953,78 @@ test.describe("site shell", () => {
     expect(transitionLayers.some((rule) => rule.includes("view-transition-group(sidebar-shell)") && rule.includes("z-index: 8"))).toBe(true);
     expect(transitionLayers.some((rule) => rule.includes("view-transition-group(page-content)") && rule.includes("z-index: 1"))).toBe(true);
 
-    await page.mouse.move(1000, 520);
+    await expect.poll(async () => root.evaluate((node) => node.hasAttribute("data-astro-transition"))).toBe(false);
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+  });
+
+  test("desktop collapsed overlay hover stays open after client navigation", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only collapsed overlay hover check");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const sidebar = page.locator("[data-sidebar]");
+    const panel = page.locator(".sidebar-panel");
+
+    await page.getByRole("button", { name: "Collapse sidebar" }).click();
+    await expect(root).toHaveClass(/sidebar-collapsed/);
+    await page.mouse.move(1000, 520);
+    await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
+
+    const allArticles = page.getByRole("link", { name: "All articles" });
+    await allArticles.scrollIntoViewIfNeeded();
+    await allArticles.click();
+    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(root).toHaveClass(/sidebar-collapsed/);
+
+    const collapsedSidebarBox = await sidebar.boundingBox();
+    expect(collapsedSidebarBox).not.toBeNull();
+    const hoverX = (collapsedSidebarBox?.x ?? 0) + 6;
+    const hoverY = (collapsedSidebarBox?.y ?? 0) + 120;
+    await page.mouse.move(hoverX, hoverY);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await page.mouse.move(hoverX + 1, hoverY + 1);
+    await page.waitForTimeout(160);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(240);
+  });
+
+  test("sidebar group collapsed state survives navigation", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    if ((page.viewportSize()?.width ?? 0) <= 720) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+    }
+
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const archiveGroup = page.locator("[data-nav-group='Archive']");
+    await expect.poll(async () => archiveGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+
+    await archiveGroup.locator("summary").click();
+    await expect.poll(async () => archiveGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
+    await nav.getByRole("link", { name: "About", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/about\/$/);
+    await expect
+      .poll(async () =>
+        page.locator("[data-nav-group='Archive']").evaluate((node) => ({
+          open: (node as HTMLDetailsElement).open,
+          collapsing: node.classList.contains("is-collapsing"),
+          expanding: node.classList.contains("is-expanding"),
+          visibility: getComputedStyle(node.querySelector(".nav-items")!).visibility,
+          height: Math.round(node.querySelector(".nav-items")!.getBoundingClientRect().height)
+        }))
+      )
+      .toEqual({
+        open: false,
+        collapsing: false,
+        expanding: false,
+        visibility: "hidden",
+        height: 0
+      });
   });
 
   test("sidebar group item lists animate open and closed", async ({ page }) => {
@@ -781,8 +1040,76 @@ test.describe("site shell", () => {
     const initialHeight = await archiveItems.evaluate((node) => node.getBoundingClientRect().height);
     expect(initialHeight).toBeGreaterThan(40);
 
+    const collapseCleanupPromise = archiveGroup.evaluate(
+      (node) =>
+        new Promise<{
+          before: { height: number; paddingTop: number; paddingBottom: number; collapsing: boolean };
+          after: { height: number; paddingTop: number; paddingBottom: number; collapsing: boolean };
+        }>(
+          (resolve) => {
+            const items = node.querySelector(".nav-items")!;
+            const snapshot = () => {
+              const style = getComputedStyle(items);
+              return {
+                height: items.getBoundingClientRect().height,
+                paddingTop: Number.parseFloat(style.paddingTop) || 0,
+                paddingBottom: Number.parseFloat(style.paddingBottom) || 0,
+                collapsing: node.classList.contains("is-collapsing")
+              };
+            };
+            let frame = 0;
+            let lastCollapsingSample: ReturnType<typeof snapshot> | null = null;
+            let observer: MutationObserver;
+            let timeout = 0;
+
+            const cleanup = () => {
+              cancelAnimationFrame(frame);
+              observer.disconnect();
+              clearTimeout(timeout);
+            };
+
+            const sample = () => {
+              const current = snapshot();
+              if (current.collapsing) lastCollapsingSample = current;
+              frame = requestAnimationFrame(sample);
+            };
+
+            observer = new MutationObserver(() => {
+              const current = snapshot();
+              if (current.collapsing) {
+                lastCollapsingSample = current;
+                return;
+              }
+
+              if (!lastCollapsingSample) return;
+              cleanup();
+              resolve({ before: lastCollapsingSample, after: current });
+            });
+            timeout = window.setTimeout(() => {
+              const current = snapshot();
+              cleanup();
+              resolve({ before: lastCollapsingSample ?? current, after: current });
+            }, 700);
+
+            observer.observe(node, { attributes: true, attributeFilter: ["class"] });
+            frame = requestAnimationFrame(sample);
+          }
+        )
+    );
+
     await archiveGroup.locator("summary").click();
     await expect.poll(async () => archiveGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
+    await expect
+      .poll(async () =>
+        archiveGroup.evaluate((node) => {
+          const arrow = node.querySelector(".group-toggle-icon")!;
+          const transform = getComputedStyle(arrow).transform;
+          const matrix = transform === "none" ? new DOMMatrixReadOnly() : new DOMMatrixReadOnly(transform);
+          const angle = Math.abs((Math.atan2(matrix.b, matrix.a) * 180) / Math.PI);
+          return (node as HTMLDetailsElement).open && node.classList.contains("is-collapsing") && angle < 70;
+        })
+      )
+      .toBe(true);
     await expect
       .poll(async () => archiveItems.evaluate((node) => node.getBoundingClientRect().height))
       .toBeLessThan(initialHeight);
@@ -795,6 +1122,12 @@ test.describe("site shell", () => {
     expect(closedState.display).toBe("grid");
     expect(closedState.visibility).toBe("hidden");
     expect(closedState.height).toBe(0);
+    const collapseCleanup = await collapseCleanupPromise;
+    expect(collapseCleanup.before.collapsing).toBe(true);
+    expect(collapseCleanup.after.collapsing).toBe(false);
+    expect(Math.abs(collapseCleanup.after.height - collapseCleanup.before.height)).toBeLessThanOrEqual(4);
+    expect(Math.abs(collapseCleanup.after.paddingTop - collapseCleanup.before.paddingTop)).toBeLessThanOrEqual(1);
+    expect(Math.abs(collapseCleanup.after.paddingBottom - collapseCleanup.before.paddingBottom)).toBeLessThanOrEqual(1);
 
     const expandSamples = archiveGroup.evaluate(
       (node) =>
@@ -861,8 +1194,11 @@ test.describe("site shell", () => {
       return { background: style.backgroundColor, border: style.borderColor };
     });
 
-    await page.getByRole("button", { name: "Black" }).click();
+    const themeToggle = page.getByRole("button", { name: "Switch to dark theme" });
+    await expect(themeToggle.locator("[data-theme-label]")).toHaveText("Light");
+    await themeToggle.click();
     await expect(root).toHaveAttribute("data-theme", "black");
+    await expect(page.getByRole("button", { name: "Switch to light theme" }).locator("[data-theme-label]")).toHaveText("Dark");
     const blackGridSoft = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--grid-line-soft").trim());
     expect(blackGridSoft).toContain("/ 0.12");
     await expect
@@ -877,15 +1213,18 @@ test.describe("site shell", () => {
     });
     expect(afterTheme.background).not.toBe(before.background);
 
-    await page.getByRole("button", { name: "Cyan accent" }).click();
-    const afterAccent = await page.locator(".entry-card__link").first().evaluate((node) => {
-      const style = getComputedStyle(node);
-      return { background: style.backgroundColor, border: style.borderColor };
+    await expect(page.getByRole("button", { name: "Cyan accent" })).toHaveCount(0);
+    await page.locator("[data-accent-input]").evaluate((node: HTMLInputElement) => {
+      node.value = "#2aa8c8";
+      node.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(afterAccent.background).not.toBe(afterTheme.background);
-    expect(afterAccent.border).not.toBe(afterTheme.border);
+    await expect(root).toHaveAttribute("data-accent", "custom");
     const cyanTint = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--accent-tint").trim());
     expect(cyanTint).not.toBe("#4b4432");
+    const cyanPreview = await root.evaluate((node) => node.style.getPropertyValue("--accent-preview").trim());
+    expect(cyanPreview).toBeTruthy();
+    const afterAccent = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--accent").trim());
+    expect(afterAccent).toBe(cyanPreview);
 
     await page.locator("[data-accent-input]").evaluate((node: HTMLInputElement) => {
       node.value = "#050505";
@@ -893,9 +1232,9 @@ test.describe("site shell", () => {
     });
     await expect
       .poll(async () =>
-        page.locator(".entry-card__link").first().evaluate((node) => getComputedStyle(node).backgroundColor)
+        root.evaluate((node) => getComputedStyle(node).getPropertyValue("--accent").trim())
       )
-      .not.toBe(afterAccent.background);
+      .not.toBe(afterAccent);
     const contrastResult = await page.locator(".entry-card__link").first().evaluate((node) => {
       const cardStyle = getComputedStyle(node);
       const icon = node.querySelector(".entry-card__glyph");
@@ -905,6 +1244,11 @@ test.describe("site shell", () => {
     });
     const body = parseColor(contrastResult!.body);
     expect(contrast(composite(parseColor(contrastResult!.icon), body), composite(parseColor(contrastResult!.card), body))).toBeGreaterThan(3);
+
+    await page.locator("[data-accent-reset]").evaluate((node: HTMLButtonElement) => node.click());
+    await expect(page.getByRole("button", { name: "Reset accent to auto" })).toHaveAttribute("aria-pressed", "true");
+    await expect(root).not.toHaveAttribute("data-accent", "custom");
+    await expect.poll(async () => root.evaluate((node) => node.style.getPropertyValue("--accent-preview").trim())).toBe("");
   });
 
   test("cards use a hover arrow affordance", async ({ page }) => {
@@ -955,6 +1299,10 @@ test.describe("site shell", () => {
     await debugToggle.click();
     await expect(page.locator("[data-debug-panel]")).toBeVisible();
     await expect(page.locator("button[data-arrow-style]")).toHaveCount(11);
+    await expect(page.locator("button[data-brand-style]")).toHaveCount(0);
+    await expect(page.locator("[data-brand-current]")).toHaveCount(0);
+    await expect(page.locator(".brand-mark")).toHaveCount(0);
+    await expect(root).not.toHaveAttribute("data-brand-style", /.*/);
     await expect(firstArrow.locator(".arrow-icon__svg[data-icon-style]")).toHaveCount(11);
 
     await page.getByRole("button", { name: "Phosphor" }).click();
@@ -967,12 +1315,14 @@ test.describe("site shell", () => {
     await page.getByRole("link", { name: "Read articles" }).click();
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveAttribute("data-arrow-style", "phosphor");
+    await expect(root).not.toHaveAttribute("data-brand-style", /.*/);
 
     const panel = page.locator("[data-debug-panel]");
     if (await panel.evaluate((node: HTMLElement) => node.hidden)) {
       await debugToggle.click();
     }
     await expect(page.getByRole("button", { name: "Phosphor" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("button[data-brand-style]")).toHaveCount(0);
   });
 
   test("preview feed expands selected items and moves its rail", async ({ page }) => {
@@ -1015,6 +1365,43 @@ test.describe("site shell", () => {
         return Math.abs((box?.y ?? 0) - (firstRail?.y ?? 0));
       })
       .toBeGreaterThan(8);
+  });
+
+  test("preview feed keeps its height during interrupted item selection", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const feed = page.locator("[data-preview-feed]");
+    const beforeHeight = await feed.evaluate((node) => node.getBoundingClientRect().height);
+
+    const sampledHeightsPromise = feed.evaluate(
+      (node) =>
+        new Promise<number[]>((resolve) => {
+          const values: number[] = [];
+          const started = performance.now();
+          const sample = () => {
+            values.push(node.getBoundingClientRect().height);
+            if (performance.now() - started > 760) {
+              resolve(values);
+            } else {
+              requestAnimationFrame(sample);
+            }
+          };
+          sample();
+        })
+    );
+
+    await feed.locator("[data-preview-trigger]").nth(1).click();
+    await expect(feed.locator("[data-preview-item]").nth(1)).toHaveClass(/is-active/);
+    await page.waitForTimeout(110);
+    await feed.locator("[data-preview-trigger]").nth(2).click();
+    await expect(feed.locator("[data-preview-item]").nth(2)).toHaveClass(/is-active/);
+
+    const sampledHeights = await sampledHeightsPromise;
+    expect(Math.max(...sampledHeights) - Math.min(...sampledHeights)).toBeLessThanOrEqual(1);
+
+    const afterHeight = await feed.evaluate((node) => node.getBoundingClientRect().height);
+    expect(Math.abs(afterHeight - beforeHeight)).toBeLessThanOrEqual(1);
   });
 
   test("preview feed uses full-card two-step navigation", async ({ page }) => {
@@ -1154,20 +1541,28 @@ test.describe("site shell", () => {
       return {
         columnGap: style.columnGap,
         rowGap: style.rowGap,
+        paddingTop: style.paddingTop,
         paddingLeft: style.paddingLeft,
-        paddingRight: style.paddingRight
+        paddingRight: style.paddingRight,
+        paddingBottom: style.paddingBottom
       };
     });
     expect(detailSpacing.columnGap).toBe("0px");
     expect(detailSpacing.rowGap).toBe("0px");
+    expect(detailSpacing.paddingTop).toBe("0px");
     expect(detailSpacing.paddingLeft).toBe("0px");
     expect(detailSpacing.paddingRight).toBe("0px");
+    expect(detailSpacing.paddingBottom).toBe("0px");
 
-    const [detailBox, mediaBox, descriptionOuterBox] = await Promise.all([
+    const [activeItemBox, detailBox, mediaBox, descriptionOuterBox] = await Promise.all([
+      activeItem.boundingBox(),
       detail.boundingBox(),
       media.boundingBox(),
       description.boundingBox()
     ]);
+    const itemBottom = (activeItemBox?.y ?? 0) + (activeItemBox?.height ?? 0);
+    const detailBottom = (detailBox?.y ?? 0) + (detailBox?.height ?? 0);
+    expect(Math.abs(detailBottom - itemBottom)).toBeLessThanOrEqual(2);
     expect(Math.abs((mediaBox?.x ?? 0) - (detailBox?.x ?? 0))).toBeLessThanOrEqual(1);
     expect(Math.abs((mediaBox?.width ?? 0) - (detailBox?.width ?? 0))).toBeLessThanOrEqual(1);
     expect(Math.abs((mediaBox?.width ?? 0) / (mediaBox?.height ?? 1) - 16 / 9)).toBeLessThan(0.03);
@@ -1209,7 +1604,8 @@ test.describe("site shell", () => {
     expect(itemBlur.content).not.toBe("none");
     expect(itemBlur.position).toBe("absolute");
     expect(itemBlur.insetBlockEnd).toBe("0px");
-    expect(itemBlur.height).toBeGreaterThanOrEqual(54);
+    expect(itemBlur.height).toBeGreaterThanOrEqual(38);
+    expect(itemBlur.height).toBeLessThanOrEqual(54);
     expect(itemBlur.opacity).toBeGreaterThan(0.9);
     expect(itemBlur.pointerEvents).toBe("none");
     expect(itemBlur.backdropFilter).toContain("blur");

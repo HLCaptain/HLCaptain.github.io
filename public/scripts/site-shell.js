@@ -1,6 +1,7 @@
 const storageKey = "hlcaptain-accent";
 const themeKey = "hlcaptain-theme";
 const sidebarKey = "hlcaptain-sidebar";
+const navGroupsKey = "hlcaptain-nav-groups";
 const arrowKey = "hlcaptain-arrow-style";
 const arrowStyles = new Set([
   "tabler",
@@ -113,6 +114,7 @@ const customThemeProperties = [
 ];
 
 const gridParallaxProperties = ["--grid-parallax-x", "--grid-parallax-y"];
+const pageTransitionProperties = ["--page-old-scroll-offset-y"];
 let lastSettledPath = null;
 
 function buildThemeTokens(theme, tint) {
@@ -162,6 +164,43 @@ function currentTheme() {
   return document.documentElement.dataset.theme === "black" ? "black" : "light";
 }
 
+function syncThemeControls(theme = currentTheme()) {
+  const isDark = theme === "black";
+  document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(isDark));
+    button.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
+    button.setAttribute("title", isDark ? "Switch to light theme" : "Switch to dark theme");
+    button.querySelector("[data-theme-label]")?.replaceChildren(isDark ? "Dark" : "Light");
+  });
+
+  document.querySelectorAll("[data-theme-value]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.themeValue === theme));
+  });
+}
+
+function syncAccentControls(value = window.localStorage.getItem(storageKey)) {
+  const root = document.documentElement;
+
+  document.querySelectorAll("[data-accent-input]").forEach((input) => {
+    if (value) {
+      input.value = value;
+    } else {
+      input.value = "#b9843b";
+    }
+  });
+
+  document.querySelectorAll("[data-accent-reset]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(!value));
+  });
+
+  if (value) {
+    const normalized = normalizeAccent(value, currentTheme());
+    if (normalized) root.style.setProperty("--accent-preview", normalized.accent);
+  } else {
+    root.style.removeProperty("--accent-preview");
+  }
+}
+
 function applyAccent(value, theme = currentTheme()) {
   const root = document.documentElement;
   if (value) {
@@ -181,6 +220,7 @@ function applyAccent(value, theme = currentTheme()) {
     clearCustomThemeTokens(root);
     root.style.removeProperty("accent-color");
   }
+  syncAccentControls(value);
 }
 
 function applyTheme(value) {
@@ -190,9 +230,7 @@ function applyTheme(value) {
   applyAccent(window.localStorage.getItem(storageKey), theme);
   const themeColor = document.querySelector('meta[name="theme-color"]');
   themeColor?.setAttribute("content", theme === "black" ? "#050504" : "#f1eee2");
-  document.querySelectorAll("[data-theme-value]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.themeValue === theme));
-  });
+  syncThemeControls(theme);
 }
 
 function applyArrowStyle(value) {
@@ -219,25 +257,22 @@ function initAccentControls() {
     });
   });
 
-  document.querySelectorAll("[data-accent-value]").forEach((button) => {
-    if (button.dataset.bound) return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => {
-      const value = button.dataset.accentValue;
-      window.localStorage.setItem(storageKey, value);
-      applyAccent(value);
-      document.querySelectorAll("[data-accent-input]").forEach((input) => {
-        input.value = value;
-      });
-    });
-  });
-
   document.querySelectorAll("[data-accent-reset]").forEach((button) => {
     if (button.dataset.bound) return;
     button.dataset.bound = "true";
     button.addEventListener("click", () => {
       window.localStorage.removeItem(storageKey);
       applyAccent(null);
+    });
+  });
+
+  document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => {
+      const theme = currentTheme() === "black" ? "light" : "black";
+      window.localStorage.setItem(themeKey, theme);
+      applyTheme(theme);
     });
   });
 
@@ -250,6 +285,9 @@ function initAccentControls() {
       applyTheme(theme);
     });
   });
+
+  syncAccentControls(saved);
+  syncThemeControls(currentTheme());
 }
 
 function initBackgroundParallax() {
@@ -315,15 +353,17 @@ function initBackgroundParallax() {
 }
 
 function initSidebar() {
+  window.__hlSidebarController?.abort();
+  window.__hlSidebarController = new AbortController();
+  const sidebarSignal = window.__hlSidebarController.signal;
   const root = document.documentElement;
   const sidebar = document.querySelector("[data-sidebar]");
   const openButton = document.querySelector("[data-sidebar-open]");
   const closeTargets = document.querySelectorAll("[data-sidebar-close]");
   const collapseButton = document.querySelector("[data-sidebar-collapse]");
   const desktopOverlayQuery = window.matchMedia("(min-width: 721px)");
-  const overlayOpenPadding = 2;
-  const overlayExitPadding = 6;
-  const overlayCloseDelay = 90;
+  const overlayCloseDelay = 80;
+  const overlayClosePadding = 2;
   let overlayCloseTimer = 0;
   let lastOverlayPointer = null;
 
@@ -341,9 +381,34 @@ function initSidebar() {
 
   const canUseOverlay = () => root.classList.contains("sidebar-collapsed") && desktopOverlayQuery.matches;
 
-  const setOverlayOpen = (open) => {
-    if (open) clearOverlayCloseTimer();
+  const setOverlayOpen = (open, { clearPending = open } = {}) => {
+    if (open) {
+      clearOverlayCloseTimer();
+      if (clearPending) delete root.dataset.sidebarOverlayClosePending;
+    }
     root.classList.toggle("sidebar-overlay-open", Boolean(open && canUseOverlay()));
+  };
+
+  const shouldDeferOverlayClose = () =>
+    root.dataset.sidebarOverlayTransition === "true" && root.hasAttribute("data-astro-transition");
+
+  const requestOverlayClose = () => {
+    if (shouldDeferOverlayClose()) {
+      root.dataset.sidebarOverlayClosePending = "true";
+      return;
+    }
+
+    setOverlayOpen(false);
+  };
+
+  const openOverlayFromSidebar = (event) => {
+    const pointer = capturePointer(event);
+    if (canUseOverlay() && pointerIsInsideCollapsedRail(pointer)) setOverlayOpen(true);
+  };
+
+  const numberToken = (name, fallback) => {
+    const value = Number.parseFloat(getComputedStyle(root).getPropertyValue(name));
+    return Number.isFinite(value) ? value : fallback;
   };
 
   const capturePointer = (event) => {
@@ -354,74 +419,41 @@ function initSidebar() {
     return lastOverlayPointer;
   };
 
-  const numberToken = (name, fallback) => {
-    const value = Number.parseFloat(getComputedStyle(root).getPropertyValue(name));
-    return Number.isFinite(value) ? value : fallback;
-  };
-
-  const overlayRects = () => {
+  const pointerIsInsideOverlaySurface = (pointer) => {
     const panel = sidebar?.querySelector(".sidebar-panel");
-    const sidebarRect = sidebar?.getBoundingClientRect();
     const panelRect = panel?.getBoundingClientRect();
-    if (!sidebarRect && !panelRect) return null;
+    if (pointerIsInsideCollapsedRail(pointer)) return true;
+    if (!panelRect) return false;
 
     const outerPadding = numberToken("--sidebar-outer-padding", 14);
-    const collapsedWidth = numberToken("--sidebar-collapsed-width", sidebarRect?.width ?? 84);
-    const expandedWidth = numberToken("--sidebar-width", 292);
-    const railLeft = sidebarRect?.left ?? (panelRect ? panelRect.left - outerPadding : 0);
-    const railTop = sidebarRect?.top ?? (panelRect ? panelRect.top - outerPadding : 0);
-    const railBottom = sidebarRect?.bottom ?? (panelRect ? panelRect.bottom + outerPadding : window.innerHeight);
-    const panelLeft = panelRect?.left ?? railLeft + outerPadding;
-    const panelTop = panelRect?.top ?? railTop + outerPadding;
-    const panelBottom = panelRect?.bottom ?? railBottom - outerPadding;
-
-    return {
-      rail: {
-        left: railLeft,
-        right: railLeft + collapsedWidth,
-        top: railTop,
-        bottom: railBottom
-      },
-      overlay: {
-        left: panelLeft,
-        right: panelLeft + Math.max(0, expandedWidth - outerPadding * 2),
-        top: panelTop,
-        bottom: panelBottom
-      }
-    };
-  };
-
-  const rectContainsPointer = (rect, pointer, padding = 0) =>
-    pointer.clientX >= rect.left - padding &&
-    pointer.clientX <= rect.right + padding &&
-    pointer.clientY >= rect.top - padding &&
-    pointer.clientY <= rect.bottom + padding;
-
-  const pointerIsInsideOpenRail = (pointer) => {
-    const rects = overlayRects();
-    return Boolean(rects && rectContainsPointer(rects.rail, pointer, overlayOpenPadding));
-  };
-
-  const pointerIsInsideOpenOverlay = (pointer) => {
-    const rects = overlayRects();
-    return Boolean(
-      rects &&
-        (rectContainsPointer(rects.rail, pointer, overlayExitPadding) ||
-          rectContainsPointer(rects.overlay, pointer, overlayExitPadding))
+    const panelWidth = Math.max(0, numberToken("--sidebar-width", 292) - outerPadding * 2);
+    return (
+      pointer.clientX >= panelRect.left - overlayClosePadding &&
+      pointer.clientX <= panelRect.left + panelWidth + overlayClosePadding &&
+      pointer.clientY >= panelRect.top - overlayClosePadding &&
+      pointer.clientY <= panelRect.bottom + overlayClosePadding
     );
   };
 
-  const closeOverlayIfPointerOutside = (event, immediate = false) => {
-    const pointer = capturePointer(event);
-    if (!root.classList.contains("sidebar-overlay-open")) return;
-    if (pointerIsInsideOpenOverlay(pointer)) {
-      clearOverlayCloseTimer();
-      return;
-    }
+  const pointerIsInsideCollapsedRail = (pointer) => {
+    const sidebarRect = sidebar?.getBoundingClientRect();
+    if (!sidebarRect) return false;
+    const collapsedWidth = numberToken("--sidebar-collapsed-width", 84);
+    const railLeft = sidebarRect.left;
+    return (
+      pointer.clientX >= railLeft - overlayClosePadding &&
+      pointer.clientX <= railLeft + collapsedWidth + overlayClosePadding &&
+      pointer.clientY >= sidebarRect.top - overlayClosePadding &&
+      pointer.clientY <= sidebarRect.bottom + overlayClosePadding
+    );
+  };
 
-    if (immediate) {
+  const closeOverlayAfterLeave = (event) => {
+    if (!root.classList.contains("sidebar-overlay-open")) return;
+    const pointer = capturePointer(event);
+    if (pointerIsInsideOverlaySurface(pointer)) {
       clearOverlayCloseTimer();
-      setOverlayOpen(false);
+      delete root.dataset.sidebarOverlayClosePending;
       return;
     }
 
@@ -431,65 +463,148 @@ function initSidebar() {
       if (
         root.classList.contains("sidebar-overlay-open") &&
         lastOverlayPointer &&
-        !pointerIsInsideOpenOverlay(lastOverlayPointer)
+        !pointerIsInsideOverlaySurface(lastOverlayPointer)
       ) {
-        setOverlayOpen(false);
+        requestOverlayClose();
       }
     }, overlayCloseDelay);
   };
 
-  const syncOverlayFromPointer = (event) => {
+  const closeOverlayFromOutsidePointer = (event) => {
+    if (!root.classList.contains("sidebar-overlay-open")) return;
+    if (sidebar?.contains(event.target)) {
+      clearOverlayCloseTimer();
+      capturePointer(event);
+      delete root.dataset.sidebarOverlayClosePending;
+      return;
+    }
     const pointer = capturePointer(event);
-    if (!canUseOverlay()) {
+    if (pointerIsInsideOverlaySurface(pointer)) return;
+    clearOverlayCloseTimer();
+    requestOverlayClose();
+  };
+
+  const closeOverlayIfUnavailable = () => {
+    if (!canUseOverlay()) setOverlayOpen(false);
+  };
+
+  const syncOverlayAfterCollapsedChange = (open) => {
+    if (!open) {
       setOverlayOpen(false);
       return;
     }
 
-    if (!root.classList.contains("sidebar-overlay-open") && pointerIsInsideOpenRail(pointer)) {
+    if (sidebar?.matches(":hover")) {
       setOverlayOpen(true);
-      return;
     }
-    closeOverlayIfPointerOutside(event);
   };
 
   setOpen(root.classList.contains("sidebar-open"));
-  setOverlayOpen(root.classList.contains("sidebar-overlay-open"));
+  setOverlayOpen(root.classList.contains("sidebar-overlay-open"), { clearPending: false });
 
-  openButton?.addEventListener("click", () => setOpen(true), { signal: getSignal(openButton, "sidebar") });
+  openButton?.addEventListener("click", () => setOpen(true), { signal: sidebarSignal });
   closeTargets.forEach((target) => {
-    target.addEventListener("click", () => setOpen(false), { signal: getSignal(target, "sidebar") });
+    target.addEventListener("click", () => setOpen(false), { signal: sidebarSignal });
   });
-  document.addEventListener("pointermove", syncOverlayFromPointer, { signal: getSignal(sidebar ?? root, "sidebar") });
-  document.addEventListener("pointerdown", (event) => closeOverlayIfPointerOutside(event, true), { signal: getSignal(sidebar ?? root, "sidebar") });
+  sidebar?.addEventListener("pointerenter", openOverlayFromSidebar, { signal: sidebarSignal });
+  sidebar?.addEventListener("pointerleave", closeOverlayAfterLeave, { signal: sidebarSignal });
+  document.addEventListener("pointermove", closeOverlayAfterLeave, { signal: sidebarSignal });
+  document.addEventListener("pointerdown", closeOverlayFromOutsidePointer, { signal: sidebarSignal });
   document.addEventListener("pointercancel", () => {
     clearOverlayCloseTimer();
     setOverlayOpen(false);
-  }, { signal: getSignal(sidebar ?? root, "sidebar") });
-  desktopOverlayQuery.addEventListener?.("change", () => {
-    if (!canUseOverlay()) setOverlayOpen(false);
-  });
+  }, { signal: sidebarSignal });
+  desktopOverlayQuery.addEventListener?.("change", closeOverlayIfUnavailable, { signal: sidebarSignal });
 
-  if (collapseButton && !collapseButton.dataset.bound) {
-    collapseButton.dataset.bound = "true";
+  if (collapseButton) {
     const collapsed = window.localStorage.getItem(sidebarKey) === "collapsed";
     root.classList.toggle("sidebar-collapsed", collapsed);
     collapseButton.setAttribute("aria-pressed", String(collapsed));
     collapseButton.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
 
     collapseButton.addEventListener("click", (event) => {
-      if (event.detail > 0) capturePointer(event);
       const next = !root.classList.contains("sidebar-collapsed");
       root.classList.toggle("sidebar-collapsed", next);
       collapseButton.setAttribute("aria-pressed", String(next));
       collapseButton.setAttribute("aria-label", next ? "Expand sidebar" : "Collapse sidebar");
       window.localStorage.setItem(sidebarKey, next ? "collapsed" : "expanded");
-      setOverlayOpen(next && Boolean(lastOverlayPointer && pointerIsInsideOpenOverlay(lastOverlayPointer)));
+      syncOverlayAfterCollapsedChange(next);
       if (next && event.detail > 0) collapseButton.blur();
-    });
+    }, { signal: sidebarSignal });
   }
 }
 
+function navGroupElements(scope = document) {
+  return Array.from(scope.querySelectorAll("[data-nav-group]"));
+}
+
+function navGroupKey(group, index) {
+  return (
+    group.getAttribute("data-nav-group") ||
+    group.querySelector(".nav-group__label")?.textContent?.trim() ||
+    String(index)
+  );
+}
+
+function navGroupIsVisuallyOpen(group) {
+  return group.classList.contains("is-expanding") || (group.open && !group.classList.contains("is-collapsing"));
+}
+
+function readNavGroupState(scope = document, override = null) {
+  return navGroupElements(scope).reduce((state, group, index) => {
+    state[navGroupKey(group, index)] = override?.group === group ? Boolean(override.open) : navGroupIsVisuallyOpen(group);
+    return state;
+  }, {});
+}
+
+function storedNavGroupState() {
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(navGroupsKey) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeNavGroupState(state) {
+  try {
+    window.sessionStorage.setItem(navGroupsKey, JSON.stringify(state));
+  } catch {}
+}
+
+function clearNavGroupAnimationState(group) {
+  const items = group.querySelector(".nav-items");
+  group.classList.remove("is-expanding", "is-collapsing");
+  if (!items) return;
+  items.style.display = "";
+  items.style.height = "";
+  items.style.overflow = "";
+  items.style.transition = "";
+}
+
+function applyNavGroupState(scope, state) {
+  if (!state) return;
+  navGroupElements(scope).forEach((group, index) => {
+    const key = navGroupKey(group, index);
+    if (!(key in state)) return;
+    group.open = Boolean(state[key]);
+    clearNavGroupAnimationState(group);
+  });
+}
+
+function applyStoredNavGroupState(scope) {
+  applyNavGroupState(scope, storedNavGroupState());
+}
+
+function saveNavGroupState(override = null) {
+  const state = readNavGroupState(document, override);
+  writeNavGroupState(state);
+  return state;
+}
+
 function initNavGroups() {
+  applyStoredNavGroupState(document);
+
   document.querySelectorAll("[data-nav-group]").forEach((group) => {
     if (group.dataset.bound) return;
     group.dataset.bound = "true";
@@ -506,15 +621,41 @@ function initNavGroups() {
         group._navGroupCancel?.();
 
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          saveNavGroupState({ group, open: !group.open });
           group.open = !group.open;
           return;
         }
 
         const wasOpen = group.open;
+        saveNavGroupState({ group, open: !wasOpen });
         let complete = false;
         let timeout = null;
         let frame = 0;
         const initialTransition = items.style.transition;
+        let expectedTransitionProperties = new Set(["height"]);
+        const completedTransitionProperties = new Set();
+
+        const px = (value) => `${value}px`;
+        const number = (value) => Number.parseFloat(value) || 0;
+        const itemBlockPadding = () => {
+          const style = getComputedStyle(items);
+          return {
+            top: number(style.paddingTop),
+            bottom: number(style.paddingBottom)
+          };
+        };
+
+        const setItemBlockPadding = (top, bottom) => {
+          items.style.paddingTop = px(top);
+          items.style.paddingBottom = px(bottom);
+        };
+
+        const transitionPropertiesFor = ({ top, bottom }) => {
+          const properties = new Set(["height"]);
+          if (top > 0.25) properties.add("padding-top");
+          if (bottom > 0.25) properties.add("padding-bottom");
+          return properties;
+        };
 
         const clearFrame = () => {
           if (!frame) return;
@@ -526,6 +667,8 @@ function initNavGroups() {
           if (quietHeightReset) items.style.transition = "none";
           items.style.display = "";
           items.style.height = "";
+          items.style.paddingTop = "";
+          items.style.paddingBottom = "";
           items.style.overflow = "";
           if (quietHeightReset) {
             items.getBoundingClientRect();
@@ -542,6 +685,7 @@ function initNavGroups() {
           if (wasOpen) group.open = false;
           group.classList.remove("is-expanding", "is-collapsing");
           clearItemStyles(!wasOpen);
+          saveNavGroupState();
           if (group._navGroupCancel === cancel) group._navGroupCancel = null;
         };
 
@@ -558,7 +702,15 @@ function initNavGroups() {
         };
 
         const onTransitionEnd = (transitionEvent) => {
-          if (transitionEvent.propertyName === "height") finish();
+          if (transitionEvent.target !== items || !expectedTransitionProperties.has(transitionEvent.propertyName)) return;
+          completedTransitionProperties.add(transitionEvent.propertyName);
+          if (
+            Array.from(expectedTransitionProperties).every((property) =>
+              completedTransitionProperties.has(property)
+            )
+          ) {
+            finish();
+          }
         };
 
         group._navGroupCancel = cancel;
@@ -567,23 +719,34 @@ function initNavGroups() {
         items.style.overflow = "hidden";
 
         if (wasOpen) {
-          items.style.height = `${items.getBoundingClientRect().height}px`;
+          const startPadding = itemBlockPadding();
+          expectedTransitionProperties = transitionPropertiesFor(startPadding);
+          items.style.height = px(items.getBoundingClientRect().height);
+          setItemBlockPadding(startPadding.top, startPadding.bottom);
           items.getBoundingClientRect();
           group.classList.add("is-collapsing");
           frame = requestAnimationFrame(() => {
             items.style.height = "0px";
+            setItemBlockPadding(0, 0);
           });
         } else {
           items.style.transition = "none";
           group.open = true;
           group.classList.add("is-expanding");
           items.style.height = "";
+          items.style.paddingTop = "";
+          items.style.paddingBottom = "";
+          items.getBoundingClientRect();
+          const targetPadding = itemBlockPadding();
           const targetHeight = items.getBoundingClientRect().height;
           items.style.height = "0px";
+          setItemBlockPadding(0, 0);
           items.getBoundingClientRect();
           items.style.transition = initialTransition;
+          expectedTransitionProperties = transitionPropertiesFor(targetPadding);
           frame = requestAnimationFrame(() => {
-            items.style.height = `${targetHeight}px`;
+            items.style.height = px(targetHeight);
+            setItemBlockPadding(targetPadding.top, targetPadding.bottom);
           });
         }
 
@@ -629,6 +792,40 @@ function initDebugMenu() {
   });
 }
 
+function markSidebarOverlayTransition() {
+  const root = document.documentElement;
+  if (!root.classList.contains("sidebar-overlay-open")) return;
+  root.dataset.keepSidebarOverlay = "true";
+  root.dataset.sidebarOverlayTransition = "true";
+}
+
+function releaseSidebarOverlayTransitionState() {
+  const root = document.documentElement;
+  if (root.dataset.sidebarOverlayTransition !== "true" && root.dataset.sidebarOverlayClosePending !== "true") {
+    delete root.dataset.keepSidebarOverlay;
+    return;
+  }
+
+  const release = () => {
+    const currentRoot = document.documentElement;
+    if (currentRoot.hasAttribute("data-astro-transition")) {
+      window.requestAnimationFrame(release);
+      return;
+    }
+
+    const shouldClose = currentRoot.dataset.sidebarOverlayClosePending === "true";
+    delete currentRoot.dataset.keepSidebarOverlay;
+    delete currentRoot.dataset.sidebarOverlayTransition;
+    delete currentRoot.dataset.sidebarOverlayClosePending;
+
+    if (shouldClose && !document.querySelector("[data-sidebar]")?.matches(":hover")) {
+      currentRoot.classList.remove("sidebar-overlay-open");
+    }
+  };
+
+  window.requestAnimationFrame(release);
+}
+
 function preserveShellState(event) {
   const root = document.documentElement;
   const nextRoot = event.newDocument?.documentElement;
@@ -638,10 +835,21 @@ function preserveShellState(event) {
   nextRoot.dataset.arrowStyle = document.documentElement.dataset.arrowStyle || "tabler";
   nextRoot.dataset.pageDirection = document.documentElement.dataset.pageDirection || "down";
   const keepOverlay =
-    root.classList.contains("sidebar-overlay-open") || root.dataset.keepSidebarOverlay === "true";
+    root.classList.contains("sidebar-overlay-open") ||
+    root.dataset.keepSidebarOverlay === "true" ||
+    root.dataset.sidebarOverlayTransition === "true";
   nextRoot.classList.toggle("sidebar-collapsed", root.classList.contains("sidebar-collapsed"));
   nextRoot.classList.toggle("sidebar-open", root.classList.contains("sidebar-open"));
   nextRoot.classList.toggle("sidebar-overlay-open", keepOverlay);
+  ["keepSidebarOverlay", "sidebarOverlayTransition", "sidebarOverlayClosePending"].forEach((key) => {
+    if (root.dataset[key] === "true") {
+      nextRoot.dataset[key] = "true";
+    } else {
+      delete nextRoot.dataset[key];
+    }
+  });
+  const navGroupState = saveNavGroupState();
+  applyNavGroupState(event.newDocument, navGroupState);
   event.newDocument
     ?.querySelector("[data-sidebar-open]")
     ?.setAttribute("aria-expanded", String(root.classList.contains("sidebar-open")));
@@ -662,6 +870,11 @@ function preserveShellState(event) {
   });
 
   gridParallaxProperties.forEach((property) => {
+    const value = root.style.getPropertyValue(property);
+    if (value) nextRoot.style.setProperty(property, value);
+  });
+
+  pageTransitionProperties.forEach((property) => {
     const value = root.style.getPropertyValue(property);
     if (value) nextRoot.style.setProperty(property, value);
   });
@@ -817,19 +1030,18 @@ function sidebarNavLinkAtPoint(x, y) {
   });
 }
 
-let interceptedSidebarNavigationClick = null;
-
 function shouldConsumeInterceptedClick(event) {
+  const interceptedSidebarNavigationClick = window.__hlInterceptedSidebarNavigationClick;
   if (!interceptedSidebarNavigationClick) return false;
   const elapsed = performance.now() - interceptedSidebarNavigationClick.time;
   const closeToPointer =
     Math.abs(event.clientX - interceptedSidebarNavigationClick.x) <= 3 &&
     Math.abs(event.clientY - interceptedSidebarNavigationClick.y) <= 3;
   if (elapsed > 700 || !closeToPointer) {
-    interceptedSidebarNavigationClick = null;
+    window.__hlInterceptedSidebarNavigationClick = null;
     return false;
   }
-  interceptedSidebarNavigationClick = null;
+  window.__hlInterceptedSidebarNavigationClick = null;
   event.preventDefault();
   event.stopImmediatePropagation?.();
   return true;
@@ -856,7 +1068,7 @@ function handleTransitionSidebarPointer(event) {
 
   event.preventDefault();
   event.stopPropagation();
-  interceptedSidebarNavigationClick = {
+  window.__hlInterceptedSidebarNavigationClick = {
     x: event.clientX,
     y: event.clientY,
     time: performance.now()
@@ -865,9 +1077,7 @@ function handleTransitionSidebarPointer(event) {
   const targetIndex = Number(link.dataset.navIndex);
   setPageDirection(targetIndex, path);
   setSidebarActivePath(path, { animate: true });
-  if (document.documentElement.classList.contains("sidebar-overlay-open")) {
-    document.documentElement.dataset.keepSidebarOverlay = "true";
-  }
+  markSidebarOverlayTransition();
   navigateWithTransition(link.href, link, { updateActive: false, updateDirection: false });
 }
 
@@ -877,6 +1087,11 @@ function handleTransitionPreparation(event) {
     lastSettledPath && lastSettledPath !== path
       ? lastSettledPath
       : activeNavPath() || normalizePath(event.from?.href);
+  const targetScrollY =
+    event.navigationType === "traverse" && Number.isFinite(history.state?.scrollY)
+      ? history.state.scrollY
+      : 0;
+  document.documentElement.style.setProperty("--page-old-scroll-offset-y", `${Math.round(targetScrollY - window.scrollY)}px`);
   if (fromPath && path) setPageDirectionBetweenPaths(fromPath, path);
   if (path) setSidebarActivePath(path, { animate: true });
 }
@@ -894,9 +1109,7 @@ function handleNavigationIntent(event) {
   const targetIndex = link.dataset.navIndex ? Number(link.dataset.navIndex) : navIndexForPath(path);
   setPageDirection(targetIndex, path);
   if (Number.isFinite(targetIndex)) setSidebarActivePath(path, { animate: true });
-  if (document.documentElement.classList.contains("sidebar-overlay-open")) {
-    document.documentElement.dataset.keepSidebarOverlay = "true";
-  }
+  markSidebarOverlayTransition();
 
   if (link.hasAttribute("data-nav-index")) {
     event.preventDefault();
@@ -936,6 +1149,21 @@ function initPreviewFeeds() {
       items.findIndex((item) => item.classList.contains("is-active"))
     );
     let timer = null;
+    let heightLockFrame = 0;
+
+    const lockFeedHeight = () => {
+      feed.style.removeProperty("--preview-feed-height");
+      const height = Math.ceil(feed.getBoundingClientRect().height);
+      if (height > 0) feed.style.setProperty("--preview-feed-height", `${height}px`);
+    };
+
+    const scheduleHeightLock = () => {
+      if (heightLockFrame) window.cancelAnimationFrame(heightLockFrame);
+      heightLockFrame = window.requestAnimationFrame(() => {
+        heightLockFrame = 0;
+        lockFeedHeight();
+      });
+    };
 
     const select = (index) => {
       activeIndex = (index + items.length) % items.length;
@@ -986,8 +1214,10 @@ function initPreviewFeeds() {
     feed.addEventListener("mouseleave", start, { signal: getSignal(feed, "preview") });
     feed.addEventListener("focusin", stop, { signal: getSignal(feed, "preview") });
     feed.addEventListener("focusout", start, { signal: getSignal(feed, "preview") });
+    window.addEventListener("resize", scheduleHeightLock, { signal: getSignal(feed, "preview"), passive: true });
 
     select(activeIndex);
+    lockFeedHeight();
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) start();
   });
 }
@@ -1006,7 +1236,7 @@ function init() {
   initNavGroups();
   initDebugMenu();
   initPreviewFeeds();
-  delete document.documentElement.dataset.keepSidebarOverlay;
+  releaseSidebarOverlayTransitionState();
 }
 
 if (!window.__hlShellEventsBound) {

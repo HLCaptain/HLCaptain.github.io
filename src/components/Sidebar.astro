@@ -41,26 +41,17 @@ const navigation = siteConfig.navigation.map((group) => ({
 
 <aside id="site-sidebar" class="site-sidebar" data-sidebar>
   <div class="sidebar-panel">
-    <header class="sidebar-brand">
+    <header class="sidebar-header">
       <button class="sidebar-toggle" type="button" data-sidebar-collapse aria-label="Collapse sidebar" aria-pressed="false">
         <span class="menu-icon" aria-hidden="true">
           <Icon name="lucide:menu" />
         </span>
       </button>
-      <a href="/" class="brand-mark" aria-label={`${siteConfig.name} home`}>
-        <span class="brand-symbol" aria-hidden="true">
-          <i></i><i></i><i></i><i></i>
-        </span>
-        <span class="brand-copy">
-          <strong>{siteConfig.name}</strong>
-          <small>portfolio / notes</small>
-        </span>
-      </a>
     </header>
 
     <nav class="sidebar-nav" aria-label="Primary navigation">
       {navigation.map((group) => (
-        <details class="nav-group" open={group.open} data-nav-group>
+        <details class="nav-group" open={group.open} data-nav-group={group.label}>
           <SidebarRow type="group" label={group.label} glyph={group.glyph} />
           <div class="nav-items">
             {group.items.map((item) => (
@@ -79,29 +70,29 @@ const navigation = siteConfig.navigation.map((group) => ({
       ))}
     </nav>
 
-    <section class="accent-panel" aria-labelledby="accent-title">
-      <div>
-        <p id="accent-title">Surface</p>
-        <button type="button" data-accent-reset>Auto</button>
+    <section class="accent-panel" aria-label="Appearance controls">
+      <div class="surface-controls">
+        <button class="surface-control surface-control--theme" type="button" data-theme-toggle aria-label="Switch to dark theme" aria-pressed="false">
+          <span class="surface-control__icon surface-control__icon--light" aria-hidden="true">
+            <Icon name="lucide:sun" />
+          </span>
+          <span class="surface-control__icon surface-control__icon--dark" aria-hidden="true">
+            <Icon name="lucide:moon" />
+          </span>
+          <span class="surface-control__label" data-theme-label>Light</span>
+        </button>
+
+        <label class="surface-control surface-control--accent">
+          <span class="surface-control__swatch" data-accent-preview aria-hidden="true"></span>
+          <span class="surface-control__label">Accent</span>
+          <input type="color" value="#b9843b" aria-label="Custom accent color" data-accent-input />
+        </label>
+
+        <button class="surface-control surface-control--reset" type="button" data-accent-reset aria-label="Reset accent to auto" title="Reset accent to auto">
+          <Icon name="lucide:rotate-ccw" aria-hidden="true" />
+        </button>
       </div>
-      <div class="theme-switch" aria-label="Theme">
-        <button type="button" data-theme-value="light" aria-pressed="true">Light</button>
-        <button type="button" data-theme-value="black" aria-pressed="false">Black</button>
-      </div>
-      <div class="accent-controls">
-        <input type="color" value="#b9843b" aria-label="Custom accent color" data-accent-input />
-        <div class="accent-swatches" aria-label="Accent presets">
-          {siteConfig.accentPresets.map((preset) => (
-            <button
-              type="button"
-              title={preset.label}
-              aria-label={`${preset.label} accent`}
-              style={`--swatch:${preset.value}`}
-              data-accent-value={preset.value}
-            ></button>
-          ))}
-        </div>
-      </div>
+
     </section>
   </div>
 </aside>
