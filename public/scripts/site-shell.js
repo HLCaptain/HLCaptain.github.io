@@ -3,6 +3,8 @@ const themeKey = "hlcaptain-theme";
 const sidebarKey = "hlcaptain-sidebar";
 const navGroupsKey = "hlcaptain-nav-groups";
 const arrowKey = "hlcaptain-arrow-style";
+const signalLayoutKey = "hlcaptain-signal-layout";
+const signalRatioKey = "hlcaptain-signal-ratio";
 const arrowStyles = new Set([
   "tabler",
   "lucide",
@@ -15,6 +17,30 @@ const arrowStyles = new Set([
   "fluent",
   "radix",
   "pixelart"
+]);
+const signalLayouts = new Map([
+  ["split", "Split"],
+  ["wide-crop", "Wide crop"],
+  ["wide-fluid", "Wide fluid"],
+  ["letterbox", "Letterbox"],
+  ["stage-top", "Stage top"],
+  ["hybrid-stage", "Hybrid stage"],
+  ["smart-stage", "Smart stage"],
+  ["panorama", "Panorama"],
+  ["console-strip", "Console strip"],
+  ["focus-band", "Focus band"],
+  ["square-dock", "Square dock"],
+  ["square-stage", "Square stage"],
+  ["square-stage-top", "Square top"],
+  ["square-stack", "Square stack"]
+]);
+const signalRatios = new Map([
+  ["original", "Original 16:9"],
+  ["wide", "Wide 21:9"],
+  ["standard", "Standard 4:3"],
+  ["square", "Square 1:1"],
+  ["portrait", "Portrait 3:4"],
+  ["mixed", "Mixed deck"]
 ]);
 
 function toHex(rgb) {
@@ -239,6 +265,47 @@ function applyArrowStyle(value) {
   root.dataset.arrowStyle = style;
   document.querySelectorAll("button[data-arrow-style]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.arrowStyle === style));
+  });
+}
+
+function applySignalLayout(value) {
+  const root = document.documentElement;
+  const layout = signalLayouts.has(value) ? value : "wide-crop";
+  root.dataset.signalLayout = layout;
+  document.querySelectorAll("button[data-signal-layout]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.signalLayout === layout));
+  });
+  document.querySelectorAll("[data-signal-layout-current]").forEach((target) => {
+    target.replaceChildren(signalLayouts.get(layout));
+  });
+}
+
+function applySignalRatio(value) {
+  const root = document.documentElement;
+  const ratio = signalRatios.has(value) ? value : "original";
+  root.dataset.signalRatio = ratio;
+
+  document.querySelectorAll("button[data-signal-ratio]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.signalRatio === ratio));
+  });
+
+  document.querySelectorAll("[data-signal-ratio-current]").forEach((target) => {
+    target.replaceChildren(signalRatios.get(ratio));
+  });
+
+  document.querySelectorAll("img[data-signal-image]").forEach((image) => {
+    const source = image.getAttribute(`data-signal-src-${ratio}`) || image.getAttribute("data-signal-src-original");
+    const label = image.getAttribute(`data-signal-label-${ratio}`) || "";
+    if (source && image.getAttribute("src") !== source) image.setAttribute("src", source);
+
+    const media = image.closest(".preview-feed__media");
+    if (media) {
+      if (label) {
+        media.setAttribute("data-signal-aspect", label);
+      } else {
+        media.removeAttribute("data-signal-aspect");
+      }
+    }
   });
 }
 
@@ -760,6 +827,8 @@ function initNavGroups() {
 
 function initDebugMenu() {
   applyArrowStyle(window.localStorage.getItem(arrowKey));
+  applySignalLayout(window.localStorage.getItem(signalLayoutKey));
+  applySignalRatio(window.localStorage.getItem(signalRatioKey));
 
   const panel = document.querySelector("[data-debug-panel]");
   const toggle = document.querySelector("[data-debug-toggle]");
@@ -788,6 +857,26 @@ function initDebugMenu() {
       const style = button.dataset.arrowStyle;
       window.localStorage.setItem(arrowKey, style);
       applyArrowStyle(style);
+    });
+  });
+
+  document.querySelectorAll("button[data-signal-layout]").forEach((button) => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => {
+      const layout = button.dataset.signalLayout;
+      window.localStorage.setItem(signalLayoutKey, layout);
+      applySignalLayout(layout);
+    });
+  });
+
+  document.querySelectorAll("button[data-signal-ratio]").forEach((button) => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => {
+      const ratio = button.dataset.signalRatio;
+      window.localStorage.setItem(signalRatioKey, ratio);
+      applySignalRatio(ratio);
     });
   });
 }
@@ -833,6 +922,8 @@ function preserveShellState(event) {
 
   nextRoot.dataset.theme = currentTheme();
   nextRoot.dataset.arrowStyle = document.documentElement.dataset.arrowStyle || "tabler";
+  nextRoot.dataset.signalLayout = document.documentElement.dataset.signalLayout || "wide-crop";
+  nextRoot.dataset.signalRatio = document.documentElement.dataset.signalRatio || "original";
   nextRoot.dataset.pageDirection = document.documentElement.dataset.pageDirection || "down";
   const keepOverlay =
     root.classList.contains("sidebar-overlay-open") ||

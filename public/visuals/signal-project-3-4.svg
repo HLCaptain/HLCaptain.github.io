@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="560" viewBox="0 0 420 560" role="img" aria-label="Project preview 3:4">
+  <rect width="420" height="560" fill="#0b1012"/>
+  <path d="M42 56h336v452H42z" fill="#142326" stroke="#2f8f9d" stroke-width="2"/>
+  <path d="M74 98h126v144H74zM226 98h112v26H226zM226 150h92v16H226zM226 186h108v16H226zM226 222h76v16H226z" fill="#e9e4d3"/>
+  <path d="M98 128h34v34H98zM142 128h34v34h-34zM98 182h78v26H98z" fill="#2f8f9d"/>
+  <path d="M74 314h264v4H74zM74 338h196v4H74zM74 362h232v4H74z" fill="#b9843b"/>
+  <text x="338" y="462" fill="#e9e4d3" font-family="monospace" font-size="24" text-anchor="end">3:4</text>
+</svg>

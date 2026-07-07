@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Project preview">
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-label="Project preview">
   <rect width="640" height="360" fill="#0b1012"/>
   <path d="M58 64h524v232H58z" fill="#142326" stroke="#2f8f9d" stroke-width="2"/>
   <path d="M92 96h160v128H92zM284 96h264v28H284zM284 150h210v18H284zM284 186h248v18H284zM284 222h146v18H284z" fill="#e9e4d3"/>

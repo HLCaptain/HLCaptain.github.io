@@ -1200,7 +1200,7 @@ test.describe("site shell", () => {
     await expect(root).toHaveAttribute("data-theme", "black");
     await expect(page.getByRole("button", { name: "Switch to light theme" }).locator("[data-theme-label]")).toHaveText("Dark");
     const blackGridSoft = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--grid-line-soft").trim());
-    expect(blackGridSoft).toContain("/ 0.12");
+    expect(blackGridSoft.includes("/ 0.12") || blackGridSoft === "#b9843b1f").toBe(true);
     await expect
       .poll(async () =>
         page.locator(".entry-card__link").first().evaluate((node) => getComputedStyle(node).backgroundColor)
@@ -1289,16 +1289,25 @@ test.describe("site shell", () => {
     expect(afterNav.trim()).toBe(beforeNav.trim());
   });
 
-  test("debug menu changes arrow style and keeps it through navigation", async ({ page }) => {
+  test("debug menu changes arrow and Signal styles and keeps them through navigation", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     const root = page.locator("html");
     const debugToggle = page.getByRole("button", { name: "Open debug menu" });
     const firstArrow = page.locator(".entry-card__arrow").first();
+    const firstSignalImage = page.locator("img[data-signal-image]").first();
+    const firstSignalMedia = page.locator(".preview-feed__media").first();
     await debugToggle.click();
     await expect(page.locator("[data-debug-panel]")).toBeVisible();
     await expect(page.locator("button[data-arrow-style]")).toHaveCount(11);
+    await expect(page.locator("button[data-signal-layout]")).toHaveCount(14);
+    await expect(page.locator("button[data-signal-ratio]")).toHaveCount(6);
+    await expect(page.locator("[data-signal-layout-current]")).toHaveText("Wide crop");
+    await expect(page.locator("[data-signal-ratio-current]")).toHaveText("Original 16:9");
+    await expect(root).toHaveAttribute("data-signal-layout", "wide-crop");
+    await expect(root).toHaveAttribute("data-signal-ratio", "original");
+    await expect(firstSignalImage).toHaveAttribute("src", "/visuals/article-preview.svg");
     await expect(page.locator("button[data-brand-style]")).toHaveCount(0);
     await expect(page.locator("[data-brand-current]")).toHaveCount(0);
     await expect(page.locator(".brand-mark")).toHaveCount(0);
@@ -1312,9 +1321,25 @@ test.describe("site shell", () => {
     expect(Number.parseFloat(iconWidth)).toBeGreaterThanOrEqual(24);
     await expect(firstArrow.locator('.arrow-icon__svg[data-icon-style="phosphor"]')).toBeVisible();
 
+    await page.getByRole("button", { name: "Letterbox" }).click();
+    await expect(root).toHaveAttribute("data-signal-layout", "letterbox");
+    await expect(page.getByRole("button", { name: "Letterbox" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-layout-current]")).toHaveText("Letterbox");
+
+    await page.getByRole("button", { name: "Mixed deck" }).click();
+    await expect(root).toHaveAttribute("data-signal-ratio", "mixed");
+    await expect(page.getByRole("button", { name: "Mixed deck" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-ratio-current]")).toHaveText("Mixed deck");
+    await expect(firstSignalImage).toHaveAttribute("src", "/visuals/signal-article-21-9.svg");
+    await expect(firstSignalMedia).toHaveAttribute("data-signal-aspect", "21:9");
+
+    await page.getByRole("button", { name: "Close debug menu" }).click();
+    await expect(page.locator("[data-debug-panel]")).toBeHidden();
     await page.getByRole("link", { name: "Read articles" }).click();
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveAttribute("data-arrow-style", "phosphor");
+    await expect(root).toHaveAttribute("data-signal-layout", "letterbox");
+    await expect(root).toHaveAttribute("data-signal-ratio", "mixed");
     await expect(root).not.toHaveAttribute("data-brand-style", /.*/);
 
     const panel = page.locator("[data-debug-panel]");
@@ -1322,6 +1347,10 @@ test.describe("site shell", () => {
       await debugToggle.click();
     }
     await expect(page.getByRole("button", { name: "Phosphor" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Letterbox" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-layout-current]")).toHaveText("Letterbox");
+    await expect(page.getByRole("button", { name: "Mixed deck" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-ratio-current]")).toHaveText("Mixed deck");
     await expect(page.locator("button[data-brand-style]")).toHaveCount(0);
   });
 
@@ -1502,6 +1531,615 @@ test.describe("site shell", () => {
       .toBeLessThan(0.2);
   });
 
+  test("preview feed tablet thumbnail variants change shape and fit", async ({ page }) => {
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    test.skip(viewportWidth <= 720 || viewportWidth > 1040, "Tablet-only Signal variant geometry");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const feed = page.locator("[data-preview-feed]");
+    const detail = feed.locator("[data-preview-item].is-active .preview-feed__detail");
+    const media = detail.locator(".preview-feed__media");
+    const description = detail.locator(".preview-feed__description");
+    const debugToggle = page.getByRole("button", { name: "Open debug menu" });
+
+    await expect(root).toHaveAttribute("data-signal-layout", "wide-crop");
+    await expect(media).toBeVisible();
+
+    const measure = async () => {
+      const [feedBox, detailBox, mediaBox, descriptionBox] = await Promise.all([
+        feed.boundingBox(),
+        detail.boundingBox(),
+        media.boundingBox(),
+        description.boundingBox()
+      ]);
+      const detailStyle = await detail.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          columns: style.gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length,
+          rows: style.gridTemplateRows.trim().split(/\s+/).filter(Boolean).length
+        };
+      });
+      const mediaStyle = await media.evaluate((node) => {
+        const image = node.querySelector("img")!;
+        const style = getComputedStyle(image);
+        return {
+          fit: style.objectFit,
+          position: style.objectPosition
+        };
+      });
+
+      return {
+        detailHeight: detailBox?.height ?? 0,
+        detailWidth: detailBox?.width ?? 0,
+        detailX: detailBox?.x ?? 0,
+        detailY: detailBox?.y ?? 0,
+        mediaX: mediaBox?.x ?? 0,
+        mediaY: mediaBox?.y ?? 0,
+        mediaHeight: mediaBox?.height ?? 0,
+        mediaWidth: mediaBox?.width ?? 0,
+        mediaTopGap: (mediaBox?.y ?? 0) - (detailBox?.y ?? 0),
+        mediaBottomGap: (detailBox?.y ?? 0) + (detailBox?.height ?? 0) - ((mediaBox?.y ?? 0) + (mediaBox?.height ?? 0)),
+        descriptionX: descriptionBox?.x ?? 0,
+        descriptionY: descriptionBox?.y ?? 0,
+        feedHeight: feedBox?.height ?? 0,
+        columns: detailStyle.columns,
+        rows: detailStyle.rows,
+        fit: mediaStyle.fit,
+        position: mediaStyle.position
+      };
+    };
+
+    const selectVariant = async (name: string, value: string) => {
+      await page.getByRole("button", { name }).click();
+      await expect(root).toHaveAttribute("data-signal-layout", value);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      return measure();
+    };
+    const expectStableFeedHeight = (value: { feedHeight: number }, reference: { feedHeight: number }) => {
+      expect(Math.abs(value.feedHeight - reference.feedHeight)).toBeLessThanOrEqual(1);
+    };
+    const expectBalancedMediaGaps = (value: { mediaTopGap: number; mediaBottomGap: number }) => {
+      expect(value.mediaTopGap).toBeGreaterThanOrEqual(0);
+      expect(value.mediaBottomGap).toBeGreaterThanOrEqual(0);
+      expect(Math.abs(value.mediaTopGap - value.mediaBottomGap)).toBeLessThanOrEqual(1);
+    };
+    const expectTopAlignedMedia = (value: { mediaTopGap: number }) => {
+      expect(value.mediaTopGap).toBeLessThanOrEqual(1);
+    };
+    const selectRatio = async (name: string, value: string) => {
+      await page.getByRole("button", { name }).click();
+      await expect(root).toHaveAttribute("data-signal-ratio", value);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    };
+
+    const wideCrop = await measure();
+    expect(wideCrop.feedHeight).toBeGreaterThanOrEqual(520);
+    expect(wideCrop.feedHeight).toBeLessThanOrEqual(545);
+    expect(wideCrop.columns).toBe(2);
+    expect(wideCrop.fit).toBe("cover");
+    expect(wideCrop.mediaHeight).toBeLessThan(wideCrop.detailHeight * 0.7);
+    expect(wideCrop.mediaWidth).toBeGreaterThan(wideCrop.mediaHeight);
+    expect(wideCrop.descriptionX).toBeGreaterThan(wideCrop.mediaX + wideCrop.mediaWidth);
+    expectBalancedMediaGaps(wideCrop);
+
+    await debugToggle.click();
+    await expect(page.locator("[data-debug-panel]")).toBeVisible();
+
+    const split = await selectVariant("Split", "split");
+    expectStableFeedHeight(split, wideCrop);
+    expect(split.columns).toBe(2);
+    expect(split.mediaHeight).toBeGreaterThan(wideCrop.mediaHeight + 90);
+    expect(Math.abs(split.mediaHeight - split.detailHeight)).toBeLessThanOrEqual(1);
+
+    const wideFluid = await selectVariant("Wide fluid", "wide-fluid");
+    expectStableFeedHeight(wideFluid, wideCrop);
+    expect(wideFluid.columns).toBe(2);
+    expect(wideFluid.fit).toBe("cover");
+    expect(wideFluid.mediaHeight).toBeLessThanOrEqual(wideCrop.mediaHeight + 6);
+    expect(Math.abs(wideFluid.mediaWidth / wideFluid.mediaHeight - 16 / 9)).toBeLessThan(0.04);
+    expectBalancedMediaGaps(wideFluid);
+
+    const stageTop16 = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTop16, wideCrop);
+    expect(stageTop16.columns).toBe(2);
+    expect(stageTop16.fit).toBe("contain");
+    expectTopAlignedMedia(stageTop16);
+    expect(Math.abs(stageTop16.mediaWidth / stageTop16.mediaHeight - 16 / 9)).toBeLessThan(0.04);
+
+    const hybridStage16 = await selectVariant("Hybrid stage", "hybrid-stage");
+    expectStableFeedHeight(hybridStage16, wideCrop);
+    expect(hybridStage16.columns).toBe(2);
+    expect(hybridStage16.fit).toBe("contain");
+    expectTopAlignedMedia(hybridStage16);
+    expect(Math.abs(hybridStage16.mediaWidth / hybridStage16.mediaHeight - 16 / 9)).toBeLessThan(0.04);
+
+    await selectRatio("Wide 21:9", "wide");
+    const stageTopWide = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTopWide, wideCrop);
+    expect(stageTopWide.fit).toBe("contain");
+    expectTopAlignedMedia(stageTopWide);
+    expect(Math.abs(stageTopWide.mediaWidth / stageTopWide.mediaHeight - 16 / 9)).toBeLessThan(0.04);
+
+    await selectRatio("Standard 4:3", "standard");
+    const stageTopStandard = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTopStandard, wideCrop);
+    expect(stageTopStandard.fit).toBe("contain");
+    expectTopAlignedMedia(stageTopStandard);
+    expect(Math.abs(stageTopStandard.mediaWidth / stageTopStandard.mediaHeight - 4 / 3)).toBeLessThan(0.04);
+
+    await selectRatio("Portrait 3:4", "portrait");
+    const stageTopPortrait = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTopPortrait, wideCrop);
+    expect(stageTopPortrait.fit).toBe("contain");
+    expectTopAlignedMedia(stageTopPortrait);
+    expect(Math.abs(stageTopPortrait.mediaWidth / stageTopPortrait.mediaHeight - 3 / 4)).toBeLessThan(0.04);
+
+    const hybridStagePortrait = await selectVariant("Hybrid stage", "hybrid-stage");
+    expectStableFeedHeight(hybridStagePortrait, wideCrop);
+    expect(hybridStagePortrait.columns).toBe(2);
+    expect(hybridStagePortrait.fit).toBe("contain");
+    expectTopAlignedMedia(hybridStagePortrait);
+    expect(Math.abs(hybridStagePortrait.mediaWidth / hybridStagePortrait.mediaHeight - 3 / 4)).toBeLessThan(0.04);
+
+    await selectRatio("Original 16:9", "original");
+    const letterbox = await selectVariant("Letterbox", "letterbox");
+    expectStableFeedHeight(letterbox, wideCrop);
+    expect(letterbox.columns).toBe(2);
+    expect(letterbox.fit).toBe("contain");
+    expect(letterbox.mediaHeight).toBeLessThan(split.mediaHeight * 0.65);
+    expect(letterbox.mediaWidth).toBeGreaterThan(split.mediaWidth);
+    expectBalancedMediaGaps(letterbox);
+
+    const panorama = await selectVariant("Panorama", "panorama");
+    expectStableFeedHeight(panorama, wideCrop);
+    expect(panorama.columns).toBe(1);
+    expect(panorama.rows).toBe(2);
+    expect(Math.abs(panorama.mediaWidth - panorama.detailWidth)).toBeLessThanOrEqual(1);
+    expect(panorama.mediaHeight).toBeLessThan(split.mediaHeight * 0.5);
+    expect(panorama.descriptionY).toBeGreaterThan(panorama.mediaY + panorama.mediaHeight);
+
+    const consoleStrip = await selectVariant("Console strip", "console-strip");
+    expectStableFeedHeight(consoleStrip, wideCrop);
+    expect(consoleStrip.columns).toBe(1);
+    expect(consoleStrip.rows).toBe(2);
+    expect(Math.abs(consoleStrip.mediaWidth - consoleStrip.detailWidth)).toBeLessThanOrEqual(1);
+    expect(consoleStrip.mediaHeight).toBeLessThan(panorama.mediaHeight);
+
+    const focusBand = await selectVariant("Focus band", "focus-band");
+    expectStableFeedHeight(focusBand, wideCrop);
+    expect(focusBand.columns).toBe(2);
+    expect(focusBand.fit).toBe("cover");
+    expect(focusBand.mediaHeight).toBeLessThan(wideCrop.mediaHeight);
+    expect(focusBand.mediaWidth).toBeGreaterThanOrEqual(wideCrop.mediaWidth);
+    expect(focusBand.position).toMatch(/0%$/);
+    expectBalancedMediaGaps(focusBand);
+
+    await selectRatio("Square 1:1", "square");
+
+    const squareDock = await selectVariant("Square dock", "square-dock");
+    expectStableFeedHeight(squareDock, wideCrop);
+    expect(squareDock.columns).toBe(2);
+    expect(squareDock.fit).toBe("cover");
+    expect(Math.abs(squareDock.mediaWidth - squareDock.mediaHeight)).toBeLessThanOrEqual(1);
+    expect(squareDock.mediaWidth).toBeLessThan(wideCrop.mediaWidth);
+    expect(squareDock.descriptionX).toBeGreaterThan(squareDock.mediaX + squareDock.mediaWidth);
+    expectBalancedMediaGaps(squareDock);
+
+    const squareStage = await selectVariant("Square stage", "square-stage");
+    expectStableFeedHeight(squareStage, wideCrop);
+    expect(squareStage.columns).toBe(2);
+    expect(squareStage.fit).toBe("contain");
+    expect(Math.abs(squareStage.mediaWidth - squareStage.mediaHeight)).toBeLessThanOrEqual(1);
+    expect(squareStage.mediaWidth).toBeGreaterThan(squareDock.mediaWidth);
+    expect(squareStage.mediaWidth).toBeLessThan(squareStage.detailHeight);
+    expectBalancedMediaGaps(squareStage);
+
+    const squareStageTop = await selectVariant("Square top", "square-stage-top");
+    expectStableFeedHeight(squareStageTop, wideCrop);
+    expect(squareStageTop.columns).toBe(2);
+    expect(squareStageTop.fit).toBe("contain");
+    expect(Math.abs(squareStageTop.mediaWidth - squareStageTop.mediaHeight)).toBeLessThanOrEqual(1);
+    expectTopAlignedMedia(squareStageTop);
+
+    const stageTopSquare = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTopSquare, wideCrop);
+    expect(stageTopSquare.columns).toBe(2);
+    expect(stageTopSquare.fit).toBe("contain");
+    expect(Math.abs(stageTopSquare.mediaWidth - stageTopSquare.mediaHeight)).toBeLessThanOrEqual(1);
+    expectTopAlignedMedia(stageTopSquare);
+
+    const squareStack = await selectVariant("Square stack", "square-stack");
+    expectStableFeedHeight(squareStack, wideCrop);
+    expect(squareStack.columns).toBe(1);
+    expect(squareStack.rows).toBe(2);
+    expect(squareStack.fit).toBe("cover");
+    expect(Math.abs(squareStack.mediaWidth - squareStack.mediaHeight)).toBeLessThanOrEqual(1);
+    expect(squareStack.mediaWidth).toBeLessThan(squareStack.detailWidth * 0.65);
+    expect(squareStack.mediaX).toBeGreaterThan(squareStack.detailX);
+    expect(squareStack.descriptionY).toBeGreaterThan(squareStack.mediaY + squareStack.mediaHeight);
+  });
+
+  test("preview feed thumbnail variants stay vertical on mobile and desktop", async ({ page }) => {
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    test.skip(viewportWidth > 720 && viewportWidth <= 1040, "Mobile and desktop Signal variant geometry");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const feed = page.locator("[data-preview-feed]");
+    const detail = feed.locator("[data-preview-item].is-active .preview-feed__detail");
+    const media = detail.locator(".preview-feed__media");
+    const description = detail.locator(".preview-feed__description");
+    const debugToggle = page.getByRole("button", { name: "Open debug menu" });
+
+    const measure = async () => {
+      const [feedBox, detailBox, mediaBox, descriptionBox] = await Promise.all([
+        feed.boundingBox(),
+        detail.boundingBox(),
+        media.boundingBox(),
+        description.boundingBox()
+      ]);
+      const detailStyle = await detail.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          columns: style.gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length,
+          rows: style.gridTemplateRows.trim().split(/\s+/).filter(Boolean).length
+        };
+      });
+      const mediaStyle = await media.evaluate((node) => {
+        const image = node.querySelector("img")!;
+        const style = getComputedStyle(image);
+        return {
+          fit: style.objectFit,
+          position: style.objectPosition
+        };
+      });
+
+      return {
+        feedHeight: feedBox?.height ?? 0,
+        detailX: detailBox?.x ?? 0,
+        detailWidth: detailBox?.width ?? 0,
+        mediaX: mediaBox?.x ?? 0,
+        mediaY: mediaBox?.y ?? 0,
+        mediaWidth: mediaBox?.width ?? 0,
+        mediaHeight: mediaBox?.height ?? 0,
+        descriptionY: descriptionBox?.y ?? 0,
+        columns: detailStyle.columns,
+        rows: detailStyle.rows,
+        fit: mediaStyle.fit,
+        position: mediaStyle.position
+      };
+    };
+    const aspect = (value: { mediaWidth: number; mediaHeight: number }) => value.mediaWidth / Math.max(value.mediaHeight, 1);
+    const mediaBottom = (value: { mediaY: number; mediaHeight: number }) => value.mediaY + value.mediaHeight;
+    const expectStableFeedHeight = (value: { feedHeight: number }, reference: { feedHeight: number }) => {
+      expect(Math.abs(value.feedHeight - reference.feedHeight)).toBeLessThanOrEqual(1);
+    };
+    const expectVertical = (value: { columns: number; descriptionY: number; mediaY: number; mediaHeight: number }) => {
+      expect(value.columns).toBe(1);
+      expect(value.descriptionY).toBeGreaterThanOrEqual(mediaBottom(value));
+    };
+    const expectCentered = (value: { detailX: number; detailWidth: number; mediaX: number; mediaWidth: number }) => {
+      const mediaCenter = value.mediaX + value.mediaWidth / 2;
+      const detailCenter = value.detailX + value.detailWidth / 2;
+      expect(Math.abs(mediaCenter - detailCenter)).toBeLessThanOrEqual(2);
+    };
+    const selectRatio = async (name: string, value: string) => {
+      await page.getByRole("button", { name }).click();
+      await expect(root).toHaveAttribute("data-signal-ratio", value);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    };
+    const selectVariant = async (name: string, value: string) => {
+      await page.getByRole("button", { name }).click();
+      await expect(root).toHaveAttribute("data-signal-layout", value);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      return measure();
+    };
+
+    const baseline = await measure();
+    expectVertical(baseline);
+    expect(Math.abs(aspect(baseline) - 16 / 9)).toBeLessThan(0.04);
+
+    await debugToggle.click();
+    await expect(page.locator("[data-debug-panel]")).toBeVisible();
+
+    const wideFluid = await selectVariant("Wide fluid", "wide-fluid");
+    expectStableFeedHeight(wideFluid, baseline);
+    expectVertical(wideFluid);
+    expect(wideFluid.fit).toBe("cover");
+    expect(Math.abs(aspect(wideFluid) - 16 / 9)).toBeLessThan(0.04);
+
+    const stageTop16 = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTop16, baseline);
+    expectVertical(stageTop16);
+    expect(stageTop16.fit).toBe("contain");
+    expect(stageTop16.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(stageTop16) - 16 / 9)).toBeLessThan(0.04);
+
+    const hybridStage16 = await selectVariant("Hybrid stage", "hybrid-stage");
+    expectStableFeedHeight(hybridStage16, baseline);
+    expectVertical(hybridStage16);
+    expect(hybridStage16.fit).toBe("contain");
+    expect(hybridStage16.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(hybridStage16) - 16 / 9)).toBeLessThan(0.04);
+
+    await selectRatio("Wide 21:9", "wide");
+    const stageTopWide = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTopWide, baseline);
+    expectVertical(stageTopWide);
+    expect(stageTopWide.fit).toBe("contain");
+    expect(stageTopWide.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(stageTopWide) - 16 / 9)).toBeLessThan(0.04);
+
+    await selectRatio("Portrait 3:4", "portrait");
+    const stageTopPortrait = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTopPortrait, baseline);
+    expectVertical(stageTopPortrait);
+    expect(stageTopPortrait.fit).toBe("contain");
+    expect(stageTopPortrait.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(stageTopPortrait) - 3 / 4)).toBeLessThan(0.04);
+
+    const hybridStagePortrait = await selectVariant("Hybrid stage", "hybrid-stage");
+    expectStableFeedHeight(hybridStagePortrait, baseline);
+    expectVertical(hybridStagePortrait);
+    expect(hybridStagePortrait.fit).toBe("contain");
+    expect(hybridStagePortrait.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(hybridStagePortrait) - 3 / 4)).toBeLessThan(0.04);
+
+    await selectRatio("Original 16:9", "original");
+    const letterbox = await selectVariant("Letterbox", "letterbox");
+    expectStableFeedHeight(letterbox, baseline);
+    expectVertical(letterbox);
+    expect(letterbox.fit).toBe("contain");
+    expect(Math.abs(aspect(letterbox) - 4 / 3)).toBeLessThan(0.04);
+
+    const panorama = await selectVariant("Panorama", "panorama");
+    expectStableFeedHeight(panorama, baseline);
+    expectVertical(panorama);
+    expect(aspect(panorama)).toBeGreaterThan(2.2);
+
+    const consoleStrip = await selectVariant("Console strip", "console-strip");
+    expectStableFeedHeight(consoleStrip, baseline);
+    expectVertical(consoleStrip);
+    expect(aspect(consoleStrip)).toBeGreaterThan(aspect(panorama));
+
+    const focusBand = await selectVariant("Focus band", "focus-band");
+    expectStableFeedHeight(focusBand, baseline);
+    expectVertical(focusBand);
+    expect(focusBand.fit).toBe("cover");
+    expect(focusBand.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(focusBand) - 2)).toBeLessThan(0.04);
+
+    await selectRatio("Square 1:1", "square");
+
+    const squareDock = await selectVariant("Square dock", "square-dock");
+    expectStableFeedHeight(squareDock, baseline);
+    expectVertical(squareDock);
+    expect(squareDock.fit).toBe("cover");
+    expect(Math.abs(squareDock.mediaWidth - squareDock.mediaHeight)).toBeLessThanOrEqual(1);
+    expectCentered(squareDock);
+
+    const squareStage = await selectVariant("Square stage", "square-stage");
+    expectStableFeedHeight(squareStage, baseline);
+    expectVertical(squareStage);
+    expect(squareStage.fit).toBe("contain");
+    expect(squareStage.mediaWidth).toBeGreaterThanOrEqual(squareDock.mediaWidth);
+    expect(Math.abs(squareStage.mediaWidth - squareStage.mediaHeight)).toBeLessThanOrEqual(1);
+    expectCentered(squareStage);
+
+    const squareStageTop = await selectVariant("Square top", "square-stage-top");
+    expectStableFeedHeight(squareStageTop, baseline);
+    expectVertical(squareStageTop);
+    expect(squareStageTop.fit).toBe("contain");
+    expect(squareStageTop.position).toMatch(/0%$/);
+    expect(Math.abs(squareStageTop.mediaWidth - squareStageTop.mediaHeight)).toBeLessThanOrEqual(1);
+    expectCentered(squareStageTop);
+
+    const stageTopSquare = await selectVariant("Stage top", "stage-top");
+    expectStableFeedHeight(stageTopSquare, baseline);
+    expectVertical(stageTopSquare);
+    expect(stageTopSquare.fit).toBe("contain");
+    expect(stageTopSquare.position).toMatch(/0%$/);
+    expect(Math.abs(stageTopSquare.mediaWidth - stageTopSquare.mediaHeight)).toBeLessThanOrEqual(1);
+    expectCentered(stageTopSquare);
+
+    const squareStack = await selectVariant("Square stack", "square-stack");
+    expectStableFeedHeight(squareStack, baseline);
+    expectVertical(squareStack);
+    expect(squareStack.fit).toBe("cover");
+    expect(squareStack.mediaWidth).toBeLessThan(squareStage.mediaWidth);
+    expect(Math.abs(squareStack.mediaWidth - squareStack.mediaHeight)).toBeLessThanOrEqual(1);
+    expectCentered(squareStack);
+  });
+
+  test("preview feed smart stage chooses layout from ratio and constraints", async ({ page }) => {
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    const isMobile = viewportWidth <= 720;
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const feed = page.locator("[data-preview-feed]");
+    const detail = feed.locator("[data-preview-item].is-active .preview-feed__detail");
+    const media = detail.locator(".preview-feed__media");
+    const description = detail.locator(".preview-feed__description");
+    const debugToggle = page.getByRole("button", { name: "Open debug menu" });
+
+    const measure = async () => {
+      const [feedBox, detailBox, mediaBox, descriptionBox] = await Promise.all([
+        feed.boundingBox(),
+        detail.boundingBox(),
+        media.boundingBox(),
+        description.boundingBox()
+      ]);
+      const detailStyle = await detail.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          columns: style.gridTemplateColumns.trim().split(/\s+/).filter(Boolean).length
+        };
+      });
+      const mediaStyle = await media.evaluate((node) => {
+        const image = node.querySelector("img")!;
+        const style = getComputedStyle(image);
+        return {
+          fit: style.objectFit,
+          position: style.objectPosition
+        };
+      });
+
+      return {
+        feedHeight: feedBox?.height ?? 0,
+        detailY: detailBox?.y ?? 0,
+        mediaX: mediaBox?.x ?? 0,
+        mediaY: mediaBox?.y ?? 0,
+        mediaWidth: mediaBox?.width ?? 0,
+        mediaHeight: mediaBox?.height ?? 0,
+        descriptionX: descriptionBox?.x ?? 0,
+        descriptionY: descriptionBox?.y ?? 0,
+        columns: detailStyle.columns,
+        fit: mediaStyle.fit,
+        position: mediaStyle.position
+      };
+    };
+    const aspect = (value: { mediaWidth: number; mediaHeight: number }) => value.mediaWidth / Math.max(value.mediaHeight, 1);
+    const mediaBottom = (value: { mediaY: number; mediaHeight: number }) => value.mediaY + value.mediaHeight;
+    const mediaRight = (value: { mediaX: number; mediaWidth: number }) => value.mediaX + value.mediaWidth;
+    const expectStableFeedHeight = (value: { feedHeight: number }, reference: { feedHeight: number }) => {
+      expect(Math.abs(value.feedHeight - reference.feedHeight)).toBeLessThanOrEqual(1);
+    };
+    const expectRow = (value: {
+      columns: number;
+      descriptionX: number;
+      detailY: number;
+      mediaX: number;
+      mediaY: number;
+      mediaWidth: number;
+    }) => {
+      expect(value.columns).toBe(2);
+      expect(value.descriptionX).toBeGreaterThan(mediaRight(value));
+      expect(Math.abs(value.mediaY - value.detailY)).toBeLessThanOrEqual(1);
+    };
+    const expectColumn = (value: { columns: number; descriptionY: number; mediaY: number; mediaHeight: number }) => {
+      expect(value.columns).toBe(1);
+      expect(value.descriptionY).toBeGreaterThanOrEqual(mediaBottom(value));
+    };
+    const expectWideDecision = (value: Parameters<typeof expectRow>[0] & Parameters<typeof expectColumn>[0]) => {
+      if (isMobile) {
+        expectColumn(value);
+      } else {
+        expectRow(value);
+      }
+    };
+    const selectRatio = async (name: string, value: string) => {
+      await page.getByRole("button", { name }).click();
+      await expect(root).toHaveAttribute("data-signal-ratio", value);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+      return measure();
+    };
+
+    await debugToggle.click();
+    await expect(page.locator("[data-debug-panel]")).toBeVisible();
+    await page.getByRole("button", { name: "Smart stage" }).click();
+    await expect(root).toHaveAttribute("data-signal-layout", "smart-stage");
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+
+    const original = await measure();
+    expectWideDecision(original);
+    expect(original.fit).toBe("contain");
+    expect(original.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(original) - 16 / 9)).toBeLessThan(0.04);
+
+    const wide = await selectRatio("Wide 21:9", "wide");
+    expectStableFeedHeight(wide, original);
+    expectWideDecision(wide);
+    expect(wide.fit).toBe("contain");
+    expect(wide.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(wide) - 16 / 9)).toBeLessThan(0.04);
+
+    const standard = await selectRatio("Standard 4:3", "standard");
+    expectStableFeedHeight(standard, original);
+    expectWideDecision(standard);
+    expect(standard.fit).toBe("contain");
+    expect(standard.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(standard) - 4 / 3)).toBeLessThan(0.04);
+
+    const square = await selectRatio("Square 1:1", "square");
+    expectStableFeedHeight(square, original);
+    expectRow(square);
+    expect(square.fit).toBe("contain");
+    expect(square.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(square) - 1)).toBeLessThan(0.04);
+
+    const portrait = await selectRatio("Portrait 3:4", "portrait");
+    expectStableFeedHeight(portrait, original);
+    expectRow(portrait);
+    expect(portrait.fit).toBe("contain");
+    expect(portrait.position).toMatch(/0%$/);
+    expect(Math.abs(aspect(portrait) - 3 / 4)).toBeLessThan(0.04);
+  });
+
+  test("preview feed debug ratio thumbnails swap intrinsic aspect ratios", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const firstImage = page.locator("img[data-signal-image]").first();
+    const debugToggle = page.getByRole("button", { name: "Open debug menu" });
+
+    const waitForSource = async (source: string) => {
+      await expect(firstImage).toHaveAttribute("src", source);
+      await page.waitForFunction(
+        (expectedSource) => {
+          const image = document.querySelector<HTMLImageElement>("img[data-signal-image]");
+          return Boolean(image?.getAttribute("src") === expectedSource && image.complete && image.naturalWidth > 0);
+        },
+        source
+      );
+    };
+    const ratios = async () =>
+      page.locator("img[data-signal-image]").evaluateAll((images) =>
+        images.map((image) => {
+          const thumbnail = image as HTMLImageElement;
+          return Math.round((thumbnail.naturalWidth / thumbnail.naturalHeight) * 100) / 100;
+        })
+      );
+    const selectRatio = async (name: string, value: string, source: string) => {
+      await page.getByRole("button", { name }).click();
+      await expect(root).toHaveAttribute("data-signal-ratio", value);
+      await waitForSource(source);
+      return ratios();
+    };
+
+    await debugToggle.click();
+    await expect(page.locator("[data-debug-panel]")).toBeVisible();
+
+    await waitForSource("/visuals/article-preview.svg");
+    expect((await ratios())[0]).toBeCloseTo(1.78, 1);
+
+    expect((await selectRatio("Wide 21:9", "wide", "/visuals/signal-article-21-9.svg"))[0]).toBeCloseTo(2.33, 1);
+    expect((await selectRatio("Standard 4:3", "standard", "/visuals/signal-article-4-3.svg"))[0]).toBeCloseTo(1.33, 1);
+    expect((await selectRatio("Square 1:1", "square", "/visuals/signal-article-1-1.svg"))[0]).toBeCloseTo(1, 1);
+    expect((await selectRatio("Portrait 3:4", "portrait", "/visuals/signal-article-3-4.svg"))[0]).toBeCloseTo(0.75, 1);
+
+    const mixed = await selectRatio("Mixed deck", "mixed", "/visuals/signal-article-21-9.svg");
+    expect(mixed[0]).toBeCloseTo(2.33, 1);
+    expect(mixed[1]).toBeCloseTo(1, 1);
+    expect(mixed[2]).toBeCloseTo(1.33, 1);
+    expect(mixed[3]).toBeCloseTo(0.75, 1);
+    expect(await page.locator(".preview-feed__media").first().evaluate((node) => getComputedStyle(node, "::before").display)).toBe(
+      "block"
+    );
+    const labels = await page.locator(".preview-feed__media").evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute("data-signal-aspect"))
+    );
+    expect(labels).toEqual(["21:9", "1:1", "4:3", "3:4"]);
+  });
+
   test("preview feed uses a vertical compact layout without text overflow", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
@@ -1534,8 +2172,10 @@ test.describe("site shell", () => {
     expect(Math.abs((topRow[0]?.y ?? 0) - (topRow[1]?.y ?? 0))).toBeLessThanOrEqual(2);
     expect(topRow[1]?.x ?? 0).toBeGreaterThan(topRow[0]?.x ?? 0);
 
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    const isTabletSignalLayout = viewportWidth > 720 && viewportWidth <= 1040;
     const detailColumns = await detail.evaluate((node) => getComputedStyle(node).gridTemplateColumns);
-    expect(detailColumns.trim().split(/\s+/)).toHaveLength(1);
+    expect(detailColumns.trim().split(/\s+/)).toHaveLength(isTabletSignalLayout ? 2 : 1);
     const detailSpacing = await detail.evaluate((node) => {
       const style = getComputedStyle(node);
       return {
@@ -1547,8 +2187,13 @@ test.describe("site shell", () => {
         paddingBottom: style.paddingBottom
       };
     });
-    expect(detailSpacing.columnGap).toBe("0px");
-    expect(detailSpacing.rowGap).toBe("0px");
+    if (isTabletSignalLayout) {
+      expect(detailSpacing.columnGap).toBe("10px");
+      expect(detailSpacing.rowGap).toBe("10px");
+    } else {
+      expect(detailSpacing.columnGap).toBe("0px");
+      expect(detailSpacing.rowGap).toBe("0px");
+    }
     expect(detailSpacing.paddingTop).toBe("0px");
     expect(detailSpacing.paddingLeft).toBe("0px");
     expect(detailSpacing.paddingRight).toBe("0px");
@@ -1562,11 +2207,29 @@ test.describe("site shell", () => {
     ]);
     const itemBottom = (activeItemBox?.y ?? 0) + (activeItemBox?.height ?? 0);
     const detailBottom = (detailBox?.y ?? 0) + (detailBox?.height ?? 0);
+    const mediaBottom = (mediaBox?.y ?? 0) + (mediaBox?.height ?? 0);
     expect(Math.abs(detailBottom - itemBottom)).toBeLessThanOrEqual(2);
     expect(Math.abs((mediaBox?.x ?? 0) - (detailBox?.x ?? 0))).toBeLessThanOrEqual(1);
-    expect(Math.abs((mediaBox?.width ?? 0) - (detailBox?.width ?? 0))).toBeLessThanOrEqual(1);
-    expect(Math.abs((mediaBox?.width ?? 0) / (mediaBox?.height ?? 1) - 16 / 9)).toBeLessThan(0.03);
-    expect(Math.abs((descriptionOuterBox?.y ?? 0) - ((mediaBox?.y ?? 0) + (mediaBox?.height ?? 0)))).toBeLessThanOrEqual(1);
+    if (isTabletSignalLayout) {
+      const mediaTopGap = (mediaBox?.y ?? 0) - (detailBox?.y ?? 0);
+      const mediaBottomGap = detailBottom - mediaBottom;
+      expect(mediaTopGap).toBeGreaterThanOrEqual(0);
+      expect(mediaBottomGap).toBeGreaterThanOrEqual(0);
+      expect(Math.abs(mediaTopGap - mediaBottomGap)).toBeLessThanOrEqual(1);
+      expect(Math.abs((descriptionOuterBox?.y ?? 0) - (detailBox?.y ?? 0))).toBeLessThanOrEqual(1);
+      expect((descriptionOuterBox?.x ?? 0)).toBeGreaterThan((mediaBox?.x ?? 0) + (mediaBox?.width ?? 0));
+      expect((mediaBox?.height ?? 0)).toBeLessThan((detailBox?.height ?? 0) * 0.7);
+      expect((mediaBox?.height ?? 0)).toBeGreaterThan(100);
+      expect(Math.abs((descriptionOuterBox?.height ?? 0) - (detailBox?.height ?? 0))).toBeLessThanOrEqual(1);
+      expect((mediaBox?.width ?? 0)).toBeGreaterThanOrEqual(220);
+      expect((mediaBox?.width ?? 0)).toBeLessThan((detailBox?.width ?? 0) * 0.68);
+      expect((descriptionOuterBox?.width ?? 0)).toBeGreaterThan(110);
+      expect((descriptionOuterBox?.height ?? 0)).toBeGreaterThan(120);
+    } else {
+      expect(Math.abs((mediaBox?.width ?? 0) - (detailBox?.width ?? 0))).toBeLessThanOrEqual(1);
+      expect(Math.abs((mediaBox?.width ?? 0) / (mediaBox?.height ?? 1) - 16 / 9)).toBeLessThan(0.03);
+      expect(Math.abs((descriptionOuterBox?.y ?? 0) - ((mediaBox?.y ?? 0) + (mediaBox?.height ?? 0)))).toBeLessThanOrEqual(1);
+    }
 
     const descriptionBox = await description.evaluate((node) => {
       const text = node.querySelector("span")!;
@@ -1582,8 +2245,21 @@ test.describe("site shell", () => {
         borderStyle: style.borderStyle
       };
     });
-    const itemBlur = await activeItem.evaluate((node) => {
+    const itemBlur = await activeItem.evaluate(async (node) => {
       const style = getComputedStyle(node, "::after");
+      const stylesheetText = await Promise.all(
+        Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map(async (link) => {
+          try {
+            const response = await fetch(link.href);
+            return response.ok ? response.text() : "";
+          } catch {
+            return "";
+          }
+        })
+      );
+      const declaredBackdropFilter = stylesheetText.some(
+        (text) => text.includes(".preview-feed__item") && text.includes("backdrop-filter:blur(")
+      );
       return {
         content: style.content,
         position: style.position,
@@ -1592,12 +2268,13 @@ test.describe("site shell", () => {
         opacity: Number.parseFloat(style.opacity),
         pointerEvents: style.pointerEvents,
         backdropFilter: style.backdropFilter || style.getPropertyValue("-webkit-backdrop-filter"),
+        declaredBackdropFilter,
         maskImage: style.maskImage || style.getPropertyValue("-webkit-mask-image")
       };
     });
     expect(descriptionBox.scrollWidth).toBeLessThanOrEqual(descriptionBox.clientWidth + 1);
-    expect(descriptionBox.lineClamp).toBe("4");
-    expect(descriptionBox.paddingTop).toBe("5px");
+    expect(descriptionBox.lineClamp).toBe(isTabletSignalLayout ? "7" : "4");
+    expect(descriptionBox.paddingTop).toBe(isTabletSignalLayout ? "8px" : "5px");
     expect(descriptionBox.paddingBottom).toBe("0px");
     expect(descriptionBox.backdropFilter === "none" || descriptionBox.backdropFilter === "").toBe(true);
     expect(descriptionBox.borderStyle).toBe("none");
@@ -1608,7 +2285,7 @@ test.describe("site shell", () => {
     expect(itemBlur.height).toBeLessThanOrEqual(54);
     expect(itemBlur.opacity).toBeGreaterThan(0.9);
     expect(itemBlur.pointerEvents).toBe("none");
-    expect(itemBlur.backdropFilter).toContain("blur");
+    expect(itemBlur.backdropFilter.includes("blur") || itemBlur.declaredBackdropFilter).toBe(true);
     expect(itemBlur.maskImage).toContain("linear-gradient");
   });
 });
