@@ -1,7 +1,7 @@
 ---
 import ArticleCard from "@components/ArticleCard.astro";
-import ArrowIcon from "@components/ArrowIcon.astro";
 import ProjectCard from "@components/ProjectCard.astro";
+import Signal from "@components/Signal.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { formatDate, getPublishedArticles, getPublishedProjects } from "@lib/content";
 
@@ -11,29 +11,26 @@ const featuredArticles = articles.filter((entry) => entry.data.featured).slice(0
 const featuredProjects = projects.filter((entry) => entry.data.featured).slice(0, 3);
 const signalThumbnailSets = {
   article: {
-    original: "/visuals/article-preview.svg",
-    wide: "/visuals/signal-article-21-9.svg",
-    standard: "/visuals/signal-article-4-3.svg",
     square: "/visuals/signal-article-1-1.svg",
+    landscape: "/visuals/signal-article-4-3.svg",
+    wide: "/visuals/article-preview.svg",
     portrait: "/visuals/signal-article-3-4.svg"
   },
   project: {
-    original: "/visuals/project-preview.svg",
-    wide: "/visuals/signal-project-21-9.svg",
-    standard: "/visuals/signal-project-4-3.svg",
     square: "/visuals/signal-project-1-1.svg",
+    landscape: "/visuals/signal-project-4-3.svg",
+    wide: "/visuals/project-preview.svg",
     portrait: "/visuals/signal-project-3-4.svg"
   },
   profile: {
-    original: "/visuals/about-preview.svg",
-    wide: "/visuals/signal-profile-21-9.svg",
-    standard: "/visuals/signal-profile-4-3.svg",
     square: "/visuals/signal-profile-1-1.svg",
+    landscape: "/visuals/signal-profile-4-3.svg",
+    wide: "/visuals/about-preview.svg",
     portrait: "/visuals/signal-profile-3-4.svg"
   }
 };
 const previewItems = [
-  ...articles.slice(0, 2).map((article, index) => {
+  ...articles.slice(0, 2).map((article) => {
     const images = signalThumbnailSets.article;
     return {
       kind: "Article",
@@ -41,9 +38,7 @@ const previewItems = [
       description: article.data.description,
       href: `/articles/${article.id}/`,
       meta: formatDate(article.data.publishedAt),
-      images,
-      mixedImage: index === 0 ? images.wide : images.square,
-      mixedLabel: index === 0 ? "21:9" : "1:1"
+      images
     };
   }),
   ...projects.slice(0, 1).map((project) => ({
@@ -52,9 +47,7 @@ const previewItems = [
     description: project.data.description,
     href: `/work/${project.id}/`,
     meta: project.data.status,
-    images: signalThumbnailSets.project,
-    mixedImage: signalThumbnailSets.project.standard,
-    mixedLabel: "4:3"
+    images: signalThumbnailSets.project
   })),
   {
     kind: "Profile",
@@ -63,9 +56,7 @@ const previewItems = [
       "A compact profile for the work style behind the portfolio: precise interfaces, fast systems, and durable notes.",
     href: "/about/",
     meta: "about",
-    images: signalThumbnailSets.profile,
-    mixedImage: signalThumbnailSets.profile.portrait,
-    mixedLabel: "3:4"
+    images: signalThumbnailSets.profile
   }
 ];
 ---
@@ -85,54 +76,7 @@ const previewItems = [
       </div>
     </div>
 
-    <div class="preview-feed" data-preview-feed style={`--item-count:${previewItems.length}; --active-index:0`} aria-label="Site preview feed">
-      <div class="preview-feed__rail" aria-hidden="true">
-        <span data-preview-rail></span>
-      </div>
-      <div class="preview-feed__items">
-        {previewItems.map((item, index) => (
-          <article class:list={["preview-feed__item", index === 0 && "is-active"]} data-preview-item data-preview-href={item.href}>
-            <button
-              class="preview-feed__trigger"
-              type="button"
-              data-preview-trigger
-              aria-expanded={index === 0 ? "true" : "false"}
-            >
-              <span class="preview-feed__kind">{item.kind}</span>
-              <strong>{item.title}</strong>
-              <span>{item.meta}</span>
-            </button>
-            <div class="preview-feed__detail" data-preview-detail>
-              <div class="preview-feed__media" data-signal-aspect="16:9">
-                <img
-                  src={item.images.original}
-                  alt=""
-                  loading={index === 0 ? "eager" : "lazy"}
-                  data-signal-image
-                  data-signal-src-original={item.images.original}
-                  data-signal-src-wide={item.images.wide}
-                  data-signal-src-standard={item.images.standard}
-                  data-signal-src-square={item.images.square}
-                  data-signal-src-portrait={item.images.portrait}
-                  data-signal-src-mixed={item.mixedImage}
-                  data-signal-label-original="16:9"
-                  data-signal-label-wide="21:9"
-                  data-signal-label-standard="4:3"
-                  data-signal-label-square="1:1"
-                  data-signal-label-portrait="3:4"
-                  data-signal-label-mixed={item.mixedLabel}
-                />
-                <span class="preview-feed__arrow" aria-hidden="true">
-                  <ArrowIcon class="arrow-icon--inline" role="link" />
-                </span>
-              </div>
-              <strong class="preview-feed__detail-title">{item.title}</strong>
-              <p class="preview-feed__description"><span>{item.description}</span></p>
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
+    <Signal items={previewItems} />
   </section>
 
   <section class="content-band" aria-labelledby="latest-articles">

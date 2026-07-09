@@ -4,8 +4,6 @@ const sidebarKey = "hlcaptain-sidebar";
 const navGroupsKey = "hlcaptain-nav-groups";
 const arrowKey = "hlcaptain-arrow-style";
 const gridPatternKey = "hlcaptain-grid-pattern";
-const signalInnerLayoutKey = "hlcaptain-signal-inner-layout";
-const signalSizingKey = "hlcaptain-signal-sizing";
 const signalLayoutKey = "hlcaptain-signal-layout";
 const signalRatioKey = "hlcaptain-signal-ratio";
 const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -37,37 +35,15 @@ const gridPatterns = new Map([
   ["scanlines", "Scanlines"]
 ]);
 const signalLayouts = new Map([
-  ["split", "Split"],
-  ["wide-crop", "Wide crop"],
-  ["wide-fluid", "Wide fluid"],
-  ["letterbox", "Letterbox"],
-  ["stage-top", "Stage top"],
-  ["hybrid-stage", "Hybrid stage"],
-  ["smart-stage", "Smart stage"],
-  ["panorama", "Panorama"],
-  ["console-strip", "Console strip"],
-  ["focus-band", "Focus band"],
-  ["square-dock", "Square dock"],
-  ["square-stage", "Square stage"],
-  ["square-stage-top", "Square top"],
-  ["square-stack", "Square stack"]
-]);
-const signalInnerLayouts = new Map([
-  ["article-stack", "Article stack"],
-  ["article-stack-start", "Thumbnail start"],
-  ["compact", "Compact"]
-]);
-const signalSizingModes = new Map([
-  ["auto", "Auto"],
-  ["tablet-dynamic", "Tablet dynamic"]
+  ["split", "Balanced split"],
+  ["stack", "Editorial stack"],
+  ["compact", "Compact dock"]
 ]);
 const signalRatios = new Map([
-  ["original", "Original 16:9"],
-  ["wide", "Wide 21:9"],
-  ["standard", "Standard 4:3"],
   ["square", "Square 1:1"],
-  ["portrait", "Portrait 3:4"],
-  ["mixed", "Mixed deck"]
+  ["landscape", "Landscape 4:3"],
+  ["wide", "Wide 16:9"],
+  ["portrait", "Portrait 3:4"]
 ]);
 
 function toHex(rgb) {
@@ -337,7 +313,7 @@ function applyGridPattern(value) {
 
 function applySignalLayout(value) {
   const root = document.documentElement;
-  const layout = signalLayouts.has(value) ? value : "wide-crop";
+  const layout = signalLayouts.has(value) ? value : "split";
   root.dataset.signalLayout = layout;
   document.querySelectorAll("button[data-signal-layout]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.signalLayout === layout));
@@ -347,57 +323,9 @@ function applySignalLayout(value) {
   });
 }
 
-function relockPreviewFeedHeights() {
-  const lockFeed = (feed) => {
-    feed.style.removeProperty("--preview-feed-height");
-    const height = Math.ceil(feed.getBoundingClientRect().height);
-    if (height > 0) feed.style.setProperty("--preview-feed-height", `${height}px`);
-  };
-
-  document.querySelectorAll("[data-preview-feed]").forEach((feed) => {
-    feed.style.removeProperty("--preview-feed-height");
-    window.requestAnimationFrame(() => {
-      lockFeed(feed);
-    });
-    window.setTimeout(() => lockFeed(feed), 460);
-  });
-}
-
-function applySignalInnerLayout(value) {
-  const root = document.documentElement;
-  const layout = signalInnerLayouts.has(value) ? value : "article-stack";
-  root.dataset.signalInnerLayout = layout;
-  document.querySelectorAll("button[data-signal-inner-layout]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.signalInnerLayout === layout));
-  });
-  document.querySelectorAll("[data-signal-inner-current]").forEach((target) => {
-    target.replaceChildren(signalInnerLayouts.get(layout));
-  });
-  relockPreviewFeedHeights();
-}
-
-function applySignalSizing(value) {
-  const root = document.documentElement;
-  const sizing = signalSizingModes.has(value) ? value : "auto";
-  root.dataset.signalSizing = sizing;
-  document.querySelectorAll("button[data-signal-sizing]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.signalSizing === sizing));
-  });
-  document.querySelectorAll("[data-signal-sizing-current]").forEach((target) => {
-    target.replaceChildren(signalSizingModes.get(sizing));
-  });
-  relockPreviewFeedHeights();
-}
-
-function selectSignalSizing(button) {
-  const sizing = button.dataset.signalSizing;
-  window.localStorage.setItem(signalSizingKey, sizing);
-  applySignalSizing(sizing);
-}
-
 function applySignalRatio(value) {
   const root = document.documentElement;
-  const ratio = signalRatios.has(value) ? value : "original";
+  const ratio = signalRatios.has(value) ? value : "square";
   root.dataset.signalRatio = ratio;
 
   document.querySelectorAll("button[data-signal-ratio]").forEach((button) => {
@@ -409,11 +337,11 @@ function applySignalRatio(value) {
   });
 
   document.querySelectorAll("img[data-signal-image]").forEach((image) => {
-    const source = image.getAttribute(`data-signal-src-${ratio}`) || image.getAttribute("data-signal-src-original");
+    const source = image.getAttribute(`data-signal-src-${ratio}`) || image.getAttribute("data-signal-src-square");
     const label = image.getAttribute(`data-signal-label-${ratio}`) || "";
     if (source && image.getAttribute("src") !== source) image.setAttribute("src", source);
 
-    const media = image.closest(".preview-feed__media");
+    const media = image.closest(".signal__media");
     if (media) {
       if (label) {
         media.setAttribute("data-signal-aspect", label);
@@ -952,8 +880,6 @@ function initNavGroups() {
 function initDebugMenu() {
   applyArrowStyle(window.localStorage.getItem(arrowKey));
   applyGridPattern(window.localStorage.getItem(gridPatternKey));
-  applySignalInnerLayout(window.localStorage.getItem(signalInnerLayoutKey));
-  applySignalSizing(window.localStorage.getItem(signalSizingKey));
   applySignalLayout(window.localStorage.getItem(signalLayoutKey));
   applySignalRatio(window.localStorage.getItem(signalRatioKey));
 
@@ -975,16 +901,6 @@ function initDebugMenu() {
   if (close && !close.dataset.bound) {
     close.dataset.bound = "true";
     close.addEventListener("click", () => setOpen(false));
-  }
-
-  if (panel && !panel.dataset.signalSizingBound) {
-    panel.dataset.signalSizingBound = "true";
-    panel.addEventListener("click", (event) => {
-      const button = event.target.closest?.("button[data-signal-sizing]");
-      if (!button || !panel.contains(button)) return;
-      event.preventDefault();
-      selectSignalSizing(button);
-    });
   }
 
   document.querySelectorAll("button[data-arrow-style]").forEach((button) => {
@@ -1014,16 +930,6 @@ function initDebugMenu() {
       const layout = button.dataset.signalLayout;
       window.localStorage.setItem(signalLayoutKey, layout);
       applySignalLayout(layout);
-    });
-  });
-
-  document.querySelectorAll("button[data-signal-inner-layout]").forEach((button) => {
-    if (button.dataset.bound) return;
-    button.dataset.bound = "true";
-    button.addEventListener("click", () => {
-      const layout = button.dataset.signalInnerLayout;
-      window.localStorage.setItem(signalInnerLayoutKey, layout);
-      applySignalInnerLayout(layout);
     });
   });
 
@@ -1080,8 +986,8 @@ function preserveShellState(event) {
   nextRoot.dataset.theme = currentTheme();
   nextRoot.dataset.themeMode = currentThemeMode();
   nextRoot.dataset.arrowStyle = document.documentElement.dataset.arrowStyle || "tabler";
-  nextRoot.dataset.signalLayout = document.documentElement.dataset.signalLayout || "wide-crop";
-  nextRoot.dataset.signalRatio = document.documentElement.dataset.signalRatio || "original";
+  nextRoot.dataset.signalLayout = document.documentElement.dataset.signalLayout || "split";
+  nextRoot.dataset.signalRatio = document.documentElement.dataset.signalRatio || "square";
   nextRoot.dataset.pageDirection = document.documentElement.dataset.pageDirection || "down";
   const keepOverlay =
     root.classList.contains("sidebar-overlay-open") ||
@@ -1385,47 +1291,38 @@ function navigateWithTransition(href, sourceElement, options = {}) {
   window.location.assign(href);
 }
 
-function initPreviewFeeds() {
-  document.querySelectorAll("[data-preview-feed]").forEach((feed) => {
+function initSignals() {
+  document.querySelectorAll("[data-signal]").forEach((feed) => {
     if (feed.dataset.bound) return;
     feed.dataset.bound = "true";
 
-    const items = Array.from(feed.querySelectorAll("[data-preview-item]"));
+    const items = Array.from(feed.querySelectorAll("[data-signal-item]"));
     if (items.length === 0) return;
 
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     let activeIndex = Math.max(
       0,
       items.findIndex((item) => item.classList.contains("is-active"))
     );
     let timer = null;
-    let heightLockFrame = 0;
-
-    const lockFeedHeight = () => {
-      feed.style.removeProperty("--preview-feed-height");
-      const height = Math.ceil(feed.getBoundingClientRect().height);
-      if (height > 0) feed.style.setProperty("--preview-feed-height", `${height}px`);
-    };
-
-    const scheduleHeightLock = () => {
-      if (heightLockFrame) window.cancelAnimationFrame(heightLockFrame);
-      heightLockFrame = window.requestAnimationFrame(() => {
-        heightLockFrame = 0;
-        lockFeedHeight();
-      });
-    };
 
     const select = (index) => {
       activeIndex = (index + items.length) % items.length;
       feed.style.setProperty("--active-index", String(activeIndex));
       items.forEach((item, itemIndex) => {
         const active = itemIndex === activeIndex;
+        const trigger = item.querySelector("[data-signal-trigger]");
+        const panel = item.querySelector("[data-signal-panel]");
         item.classList.toggle("is-active", active);
-        item.querySelector("[data-preview-trigger]")?.setAttribute("aria-expanded", String(active));
+        trigger?.setAttribute("aria-expanded", String(active));
+        panel?.setAttribute("aria-hidden", String(!active));
+        if (panel instanceof HTMLElement) panel.inert = !active;
       });
     };
 
     const start = () => {
       stop();
+      if (motionQuery.matches || document.hidden) return;
       timer = window.setInterval(() => select(activeIndex + 1), 4600);
     };
 
@@ -1438,6 +1335,8 @@ function initPreviewFeeds() {
       item.addEventListener(
         "click",
         (event) => {
+          if (event.target.closest?.("[data-signal-link]")) return;
+
           const wasActive = index === activeIndex;
           if (!wasActive) {
             event.preventDefault();
@@ -1447,7 +1346,7 @@ function initPreviewFeeds() {
             return;
           }
 
-          const href = item.dataset.previewHref;
+          const href = item.dataset.signalHref;
           if (!href) return;
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
             window.open(href, "_blank", "noopener");
@@ -1455,19 +1354,29 @@ function initPreviewFeeds() {
           }
           navigateWithTransition(href, item);
         },
-        { signal: getSignal(item, "preview") }
+        { signal: getSignal(item, "signal") }
       );
     });
 
-    feed.addEventListener("mouseenter", stop, { signal: getSignal(feed, "preview") });
-    feed.addEventListener("mouseleave", start, { signal: getSignal(feed, "preview") });
-    feed.addEventListener("focusin", stop, { signal: getSignal(feed, "preview") });
-    feed.addEventListener("focusout", start, { signal: getSignal(feed, "preview") });
-    window.addEventListener("resize", scheduleHeightLock, { signal: getSignal(feed, "preview"), passive: true });
+    feed.addEventListener("mouseenter", stop, { signal: getSignal(feed, "signal") });
+    feed.addEventListener("mouseleave", start, { signal: getSignal(feed, "signal") });
+    feed.addEventListener("focusin", stop, { signal: getSignal(feed, "signal") });
+    feed.addEventListener(
+      "focusout",
+      (event) => {
+        if (!feed.contains(event.relatedTarget)) start();
+      },
+      { signal: getSignal(feed, "signal") }
+    );
+    document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()), {
+      signal: getSignal(feed, "signal")
+    });
+    motionQuery.addEventListener?.("change", () => (motionQuery.matches ? stop() : start()), {
+      signal: getSignal(feed, "signal")
+    });
 
     select(activeIndex);
-    lockFeedHeight();
-    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) start();
+    start();
   });
 }
 
@@ -1484,7 +1393,7 @@ function init() {
   initSidebar();
   initNavGroups();
   initDebugMenu();
-  initPreviewFeeds();
+  initSignals();
   releaseSidebarOverlayTransitionState();
 }
 

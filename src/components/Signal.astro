@@ -1,0 +1,470 @@
+---
+import ArrowIcon from "./ArrowIcon.astro";
+
+type SignalImages = {
+  square: string;
+  landscape: string;
+  wide: string;
+  portrait: string;
+};
+
+type SignalItem = {
+  kind: string;
+  title: string;
+  description: string;
+  href: string;
+  meta: string;
+  images: SignalImages;
+};
+
+interface Props {
+  items: SignalItem[];
+  label?: string;
+}
+
+const { items, label = "Site preview signal" } = Astro.props;
+---
+
+<div
+  class="signal"
+  data-signal
+  style={`--signal-item-count:${Math.max(items.length, 1)}; --active-index:0`}
+  aria-label={label}
+>
+  <div class="signal__track" aria-hidden="true">
+    <span class="signal__marker" data-signal-marker></span>
+  </div>
+
+  <div class="signal__items">
+    {items.map((item, index) => {
+      const panelId = `signal-panel-${index}`;
+      const triggerId = `signal-trigger-${index}`;
+      const active = index === 0;
+
+      return (
+        <article
+          class:list={["signal__item", active && "is-active"]}
+          data-signal-item
+          data-signal-href={item.href}
+        >
+          <button
+            id={triggerId}
+            class="signal__summary"
+            type="button"
+            data-signal-trigger
+            aria-controls={panelId}
+            aria-expanded={active}
+          >
+            <span class="signal__topline">
+              <span class="signal__kind">{item.kind}</span>
+              <span class="signal__meta">{item.meta}</span>
+            </span>
+            <strong class="signal__title">{item.title}</strong>
+          </button>
+
+          <div
+            id={panelId}
+            class="signal__panel"
+            data-signal-panel
+            role="region"
+            aria-labelledby={triggerId}
+            aria-hidden={!active}
+            inert={!active}
+          >
+            <div class="signal__content">
+              <div class="signal__media" data-signal-aspect="1:1">
+                <img
+                  src={item.images.square}
+                  alt=""
+                  loading={active ? "eager" : "lazy"}
+                  width="640"
+                  height="640"
+                  data-signal-image
+                  data-signal-src-square={item.images.square}
+                  data-signal-src-landscape={item.images.landscape}
+                  data-signal-src-wide={item.images.wide}
+                  data-signal-src-portrait={item.images.portrait}
+                  data-signal-label-square="1:1"
+                  data-signal-label-landscape="4:3"
+                  data-signal-label-wide="16:9"
+                  data-signal-label-portrait="3:4"
+                />
+              </div>
+
+              <div class="signal__copy">
+                <p>{item.description}</p>
+                <a class="signal__action" href={item.href} data-signal-link>
+                  <span>Open {item.kind.toLowerCase()}</span>
+                  <ArrowIcon class="arrow-icon--inline" aria-hidden="true" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </article>
+      );
+    })}
+  </div>
+</div>
+
+<style>
+  .signal {
+    --signal-summary-height: 4.25rem;
+    --signal-panel-height: 21.5rem;
+    --signal-item-gap: 0.5rem;
+    --signal-shell-space: 0.875rem;
+    --signal-panel-space: 0.75rem;
+    --signal-content-gap: 0.75rem;
+    --signal-media-size: 11rem;
+    --signal-aspect: 1 / 1;
+    --signal-copy-lines: 5;
+    --signal-step: calc(var(--signal-summary-height) + var(--signal-item-gap));
+    position: relative;
+    display: grid;
+    grid-template-columns: 0.625rem minmax(0, 1fr);
+    column-gap: 0.875rem;
+    align-self: center;
+    inline-size: 100%;
+    min-inline-size: 0;
+    padding: var(--signal-shell-space);
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    container: signal / inline-size;
+  }
+
+  .signal__track {
+    position: relative;
+    min-block-size: 100%;
+  }
+
+  .signal__track::before {
+    position: absolute;
+    inset: 0 auto 0 50%;
+    inline-size: 2px;
+    background: color-mix(in srgb, var(--ink) 11%, transparent);
+    content: "";
+    transform: translateX(-50%);
+  }
+
+  .signal__marker {
+    position: absolute;
+    top: calc(var(--active-index) * var(--signal-step) + var(--signal-summary-height) / 2);
+    left: 50%;
+    inline-size: 0.5rem;
+    block-size: 1.5rem;
+    background: var(--accent-readable);
+    border: 2px solid var(--surface);
+    transform: translate(-50%, -50%);
+    transition:
+      top 400ms var(--ease),
+      block-size 220ms var(--ease),
+      background-color 180ms var(--ease);
+  }
+
+  .signal__items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--signal-item-gap);
+    min-inline-size: 0;
+    block-size: calc(
+      var(--signal-item-count) * var(--signal-summary-height) + var(--signal-panel-height) +
+        (var(--signal-item-count) - 1) * var(--signal-item-gap)
+    );
+  }
+
+  .signal__item {
+    position: relative;
+    display: grid;
+    grid-template-rows: var(--signal-summary-height) minmax(0, 1fr);
+    flex: 0 0 auto;
+    min-inline-size: 0;
+    block-size: var(--signal-summary-height);
+    overflow: hidden;
+    background: var(--panel-bg);
+    border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+    transition:
+      block-size 400ms var(--ease),
+      background-color 220ms var(--ease),
+      border-color 220ms var(--ease),
+      box-shadow 220ms var(--ease);
+  }
+
+  .signal__item.is-active {
+    block-size: calc(var(--signal-summary-height) + var(--signal-panel-height));
+    background: color-mix(in srgb, var(--surface-soft) 88%, transparent);
+    border-color: color-mix(in srgb, var(--accent-readable) 48%, var(--line));
+    box-shadow: 0 1rem 2.75rem color-mix(in srgb, var(--ink) 9%, transparent);
+  }
+
+  .signal__summary {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    row-gap: 0.25rem;
+    inline-size: 100%;
+    block-size: var(--signal-summary-height);
+    min-inline-size: 0;
+    padding: 0.625rem 0.75rem;
+    color: var(--ink);
+    text-align: left;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: background-color 180ms var(--ease);
+  }
+
+  .signal__summary:hover {
+    background: color-mix(in srgb, var(--surface-strong) 44%, transparent);
+  }
+
+  .signal__summary:focus-visible,
+  .signal__action:focus-visible {
+    outline: 2px solid var(--accent-readable);
+    outline-offset: -3px;
+  }
+
+  .signal__topline {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    min-inline-size: 0;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .signal__kind,
+  .signal__meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .signal__meta {
+    text-align: right;
+  }
+
+  .signal__title {
+    display: -webkit-box;
+    min-inline-size: 0;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 0.93rem;
+    line-height: 1.22;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .signal__panel {
+    min-inline-size: 0;
+    min-block-size: 0;
+    padding: 0 var(--signal-panel-space) var(--signal-panel-space);
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-0.5rem);
+    transition:
+      opacity 180ms var(--ease),
+      transform 280ms var(--ease);
+  }
+
+  .signal__item.is-active .signal__panel {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    transition-delay: 80ms;
+  }
+
+  .signal__content {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: var(--signal-content-gap);
+    align-items: stretch;
+    min-inline-size: 0;
+    block-size: 100%;
+    padding-block-start: 0.125rem;
+  }
+
+  .signal__media {
+    position: relative;
+    align-self: center;
+    justify-self: center;
+    inline-size: min(100%, var(--signal-media-size));
+    max-block-size: 100%;
+    aspect-ratio: var(--signal-aspect);
+    overflow: hidden;
+    background: color-mix(in srgb, var(--surface-strong) 54%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ink) 13%, transparent);
+  }
+
+  .signal__media::after {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    display: none;
+    min-inline-size: 2.25rem;
+    padding: 0.25rem 0.375rem;
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 88%, var(--surface) 12%);
+    border: 1px solid color-mix(in srgb, var(--ink) 24%, transparent);
+    content: attr(data-signal-aspect);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    line-height: 1;
+    text-align: center;
+  }
+
+  :global(:root:not([data-signal-ratio="square"])) .signal__media::after {
+    display: block;
+  }
+
+  .signal__media img {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .signal__copy {
+    display: flex;
+    flex-direction: column;
+    min-inline-size: 0;
+    min-block-size: 0;
+    padding: 0.75rem;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  }
+
+  .signal__copy p {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    line-height: 1.48;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--signal-copy-lines);
+  }
+
+  .signal__action {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    align-self: flex-start;
+    margin-block-start: auto;
+    padding-block-start: 0.625rem;
+    color: var(--accent-readable);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .signal__action :global(.arrow-icon) {
+    inline-size: 1rem;
+    block-size: 1rem;
+    transition: transform 180ms var(--ease);
+  }
+
+  .signal__action:hover :global(.arrow-icon) {
+    transform: translateX(0.2rem);
+  }
+
+  :global(:root[data-signal-layout="stack"]) .signal {
+    --signal-panel-height: 23rem;
+    --signal-media-size: 12.5rem;
+    --signal-copy-lines: 5;
+  }
+
+  :global(:root[data-signal-layout="compact"]) .signal {
+    --signal-panel-height: 10.75rem;
+    --signal-media-size: 7.5rem;
+    --signal-copy-lines: 4;
+  }
+
+  :global(:root[data-signal-layout="compact"]) .signal__content {
+    grid-template-columns: minmax(5.75rem, 0.72fr) minmax(0, 1.28fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  :global(:root[data-signal-layout="compact"]) .signal__copy {
+    padding: 0.625rem;
+  }
+
+  :global(:root[data-signal-ratio="landscape"]) .signal {
+    --signal-aspect: 4 / 3;
+    --signal-media-size: 13.5rem;
+  }
+
+  :global(:root[data-signal-ratio="wide"]) .signal {
+    --signal-aspect: 16 / 9;
+    --signal-media-size: 15.5rem;
+  }
+
+  :global(:root[data-signal-ratio="portrait"]) .signal {
+    --signal-aspect: 3 / 4;
+    --signal-media-size: 8.75rem;
+  }
+
+  @container signal (min-width: 22rem) {
+    .signal {
+      --signal-panel-height: 13.75rem;
+      --signal-content-gap: 0.875rem;
+      --signal-media-size: 100%;
+      --signal-copy-lines: 7;
+    }
+
+    .signal__content {
+      grid-template-columns: minmax(8rem, 0.88fr) minmax(0, 1.12fr);
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .signal__media {
+      inline-size: 100%;
+    }
+
+    :global(:root[data-signal-layout="stack"]) .signal {
+      --signal-panel-height: 22rem;
+      --signal-media-size: 12rem;
+      --signal-copy-lines: 6;
+    }
+
+    :global(:root[data-signal-layout="stack"]) .signal__content {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    :global(:root[data-signal-layout="stack"]) .signal__media {
+      inline-size: min(100%, var(--signal-media-size));
+    }
+
+    :global(:root[data-signal-layout="compact"]) .signal {
+      --signal-panel-height: 11.5rem;
+      --signal-copy-lines: 5;
+    }
+
+    :global(:root[data-signal-layout="compact"]) .signal__content {
+      grid-template-columns: minmax(7.5rem, 0.72fr) minmax(0, 1.28fr);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .signal__marker,
+    .signal__item,
+    .signal__panel,
+    .signal__action :global(.arrow-icon) {
+      transition-duration: 1ms;
+      transition-delay: 0ms;
+    }
+  }
+</style>

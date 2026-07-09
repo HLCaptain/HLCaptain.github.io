@@ -28,8 +28,6 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         const sidebarKey = "hlcaptain-sidebar";
         const arrowKey = "hlcaptain-arrow-style";
         const gridPatternKey = "hlcaptain-grid-pattern";
-        const signalInnerLayoutKey = "hlcaptain-signal-inner-layout";
-        const signalSizingKey = "hlcaptain-signal-sizing";
         const signalLayoutKey = "hlcaptain-signal-layout";
         const signalRatioKey = "hlcaptain-signal-ratio";
         const hex = (rgb) =>
@@ -120,18 +118,14 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
           const accent = localStorage.getItem(accentKey);
           const arrow = localStorage.getItem(arrowKey);
           const gridPattern = localStorage.getItem(gridPatternKey);
-          const signalInnerLayout = localStorage.getItem(signalInnerLayoutKey);
-          const signalSizing = localStorage.getItem(signalSizingKey);
           const signalLayout = localStorage.getItem(signalLayoutKey);
           const signalRatio = localStorage.getItem(signalRatioKey);
           root.dataset.theme = theme;
           root.dataset.themeMode = themeMode;
           root.dataset.arrowStyle = ["tabler", "lucide", "heroicons", "phosphor", "solar", "remix", "material", "carbon", "fluent", "radix", "pixelart"].includes(arrow) ? arrow : "tabler";
           root.dataset.gridPattern = ["grid", "dots", "plus", "crosshatch", "diagonal", "circuit", "scanlines"].includes(gridPattern) ? gridPattern : "grid";
-          root.dataset.signalInnerLayout = ["compact", "article-stack", "article-stack-start"].includes(signalInnerLayout) ? signalInnerLayout : "article-stack";
-          root.dataset.signalSizing = ["auto", "tablet-dynamic"].includes(signalSizing) ? signalSizing : "auto";
-          root.dataset.signalLayout = ["split", "wide-crop", "wide-fluid", "letterbox", "stage-top", "hybrid-stage", "smart-stage", "panorama", "console-strip", "focus-band", "square-dock", "square-stage", "square-stage-top", "square-stack"].includes(signalLayout) ? signalLayout : "wide-crop";
-          root.dataset.signalRatio = ["original", "wide", "standard", "square", "portrait", "mixed"].includes(signalRatio) ? signalRatio : "original";
+          root.dataset.signalLayout = ["split", "stack", "compact"].includes(signalLayout) ? signalLayout : "split";
+          root.dataset.signalRatio = ["square", "landscape", "wide", "portrait"].includes(signalRatio) ? signalRatio : "square";
           root.classList.toggle("sidebar-collapsed", localStorage.getItem(sidebarKey) === "collapsed");
           if (accent) {
             const normalized = normalize(accent, theme);
@@ -206,45 +200,19 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         <button type="button" data-grid-pattern="scanlines">Scanlines</button>
       </fieldset>
       <fieldset>
-        <legend>Signal item</legend>
-        <p class="debug-current">Current: <span data-signal-inner-current>Article stack</span></p>
-        <button type="button" data-signal-inner-layout="article-stack">Article stack</button>
-        <button type="button" data-signal-inner-layout="article-stack-start">Thumbnail start</button>
-        <button type="button" data-signal-inner-layout="compact">Compact</button>
+        <legend>Signal layout</legend>
+        <p class="debug-current">Current: <span data-signal-layout-current>Balanced split</span></p>
+        <button type="button" data-signal-layout="split">Balanced split</button>
+        <button type="button" data-signal-layout="stack">Editorial stack</button>
+        <button type="button" data-signal-layout="compact">Compact dock</button>
       </fieldset>
       <fieldset>
-        <legend>Signal sizing</legend>
-        <p class="debug-current">Current: <span data-signal-sizing-current>Auto</span></p>
-        <button type="button" data-signal-sizing="auto">Auto</button>
-        <button type="button" data-signal-sizing="tablet-dynamic">Tablet dynamic</button>
-      </fieldset>
-      <fieldset>
-        <legend>Signal thumbnail</legend>
-        <p class="debug-current">Current: <span data-signal-layout-current>Wide crop</span></p>
-        <button type="button" data-signal-layout="split">Split</button>
-        <button type="button" data-signal-layout="wide-crop">Wide crop</button>
-        <button type="button" data-signal-layout="wide-fluid">Wide fluid</button>
-        <button type="button" data-signal-layout="letterbox">Letterbox</button>
-        <button type="button" data-signal-layout="stage-top">Stage top</button>
-        <button type="button" data-signal-layout="hybrid-stage">Hybrid stage</button>
-        <button type="button" data-signal-layout="smart-stage">Smart stage</button>
-        <button type="button" data-signal-layout="panorama">Panorama</button>
-        <button type="button" data-signal-layout="console-strip">Console strip</button>
-        <button type="button" data-signal-layout="focus-band">Focus band</button>
-        <button type="button" data-signal-layout="square-dock">Square dock</button>
-        <button type="button" data-signal-layout="square-stage">Square stage</button>
-        <button type="button" data-signal-layout="square-stage-top">Square top</button>
-        <button type="button" data-signal-layout="square-stack">Square stack</button>
-      </fieldset>
-      <fieldset>
-        <legend>Signal ratio</legend>
-        <p class="debug-current">Current: <span data-signal-ratio-current>Original 16:9</span></p>
-        <button type="button" data-signal-ratio="original">Original 16:9</button>
-        <button type="button" data-signal-ratio="wide">Wide 21:9</button>
-        <button type="button" data-signal-ratio="standard">Standard 4:3</button>
+        <legend>Signal thumbnail ratio</legend>
+        <p class="debug-current">Current: <span data-signal-ratio-current>Square 1:1</span></p>
         <button type="button" data-signal-ratio="square">Square 1:1</button>
+        <button type="button" data-signal-ratio="landscape">Landscape 4:3</button>
+        <button type="button" data-signal-ratio="wide">Wide 16:9</button>
         <button type="button" data-signal-ratio="portrait">Portrait 3:4</button>
-        <button type="button" data-signal-ratio="mixed">Mixed deck</button>
       </fieldset>
     </section>
     <script>
