@@ -3,8 +3,17 @@ const themeKey = "hlcaptain-theme";
 const sidebarKey = "hlcaptain-sidebar";
 const navGroupsKey = "hlcaptain-nav-groups";
 const arrowKey = "hlcaptain-arrow-style";
+const gridPatternKey = "hlcaptain-grid-pattern";
+const signalInnerLayoutKey = "hlcaptain-signal-inner-layout";
+const signalSizingKey = "hlcaptain-signal-sizing";
 const signalLayoutKey = "hlcaptain-signal-layout";
 const signalRatioKey = "hlcaptain-signal-ratio";
+const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+const themeModes = new Map([
+  ["light", "Light"],
+  ["black", "Dark"],
+  ["system", "System"]
+]);
 const arrowStyles = new Set([
   "tabler",
   "lucide",
@@ -17,6 +26,15 @@ const arrowStyles = new Set([
   "fluent",
   "radix",
   "pixelart"
+]);
+const gridPatterns = new Map([
+  ["grid", "Grid"],
+  ["dots", "Dots"],
+  ["plus", "Plus signs"],
+  ["crosshatch", "Crosshatch"],
+  ["diagonal", "Diagonal"],
+  ["circuit", "Circuit"],
+  ["scanlines", "Scanlines"]
 ]);
 const signalLayouts = new Map([
   ["split", "Split"],
@@ -33,6 +51,15 @@ const signalLayouts = new Map([
   ["square-stage", "Square stage"],
   ["square-stage-top", "Square top"],
   ["square-stack", "Square stack"]
+]);
+const signalInnerLayouts = new Map([
+  ["article-stack", "Article stack"],
+  ["article-stack-start", "Thumbnail start"],
+  ["compact", "Compact"]
+]);
+const signalSizingModes = new Map([
+  ["auto", "Auto"],
+  ["tablet-dynamic", "Tablet dynamic"]
 ]);
 const signalRatios = new Map([
   ["original", "Original 16:9"],
@@ -139,7 +166,7 @@ const customThemeProperties = [
   "--grid-line-soft"
 ];
 
-const gridParallaxProperties = ["--grid-parallax-x", "--grid-parallax-y"];
+const gridParallaxProperties = ["--grid-parallax-x", "--grid-parallax-y", "--grid-pointer-x", "--grid-pointer-y"];
 const pageTransitionProperties = ["--page-old-scroll-offset-y"];
 let lastSettledPath = null;
 
@@ -186,21 +213,47 @@ function clearCustomThemeTokens(root) {
   customThemeProperties.forEach((property) => root.style.removeProperty(property));
 }
 
+function normalizeThemeMode(value) {
+  return themeModes.has(value) ? value : "light";
+}
+
+function resolveThemeMode(value) {
+  const mode = normalizeThemeMode(value);
+  if (mode === "system") return systemThemeQuery.matches ? "black" : "light";
+  return mode;
+}
+
 function currentTheme() {
   return document.documentElement.dataset.theme === "black" ? "black" : "light";
 }
 
-function syncThemeControls(theme = currentTheme()) {
+function currentThemeMode() {
+  return normalizeThemeMode(document.documentElement.dataset.themeMode || window.localStorage.getItem(themeKey));
+}
+
+function nextThemeMode(value = currentThemeMode()) {
+  const mode = normalizeThemeMode(value);
+  if (mode === "light") return "black";
+  if (mode === "black") return "system";
+  return "light";
+}
+
+function syncThemeControls(mode = currentThemeMode(), theme = currentTheme()) {
+  const normalizedMode = normalizeThemeMode(mode);
+  const nextMode = nextThemeMode(normalizedMode);
   const isDark = theme === "black";
+  const nextLabel = themeModes.get(nextMode)?.toLowerCase() || "light";
   document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(isDark));
-    button.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
-    button.setAttribute("title", isDark ? "Switch to light theme" : "Switch to dark theme");
-    button.querySelector("[data-theme-label]")?.replaceChildren(isDark ? "Dark" : "Light");
+    button.setAttribute("aria-pressed", normalizedMode === "system" ? "mixed" : String(isDark));
+    button.setAttribute("aria-label", `Switch to ${nextLabel} theme`);
+    button.setAttribute("title", `Switch to ${nextLabel} theme`);
+    button.dataset.themeMode = normalizedMode;
+    button.dataset.resolvedTheme = theme;
+    button.querySelector("[data-theme-label]")?.replaceChildren(themeModes.get(normalizedMode) || "Light");
   });
 
   document.querySelectorAll("[data-theme-value]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.themeValue === theme));
+    button.setAttribute("aria-pressed", String(button.dataset.themeValue === normalizedMode));
   });
 }
 
@@ -251,12 +304,14 @@ function applyAccent(value, theme = currentTheme()) {
 
 function applyTheme(value) {
   const root = document.documentElement;
-  const theme = value === "black" ? "black" : "light";
+  const mode = normalizeThemeMode(value);
+  const theme = resolveThemeMode(mode);
+  root.dataset.themeMode = mode;
   root.dataset.theme = theme;
   applyAccent(window.localStorage.getItem(storageKey), theme);
   const themeColor = document.querySelector('meta[name="theme-color"]');
   themeColor?.setAttribute("content", theme === "black" ? "#050504" : "#f1eee2");
-  syncThemeControls(theme);
+  syncThemeControls(mode, theme);
 }
 
 function applyArrowStyle(value) {
@@ -265,6 +320,18 @@ function applyArrowStyle(value) {
   root.dataset.arrowStyle = style;
   document.querySelectorAll("button[data-arrow-style]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.arrowStyle === style));
+  });
+}
+
+function applyGridPattern(value) {
+  const root = document.documentElement;
+  const pattern = gridPatterns.has(value) ? value : "grid";
+  root.dataset.gridPattern = pattern;
+  document.querySelectorAll("button[data-grid-pattern]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.gridPattern === pattern));
+  });
+  document.querySelectorAll("[data-grid-pattern-current]").forEach((target) => {
+    target.replaceChildren(gridPatterns.get(pattern));
   });
 }
 
@@ -278,6 +345,54 @@ function applySignalLayout(value) {
   document.querySelectorAll("[data-signal-layout-current]").forEach((target) => {
     target.replaceChildren(signalLayouts.get(layout));
   });
+}
+
+function relockPreviewFeedHeights() {
+  const lockFeed = (feed) => {
+    feed.style.removeProperty("--preview-feed-height");
+    const height = Math.ceil(feed.getBoundingClientRect().height);
+    if (height > 0) feed.style.setProperty("--preview-feed-height", `${height}px`);
+  };
+
+  document.querySelectorAll("[data-preview-feed]").forEach((feed) => {
+    feed.style.removeProperty("--preview-feed-height");
+    window.requestAnimationFrame(() => {
+      lockFeed(feed);
+    });
+    window.setTimeout(() => lockFeed(feed), 460);
+  });
+}
+
+function applySignalInnerLayout(value) {
+  const root = document.documentElement;
+  const layout = signalInnerLayouts.has(value) ? value : "article-stack";
+  root.dataset.signalInnerLayout = layout;
+  document.querySelectorAll("button[data-signal-inner-layout]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.signalInnerLayout === layout));
+  });
+  document.querySelectorAll("[data-signal-inner-current]").forEach((target) => {
+    target.replaceChildren(signalInnerLayouts.get(layout));
+  });
+  relockPreviewFeedHeights();
+}
+
+function applySignalSizing(value) {
+  const root = document.documentElement;
+  const sizing = signalSizingModes.has(value) ? value : "auto";
+  root.dataset.signalSizing = sizing;
+  document.querySelectorAll("button[data-signal-sizing]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.signalSizing === sizing));
+  });
+  document.querySelectorAll("[data-signal-sizing-current]").forEach((target) => {
+    target.replaceChildren(signalSizingModes.get(sizing));
+  });
+  relockPreviewFeedHeights();
+}
+
+function selectSignalSizing(button) {
+  const sizing = button.dataset.signalSizing;
+  window.localStorage.setItem(signalSizingKey, sizing);
+  applySignalSizing(sizing);
 }
 
 function applySignalRatio(value) {
@@ -337,9 +452,9 @@ function initAccentControls() {
     if (button.dataset.bound) return;
     button.dataset.bound = "true";
     button.addEventListener("click", () => {
-      const theme = currentTheme() === "black" ? "light" : "black";
-      window.localStorage.setItem(themeKey, theme);
-      applyTheme(theme);
+      const mode = nextThemeMode();
+      window.localStorage.setItem(themeKey, mode);
+      applyTheme(mode);
     });
   });
 
@@ -353,8 +468,15 @@ function initAccentControls() {
     });
   });
 
+  if (!window.__hlSystemThemeBound) {
+    window.__hlSystemThemeBound = true;
+    systemThemeQuery.addEventListener?.("change", () => {
+      if (currentThemeMode() === "system") applyTheme("system");
+    });
+  }
+
   syncAccentControls(saved);
-  syncThemeControls(currentTheme());
+  syncThemeControls(currentThemeMode(), currentTheme());
 }
 
 function initBackgroundParallax() {
@@ -371,6 +493,8 @@ function initBackgroundParallax() {
   const reset = () => {
     root.style.setProperty("--grid-parallax-x", "0px");
     root.style.setProperty("--grid-parallax-y", "0px");
+    root.style.setProperty("--grid-pointer-x", "0px");
+    root.style.setProperty("--grid-pointer-y", "0px");
   };
 
   const gridSize = () => Number.parseFloat(getComputedStyle(root).getPropertyValue("--grid-size")) || 28;
@@ -388,14 +512,14 @@ function initBackgroundParallax() {
     }
 
     const size = gridSize();
-    const viewportWidth = Math.max(window.innerWidth, 1);
-    const viewportHeight = Math.max(window.innerHeight, 1);
-    const pointerShiftX = finePointer.matches ? (pointerX - 0.5) * Math.min(8, viewportWidth * 0.006) : 0;
-    const pointerShiftY = finePointer.matches ? (pointerY - 0.5) * Math.min(6, viewportHeight * 0.006) : 0;
-    const scrollShiftY = window.scrollY * -0.045;
+    const scrollShiftY = window.scrollY * -0.065;
+    const pointerShiftX = finePointer.matches ? (pointerX - 0.5) * 14 : 0;
+    const pointerShiftY = finePointer.matches ? (pointerY - 0.5) * 10 : 0;
 
-    root.style.setProperty("--grid-parallax-x", `${round(wrap(pointerShiftX, size))}px`);
-    root.style.setProperty("--grid-parallax-y", `${round(wrap(scrollShiftY + pointerShiftY, size))}px`);
+    root.style.setProperty("--grid-parallax-x", "0px");
+    root.style.setProperty("--grid-parallax-y", `${round(wrap(scrollShiftY, size))}px`);
+    root.style.setProperty("--grid-pointer-x", `${round(pointerShiftX)}px`);
+    root.style.setProperty("--grid-pointer-y", `${round(pointerShiftY)}px`);
   };
 
   const requestUpdate = () => {
@@ -827,6 +951,9 @@ function initNavGroups() {
 
 function initDebugMenu() {
   applyArrowStyle(window.localStorage.getItem(arrowKey));
+  applyGridPattern(window.localStorage.getItem(gridPatternKey));
+  applySignalInnerLayout(window.localStorage.getItem(signalInnerLayoutKey));
+  applySignalSizing(window.localStorage.getItem(signalSizingKey));
   applySignalLayout(window.localStorage.getItem(signalLayoutKey));
   applySignalRatio(window.localStorage.getItem(signalRatioKey));
 
@@ -850,6 +977,16 @@ function initDebugMenu() {
     close.addEventListener("click", () => setOpen(false));
   }
 
+  if (panel && !panel.dataset.signalSizingBound) {
+    panel.dataset.signalSizingBound = "true";
+    panel.addEventListener("click", (event) => {
+      const button = event.target.closest?.("button[data-signal-sizing]");
+      if (!button || !panel.contains(button)) return;
+      event.preventDefault();
+      selectSignalSizing(button);
+    });
+  }
+
   document.querySelectorAll("button[data-arrow-style]").forEach((button) => {
     if (button.dataset.bound) return;
     button.dataset.bound = "true";
@@ -860,6 +997,16 @@ function initDebugMenu() {
     });
   });
 
+  document.querySelectorAll("button[data-grid-pattern]").forEach((button) => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => {
+      const pattern = button.dataset.gridPattern;
+      window.localStorage.setItem(gridPatternKey, pattern);
+      applyGridPattern(pattern);
+    });
+  });
+
   document.querySelectorAll("button[data-signal-layout]").forEach((button) => {
     if (button.dataset.bound) return;
     button.dataset.bound = "true";
@@ -867,6 +1014,16 @@ function initDebugMenu() {
       const layout = button.dataset.signalLayout;
       window.localStorage.setItem(signalLayoutKey, layout);
       applySignalLayout(layout);
+    });
+  });
+
+  document.querySelectorAll("button[data-signal-inner-layout]").forEach((button) => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => {
+      const layout = button.dataset.signalInnerLayout;
+      window.localStorage.setItem(signalInnerLayoutKey, layout);
+      applySignalInnerLayout(layout);
     });
   });
 
@@ -921,6 +1078,7 @@ function preserveShellState(event) {
   if (!nextRoot) return;
 
   nextRoot.dataset.theme = currentTheme();
+  nextRoot.dataset.themeMode = currentThemeMode();
   nextRoot.dataset.arrowStyle = document.documentElement.dataset.arrowStyle || "tabler";
   nextRoot.dataset.signalLayout = document.documentElement.dataset.signalLayout || "wide-crop";
   nextRoot.dataset.signalRatio = document.documentElement.dataset.signalRatio || "original";

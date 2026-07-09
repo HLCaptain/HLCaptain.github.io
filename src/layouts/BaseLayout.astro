@@ -27,6 +27,9 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         const themeKey = "hlcaptain-theme";
         const sidebarKey = "hlcaptain-sidebar";
         const arrowKey = "hlcaptain-arrow-style";
+        const gridPatternKey = "hlcaptain-grid-pattern";
+        const signalInnerLayoutKey = "hlcaptain-signal-inner-layout";
+        const signalSizingKey = "hlcaptain-signal-sizing";
         const signalLayoutKey = "hlcaptain-signal-layout";
         const signalRatioKey = "hlcaptain-signal-ratio";
         const hex = (rgb) =>
@@ -110,13 +113,23 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
           };
         };
         try {
-          const theme = localStorage.getItem(themeKey) === "black" ? "black" : "light";
+          const savedTheme = localStorage.getItem(themeKey);
+          const themeMode = ["light", "black", "system"].includes(savedTheme) ? savedTheme : "light";
+          const systemTheme = matchMedia("(prefers-color-scheme: dark)").matches ? "black" : "light";
+          const theme = themeMode === "system" ? systemTheme : themeMode;
           const accent = localStorage.getItem(accentKey);
           const arrow = localStorage.getItem(arrowKey);
+          const gridPattern = localStorage.getItem(gridPatternKey);
+          const signalInnerLayout = localStorage.getItem(signalInnerLayoutKey);
+          const signalSizing = localStorage.getItem(signalSizingKey);
           const signalLayout = localStorage.getItem(signalLayoutKey);
           const signalRatio = localStorage.getItem(signalRatioKey);
           root.dataset.theme = theme;
+          root.dataset.themeMode = themeMode;
           root.dataset.arrowStyle = ["tabler", "lucide", "heroicons", "phosphor", "solar", "remix", "material", "carbon", "fluent", "radix", "pixelart"].includes(arrow) ? arrow : "tabler";
+          root.dataset.gridPattern = ["grid", "dots", "plus", "crosshatch", "diagonal", "circuit", "scanlines"].includes(gridPattern) ? gridPattern : "grid";
+          root.dataset.signalInnerLayout = ["compact", "article-stack", "article-stack-start"].includes(signalInnerLayout) ? signalInnerLayout : "article-stack";
+          root.dataset.signalSizing = ["auto", "tablet-dynamic"].includes(signalSizing) ? signalSizing : "auto";
           root.dataset.signalLayout = ["split", "wide-crop", "wide-fluid", "letterbox", "stage-top", "hybrid-stage", "smart-stage", "panorama", "console-strip", "focus-band", "square-dock", "square-stage", "square-stage-top", "square-stack"].includes(signalLayout) ? signalLayout : "wide-crop";
           root.dataset.signalRatio = ["original", "wide", "standard", "square", "portrait", "mixed"].includes(signalRatio) ? signalRatio : "original";
           root.classList.toggle("sidebar-collapsed", localStorage.getItem(sidebarKey) === "collapsed");
@@ -180,6 +193,30 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         <button type="button" data-arrow-style="fluent">Fluent</button>
         <button type="button" data-arrow-style="radix">Radix</button>
         <button type="button" data-arrow-style="pixelart">Pixelart</button>
+      </fieldset>
+      <fieldset>
+        <legend>Background pattern</legend>
+        <p class="debug-current">Current: <span data-grid-pattern-current>Grid</span></p>
+        <button type="button" data-grid-pattern="grid">Grid</button>
+        <button type="button" data-grid-pattern="dots">Dots</button>
+        <button type="button" data-grid-pattern="plus">Plus signs</button>
+        <button type="button" data-grid-pattern="crosshatch">Crosshatch</button>
+        <button type="button" data-grid-pattern="diagonal">Diagonal</button>
+        <button type="button" data-grid-pattern="circuit">Circuit</button>
+        <button type="button" data-grid-pattern="scanlines">Scanlines</button>
+      </fieldset>
+      <fieldset>
+        <legend>Signal item</legend>
+        <p class="debug-current">Current: <span data-signal-inner-current>Article stack</span></p>
+        <button type="button" data-signal-inner-layout="article-stack">Article stack</button>
+        <button type="button" data-signal-inner-layout="article-stack-start">Thumbnail start</button>
+        <button type="button" data-signal-inner-layout="compact">Compact</button>
+      </fieldset>
+      <fieldset>
+        <legend>Signal sizing</legend>
+        <p class="debug-current">Current: <span data-signal-sizing-current>Auto</span></p>
+        <button type="button" data-signal-sizing="auto">Auto</button>
+        <button type="button" data-signal-sizing="tablet-dynamic">Tablet dynamic</button>
       </fieldset>
       <fieldset>
         <legend>Signal thumbnail</legend>

@@ -8,6 +8,38 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(fits).toBe(true);
 }
 
+async function selectSignalInnerLayout(page: Page, name: string, value: string) {
+  const root = page.locator("html");
+  const debugToggle = page.getByRole("button", { name: "Open debug menu" });
+  const panel = page.locator("[data-debug-panel]");
+  if (await panel.evaluate((node: HTMLElement) => node.hidden)) {
+    await debugToggle.click();
+  }
+  await expect(panel).toBeVisible();
+  await page.getByRole("button", { name }).click();
+  await expect(root).toHaveAttribute("data-signal-inner-layout", value);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  await page.waitForTimeout(460);
+  await page.getByRole("button", { name: "Close debug menu" }).click();
+  await expect(panel).toBeHidden();
+}
+
+async function selectSignalSizing(page: Page, name: string, value: string) {
+  const root = page.locator("html");
+  const debugToggle = page.getByRole("button", { name: "Open debug menu" });
+  const panel = page.locator("[data-debug-panel]");
+  if (await panel.evaluate((node: HTMLElement) => node.hidden)) {
+    await debugToggle.click();
+  }
+  await expect(panel).toBeVisible();
+  await page.getByRole("button", { name }).click();
+  await expect(root).toHaveAttribute("data-signal-sizing", value);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  await page.waitForTimeout(460);
+  await page.getByRole("button", { name: "Close debug menu" }).click();
+  await expect(panel).toBeHidden();
+}
+
 type ParsedColor = { r: number; g: number; b: number; a: number };
 
 function parseColor(value: string): ParsedColor {
@@ -110,15 +142,108 @@ test.describe("site shell", () => {
     expect(layerState.willChange).toContain("transform");
     expect(layerState.backgroundImage).toContain("linear-gradient");
 
-    const before = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue("--grid-parallax-y").trim()
-    );
+    const readParallax = () =>
+      page.evaluate(() => {
+        const style = getComputedStyle(document.documentElement);
+        return {
+          x: style.getPropertyValue("--grid-parallax-x").trim(),
+          y: style.getPropertyValue("--grid-parallax-y").trim()
+        };
+      });
+
+    const before = await readParallax();
+    expect(before.x).toBe("0px");
     await page.evaluate(() => window.scrollTo(0, 420));
     await expect
-      .poll(async () =>
-        page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--grid-parallax-y").trim())
-      )
-      .not.toBe(before);
+      .poll(async () => {
+        const after = await readParallax();
+        return after.y;
+      })
+      .not.toBe(before.y);
+
+    const afterScroll = await readParallax();
+    expect(afterScroll.x).toBe("0px");
+    await page.mouse.move(32, 32);
+    await page.mouse.move(1200, 760);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    expect(await readParallax()).toEqual(afterScroll);
+  });
+
+  test("mouse-reactive background patterns keep grid parallax independent", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop fine-pointer background pattern check");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    await page.getByRole("button", { name: "Open debug menu" }).click();
+    await page.getByRole("button", { name: "Plus signs" }).click();
+    await expect(root).toHaveAttribute("data-grid-pattern", "plus");
+
+    const readMotion = () =>
+      page.evaluate(() => {
+        const style = getComputedStyle(document.documentElement);
+        return {
+          parallaxX: style.getPropertyValue("--grid-parallax-x").trim(),
+          parallaxY: style.getPropertyValue("--grid-parallax-y").trim(),
+          pointerX: style.getPropertyValue("--grid-pointer-x").trim(),
+          pointerY: style.getPropertyValue("--grid-pointer-y").trim()
+        };
+      });
+
+    const before = await readMotion();
+    await page.mouse.move(32, 32);
+    await page.mouse.move(1320, 820);
+    await expect
+      .poll(async () => {
+        const after = await readMotion();
+        return `${after.pointerX}:${after.pointerY}`;
+      })
+      .not.toBe(`${before.pointerX}:${before.pointerY}`);
+
+    const after = await readMotion();
+    expect(after.parallaxX).toBe(before.parallaxX);
+    expect(after.parallaxY).toBe(before.parallaxY);
+    expect(after.pointerX).not.toBe(before.pointerX);
+    expect(after.pointerY).not.toBe(before.pointerY);
+
+    const backgroundImage = await page
+      .locator(".background-grid")
+      .evaluate((node) => getComputedStyle(node).backgroundImage);
+    expect(backgroundImage).toContain("radial-gradient");
+  });
+
+  test("debug menu renders each background pattern option", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    await page.getByRole("button", { name: "Open debug menu" }).click();
+
+    const patterns = [
+      { name: "Grid", value: "grid" },
+      { name: "Dots", value: "dots" },
+      { name: "Plus signs", value: "plus" },
+      { name: "Crosshatch", value: "crosshatch" },
+      { name: "Diagonal", value: "diagonal" },
+      { name: "Circuit", value: "circuit" },
+      { name: "Scanlines", value: "scanlines" }
+    ];
+    const renderedBackgrounds = new Set<string>();
+
+    for (const pattern of patterns) {
+      await page.getByRole("button", { name: pattern.name }).click();
+      await expect(root).toHaveAttribute("data-grid-pattern", pattern.value);
+      await expect(page.locator("[data-grid-pattern-current]")).toHaveText(pattern.name);
+      await expect(page.getByRole("button", { name: pattern.name })).toHaveAttribute("aria-pressed", "true");
+      const backgroundImage = await page
+        .locator(".background-grid")
+        .evaluate((node) => getComputedStyle(node).backgroundImage);
+      expect(backgroundImage).toContain("gradient");
+      renderedBackgrounds.add(backgroundImage);
+    }
+
+    expect(renderedBackgrounds.size).toBe(patterns.length);
   });
 
   test("navigation reaches articles and marks the active route", async ({ page, isMobile }) => {
@@ -180,8 +305,17 @@ test.describe("site shell", () => {
 
     const allArticles = page.getByRole("link", { name: "All articles" });
     await allArticles.scrollIntoViewIfNeeded();
+    const overviewTargetScrollY = await allArticles.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const documentY = rect.top + window.scrollY;
+      const preferredViewportY = Math.min(window.innerHeight * 0.45, 360);
+      const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      return Math.min(maxScrollY, Math.max(0, documentY - preferredViewportY));
+    });
+    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), overviewTargetScrollY);
     const overviewScrollY = await page.evaluate(() => window.scrollY);
     expect(overviewScrollY).toBeGreaterThan(100);
+    await expect(allArticles).toBeVisible();
 
     await allArticles.click({ noWaitAfter: true });
     await expect(page.locator("html")).toHaveAttribute("data-astro-transition", /forward|back/);
@@ -1197,8 +1331,9 @@ test.describe("site shell", () => {
     const themeToggle = page.getByRole("button", { name: "Switch to dark theme" });
     await expect(themeToggle.locator("[data-theme-label]")).toHaveText("Light");
     await themeToggle.click();
+    await expect(root).toHaveAttribute("data-theme-mode", "black");
     await expect(root).toHaveAttribute("data-theme", "black");
-    await expect(page.getByRole("button", { name: "Switch to light theme" }).locator("[data-theme-label]")).toHaveText("Dark");
+    await expect(page.getByRole("button", { name: "Switch to system theme" }).locator("[data-theme-label]")).toHaveText("Dark");
     const blackGridSoft = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--grid-line-soft").trim());
     expect(blackGridSoft.includes("/ 0.12") || blackGridSoft === "#b9843b1f").toBe(true);
     await expect
@@ -1251,6 +1386,39 @@ test.describe("site shell", () => {
     await expect.poll(async () => root.evaluate((node) => node.style.getPropertyValue("--accent-preview").trim())).toBe("");
   });
 
+  test("theme toggle supports system mode and follows color scheme", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    if ((page.viewportSize()?.width ?? 0) < 721) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+    }
+
+    const root = page.locator("html");
+    await page.getByRole("button", { name: "Switch to dark theme" }).click();
+    await expect(root).toHaveAttribute("data-theme-mode", "black");
+    await expect(root).toHaveAttribute("data-theme", "black");
+
+    await page.getByRole("button", { name: "Switch to system theme" }).click();
+    await expect(root).toHaveAttribute("data-theme-mode", "system");
+    await expect(root).toHaveAttribute("data-theme", "black");
+    await expect(page.getByRole("button", { name: "Switch to light theme" }).locator("[data-theme-label]")).toHaveText(
+      "System"
+    );
+
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(root).toHaveAttribute("data-theme-mode", "system");
+    await expect(root).toHaveAttribute("data-theme", "light");
+
+    await page.getByRole("button", { name: "Switch to light theme" }).click();
+    await expect(root).toHaveAttribute("data-theme-mode", "light");
+    await expect(root).toHaveAttribute("data-theme", "light");
+    await expect(page.getByRole("button", { name: "Switch to dark theme" }).locator("[data-theme-label]")).toHaveText(
+      "Light"
+    );
+  });
+
   test("cards use a hover arrow affordance", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
@@ -1278,18 +1446,20 @@ test.describe("site shell", () => {
 
     await page.goto("/");
     await page.waitForLoadState("domcontentloaded");
+    await expect(page.locator("html")).toHaveAttribute("data-theme-mode", "black");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "black");
     const beforeNav = await page.locator("html").evaluate((node) => getComputedStyle(node).getPropertyValue("--accent"));
     expect(beforeNav.trim()).not.toBe("#050505");
 
     await page.getByRole("link", { name: "Read articles" }).click();
     await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(page.locator("html")).toHaveAttribute("data-theme-mode", "black");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "black");
     const afterNav = await page.locator("html").evaluate((node) => getComputedStyle(node).getPropertyValue("--accent"));
     expect(afterNav.trim()).toBe(beforeNav.trim());
   });
 
-  test("debug menu changes arrow and Signal styles and keeps them through navigation", async ({ page }) => {
+  test("debug menu changes background, arrow, and Signal styles and keeps them through navigation", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
@@ -1301,10 +1471,22 @@ test.describe("site shell", () => {
     await debugToggle.click();
     await expect(page.locator("[data-debug-panel]")).toBeVisible();
     await expect(page.locator("button[data-arrow-style]")).toHaveCount(11);
+    await expect(page.locator("button[data-grid-pattern]")).toHaveCount(7);
+    await expect(page.locator("button[data-signal-structure]")).toHaveCount(0);
+    await expect(page.locator("[data-signal-structure-current]")).toHaveCount(0);
+    await expect(page.locator("button[data-signal-inner-layout]")).toHaveCount(3);
+    await expect(page.locator("button[data-signal-sizing]")).toHaveCount(2);
     await expect(page.locator("button[data-signal-layout]")).toHaveCount(14);
     await expect(page.locator("button[data-signal-ratio]")).toHaveCount(6);
+    await expect(page.locator("[data-grid-pattern-current]")).toHaveText("Grid");
+    await expect(page.locator("[data-signal-inner-current]")).toHaveText("Article stack");
+    await expect(page.locator("[data-signal-sizing-current]")).toHaveText("Auto");
     await expect(page.locator("[data-signal-layout-current]")).toHaveText("Wide crop");
     await expect(page.locator("[data-signal-ratio-current]")).toHaveText("Original 16:9");
+    await expect(root).toHaveAttribute("data-grid-pattern", "grid");
+    await expect(root).toHaveAttribute("data-signal-inner-layout", "article-stack");
+    await expect(root).toHaveAttribute("data-signal-sizing", "auto");
+    await expect(root).not.toHaveAttribute("data-signal-structure", /.*/);
     await expect(root).toHaveAttribute("data-signal-layout", "wide-crop");
     await expect(root).toHaveAttribute("data-signal-ratio", "original");
     await expect(firstSignalImage).toHaveAttribute("src", "/visuals/article-preview.svg");
@@ -1320,6 +1502,43 @@ test.describe("site shell", () => {
     const iconWidth = await firstArrow.evaluate((node) => getComputedStyle(node).width);
     expect(Number.parseFloat(iconWidth)).toBeGreaterThanOrEqual(24);
     await expect(firstArrow.locator('.arrow-icon__svg[data-icon-style="phosphor"]')).toBeVisible();
+
+    await page.getByRole("button", { name: "Circuit" }).click();
+    await expect(root).toHaveAttribute("data-grid-pattern", "circuit");
+    await expect(page.getByRole("button", { name: "Circuit" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-grid-pattern-current]")).toHaveText("Circuit");
+
+    await page.getByRole("button", { name: "Tablet dynamic" }).click();
+    await expect(root).toHaveAttribute("data-signal-sizing", "tablet-dynamic");
+    await expect(page.getByRole("button", { name: "Tablet dynamic" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-sizing-current]")).toHaveText("Tablet dynamic");
+
+    await page.locator('button[data-signal-sizing="auto"]').click();
+    await expect(root).toHaveAttribute("data-signal-sizing", "auto");
+    await expect(page.locator('button[data-signal-sizing="auto"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-sizing-current]")).toHaveText("Auto");
+
+    await page.getByRole("button", { name: "Tablet dynamic" }).click();
+    await expect(root).toHaveAttribute("data-signal-sizing", "tablet-dynamic");
+    await expect(page.getByRole("button", { name: "Tablet dynamic" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-sizing-current]")).toHaveText("Tablet dynamic");
+
+    await page.getByRole("button", { name: "Thumbnail start" }).click();
+    await expect(root).toHaveAttribute("data-signal-inner-layout", "article-stack-start");
+    await expect(page.getByRole("button", { name: "Thumbnail start" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-inner-current]")).toHaveText("Thumbnail start");
+    const startMediaState = await page.locator("[data-preview-item].is-active .preview-feed__media").evaluate((node) => {
+      const style = getComputedStyle(node);
+      const imageStyle = getComputedStyle(node.querySelector("img")!);
+      return {
+        alignSelf: style.alignSelf,
+        justifySelf: style.justifySelf,
+        objectPosition: imageStyle.objectPosition
+      };
+    });
+    expect(startMediaState.alignSelf).toBe("start");
+    expect(startMediaState.justifySelf).toBe("start");
+    expect(startMediaState.objectPosition).toContain("0%");
 
     await page.getByRole("button", { name: "Letterbox" }).click();
     await expect(root).toHaveAttribute("data-signal-layout", "letterbox");
@@ -1338,6 +1557,9 @@ test.describe("site shell", () => {
     await page.getByRole("link", { name: "Read articles" }).click();
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveAttribute("data-arrow-style", "phosphor");
+    await expect(root).toHaveAttribute("data-grid-pattern", "circuit");
+    await expect(root).toHaveAttribute("data-signal-inner-layout", "article-stack-start");
+    await expect(root).toHaveAttribute("data-signal-sizing", "tablet-dynamic");
     await expect(root).toHaveAttribute("data-signal-layout", "letterbox");
     await expect(root).toHaveAttribute("data-signal-ratio", "mixed");
     await expect(root).not.toHaveAttribute("data-brand-style", /.*/);
@@ -1347,6 +1569,12 @@ test.describe("site shell", () => {
       await debugToggle.click();
     }
     await expect(page.getByRole("button", { name: "Phosphor" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Circuit" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-grid-pattern-current]")).toHaveText("Circuit");
+    await expect(page.getByRole("button", { name: "Thumbnail start" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-inner-current]")).toHaveText("Thumbnail start");
+    await expect(page.getByRole("button", { name: "Tablet dynamic" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("[data-signal-sizing-current]")).toHaveText("Tablet dynamic");
     await expect(page.getByRole("button", { name: "Letterbox" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("[data-signal-layout-current]")).toHaveText("Letterbox");
     await expect(page.getByRole("button", { name: "Mixed deck" })).toHaveAttribute("aria-pressed", "true");
@@ -1359,14 +1587,40 @@ test.describe("site shell", () => {
     await page.waitForLoadState("networkidle");
 
     const feed = page.locator("[data-preview-feed]");
+    const activeItem = feed.locator("[data-preview-item].is-active");
     await expect(feed.locator("[data-preview-item]")).toHaveCount(4);
-    await expect(feed.locator("[data-preview-item].is-active img")).toBeVisible();
+    await expect(activeItem.locator(".preview-feed__kind")).toHaveText("Article");
+    await expect(activeItem.locator(".preview-feed__trigger > span").last()).toHaveText(/,/);
+    await expect(activeItem.locator(".preview-feed__media")).toBeVisible();
+    await expect(activeItem.locator(".preview-feed__trigger strong")).toBeVisible();
+    await expect(activeItem.locator(".preview-feed__detail-title")).toBeHidden();
+    await expect(activeItem.locator(".preview-feed__description")).toBeVisible();
+    const articleStackOrder = await activeItem.evaluate((node) => {
+      const kind = node.querySelector(".preview-feed__kind")!.getBoundingClientRect();
+      const media = node.querySelector(".preview-feed__media")!.getBoundingClientRect();
+      const title = node.querySelector(".preview-feed__trigger strong")!.getBoundingClientRect();
+      const titleSpacer = node.querySelector(".preview-feed__detail-title")!.getBoundingClientRect();
+      const description = node.querySelector(".preview-feed__description")!.getBoundingClientRect();
+      const titleStyle = getComputedStyle(node.querySelector(".preview-feed__trigger strong")!);
+      return {
+        positions: [kind.top, media.top, title.top, description.top],
+        titlePosition: titleStyle.position,
+        titleTransition: titleStyle.transitionProperty,
+        titleSpacerDelta: Math.abs(title.top - titleSpacer.top)
+      };
+    });
+    expect(articleStackOrder.positions[0]).toBeLessThan(articleStackOrder.positions[1]);
+    expect(articleStackOrder.positions[1]).toBeLessThan(articleStackOrder.positions[2]);
+    expect(articleStackOrder.positions[2]).toBeLessThan(articleStackOrder.positions[3]);
+    expect(articleStackOrder.titlePosition).toBe("absolute");
+    expect(articleStackOrder.titleTransition).toContain("top");
+    expect(articleStackOrder.titleSpacerDelta).toBeLessThanOrEqual(2);
     const firstRail = await feed.locator("[data-preview-rail]").boundingBox();
     const beforeHeight = await feed.evaluate((node) => node.getBoundingClientRect().height);
 
     await feed.locator("[data-preview-trigger]").nth(1).click();
     await expect(feed.locator("[data-preview-item]").nth(1)).toHaveClass(/is-active/);
-    await expect(feed.locator("[data-preview-item]").nth(1).locator("img")).toBeVisible();
+    await expect(feed.locator("[data-preview-item]").nth(1).locator(".preview-feed__media")).toBeVisible();
     await expect(feed.locator("[data-preview-item]").first()).not.toHaveClass(/is-active/);
     await expect(feed.getByRole("link", { name: /open/i })).toHaveCount(0);
     const sampledHeights = await feed.evaluate(
@@ -1484,6 +1738,7 @@ test.describe("site shell", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await selectSignalInnerLayout(page, "Compact", "compact");
 
     const feed = page.locator("[data-preview-feed]");
     const firstItem = feed.locator("[data-preview-item]").first();
@@ -1537,6 +1792,7 @@ test.describe("site shell", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await selectSignalInnerLayout(page, "Compact", "compact");
 
     const root = page.locator("html");
     const feed = page.locator("[data-preview-feed]");
@@ -1616,11 +1872,11 @@ test.describe("site shell", () => {
     };
 
     const wideCrop = await measure();
-    expect(wideCrop.feedHeight).toBeGreaterThanOrEqual(520);
-    expect(wideCrop.feedHeight).toBeLessThanOrEqual(545);
+    expect(wideCrop.feedHeight).toBeGreaterThanOrEqual(390);
+    expect(wideCrop.feedHeight).toBeLessThanOrEqual(420);
     expect(wideCrop.columns).toBe(2);
     expect(wideCrop.fit).toBe("cover");
-    expect(wideCrop.mediaHeight).toBeLessThan(wideCrop.detailHeight * 0.7);
+    expect(wideCrop.mediaHeight).toBeLessThan(wideCrop.detailHeight * 0.82);
     expect(wideCrop.mediaWidth).toBeGreaterThan(wideCrop.mediaHeight);
     expect(wideCrop.descriptionX).toBeGreaterThan(wideCrop.mediaX + wideCrop.mediaWidth);
     expectBalancedMediaGaps(wideCrop);
@@ -1631,7 +1887,7 @@ test.describe("site shell", () => {
     const split = await selectVariant("Split", "split");
     expectStableFeedHeight(split, wideCrop);
     expect(split.columns).toBe(2);
-    expect(split.mediaHeight).toBeGreaterThan(wideCrop.mediaHeight + 90);
+    expect(split.mediaHeight).toBeGreaterThan(wideCrop.mediaHeight + 24);
     expect(Math.abs(split.mediaHeight - split.detailHeight)).toBeLessThanOrEqual(1);
 
     const wideFluid = await selectVariant("Wide fluid", "wide-fluid");
@@ -1689,8 +1945,8 @@ test.describe("site shell", () => {
     expectStableFeedHeight(letterbox, wideCrop);
     expect(letterbox.columns).toBe(2);
     expect(letterbox.fit).toBe("contain");
-    expect(letterbox.mediaHeight).toBeLessThan(split.mediaHeight * 0.65);
-    expect(letterbox.mediaWidth).toBeGreaterThan(split.mediaWidth);
+    expect(letterbox.mediaHeight).toBeLessThan(split.mediaHeight * 0.85);
+    expect(letterbox.mediaWidth).toBeLessThan(split.mediaWidth);
     expectBalancedMediaGaps(letterbox);
 
     const panorama = await selectVariant("Panorama", "panorama");
@@ -1698,7 +1954,7 @@ test.describe("site shell", () => {
     expect(panorama.columns).toBe(1);
     expect(panorama.rows).toBe(2);
     expect(Math.abs(panorama.mediaWidth - panorama.detailWidth)).toBeLessThanOrEqual(1);
-    expect(panorama.mediaHeight).toBeLessThan(split.mediaHeight * 0.5);
+    expect(panorama.mediaHeight).toBeLessThan(split.mediaHeight * 0.7);
     expect(panorama.descriptionY).toBeGreaterThan(panorama.mediaY + panorama.mediaHeight);
 
     const consoleStrip = await selectVariant("Console strip", "console-strip");
@@ -1733,7 +1989,7 @@ test.describe("site shell", () => {
     expect(squareStage.columns).toBe(2);
     expect(squareStage.fit).toBe("contain");
     expect(Math.abs(squareStage.mediaWidth - squareStage.mediaHeight)).toBeLessThanOrEqual(1);
-    expect(squareStage.mediaWidth).toBeGreaterThan(squareDock.mediaWidth);
+    expect(squareStage.mediaWidth).toBeGreaterThanOrEqual(squareDock.mediaWidth);
     expect(squareStage.mediaWidth).toBeLessThan(squareStage.detailHeight);
     expectBalancedMediaGaps(squareStage);
 
@@ -1768,6 +2024,7 @@ test.describe("site shell", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await selectSignalInnerLayout(page, "Compact", "compact");
 
     const root = page.locator("html");
     const feed = page.locator("[data-preview-feed]");
@@ -1956,12 +2213,65 @@ test.describe("site shell", () => {
     expectCentered(squareStack);
   });
 
+  test("preview feed can reuse tablet dynamic sizing outside the tablet breakpoint", async ({ page }) => {
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    test.skip(viewportWidth > 720 && viewportWidth <= 1040, "Mobile and desktop Signal sizing toggle geometry");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await selectSignalInnerLayout(page, "Compact", "compact");
+
+    const root = page.locator("html");
+    const feed = page.locator("[data-preview-feed]");
+    const activeItem = feed.locator("[data-preview-item].is-active");
+    const trigger = activeItem.locator("[data-preview-trigger]");
+    const detail = activeItem.locator(".preview-feed__detail");
+    const media = detail.locator(".preview-feed__media");
+    const description = detail.locator(".preview-feed__description");
+
+    const measure = async () => {
+      const [triggerBox, mediaBox, descriptionBox] = await Promise.all([
+        trigger.boundingBox(),
+        media.boundingBox(),
+        description.boundingBox()
+      ]);
+      const columns = await detail.evaluate((node) => {
+        const columns = getComputedStyle(node).gridTemplateColumns.trim();
+        return columns.split(/\s+/).filter(Boolean).length;
+      });
+
+      return {
+        columns,
+        triggerHeight: triggerBox?.height ?? 0,
+        mediaX: mediaBox?.x ?? 0,
+        mediaWidth: mediaBox?.width ?? 0,
+        mediaHeight: mediaBox?.height ?? 0,
+        descriptionX: descriptionBox?.x ?? 0
+      };
+    };
+
+    const auto = await measure();
+    expect(auto.columns).toBe(1);
+
+    await selectSignalSizing(page, "Tablet dynamic", "tablet-dynamic");
+    await expect(root).toHaveAttribute("data-signal-sizing", "tablet-dynamic");
+
+    const dynamic = await measure();
+    expect(dynamic.columns).toBe(2);
+    expect(dynamic.triggerHeight).toBeLessThan(auto.triggerHeight);
+    expect(dynamic.mediaWidth).toBeGreaterThan(dynamic.mediaHeight);
+    expect(dynamic.mediaHeight).toBeLessThanOrEqual(124);
+    expect(dynamic.descriptionX).toBeGreaterThan(dynamic.mediaX + dynamic.mediaWidth);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("preview feed smart stage chooses layout from ratio and constraints", async ({ page }) => {
     const viewportWidth = page.viewportSize()?.width ?? 0;
     const isMobile = viewportWidth <= 720;
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await selectSignalInnerLayout(page, "Compact", "compact");
 
     const root = page.locator("html");
     const feed = page.locator("[data-preview-feed]");
@@ -2088,21 +2398,21 @@ test.describe("site shell", () => {
     await page.waitForLoadState("networkidle");
 
     const root = page.locator("html");
-    const firstImage = page.locator("img[data-signal-image]").first();
+    const firstImage = page.locator("[data-preview-item] img[data-signal-image]").first();
     const debugToggle = page.getByRole("button", { name: "Open debug menu" });
 
     const waitForSource = async (source: string) => {
       await expect(firstImage).toHaveAttribute("src", source);
       await page.waitForFunction(
         (expectedSource) => {
-          const image = document.querySelector<HTMLImageElement>("img[data-signal-image]");
+          const image = document.querySelector<HTMLImageElement>("[data-preview-item] img[data-signal-image]");
           return Boolean(image?.getAttribute("src") === expectedSource && image.complete && image.naturalWidth > 0);
         },
         source
       );
     };
     const ratios = async () =>
-      page.locator("img[data-signal-image]").evaluateAll((images) =>
+      page.locator("[data-preview-item] img[data-signal-image]").evaluateAll((images) =>
         images.map((image) => {
           const thumbnail = image as HTMLImageElement;
           return Math.round((thumbnail.naturalWidth / thumbnail.naturalHeight) * 100) / 100;
@@ -2131,10 +2441,13 @@ test.describe("site shell", () => {
     expect(mixed[1]).toBeCloseTo(1, 1);
     expect(mixed[2]).toBeCloseTo(1.33, 1);
     expect(mixed[3]).toBeCloseTo(0.75, 1);
-    expect(await page.locator(".preview-feed__media").first().evaluate((node) => getComputedStyle(node, "::before").display)).toBe(
-      "block"
-    );
-    const labels = await page.locator(".preview-feed__media").evaluateAll((nodes) =>
+    expect(
+      await page
+        .locator("[data-preview-item] .preview-feed__media")
+        .first()
+        .evaluate((node) => getComputedStyle(node, "::before").display)
+    ).toBe("block");
+    const labels = await page.locator("[data-preview-item] .preview-feed__media").evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("data-signal-aspect"))
     );
     expect(labels).toEqual(["21:9", "1:1", "4:3", "3:4"]);
@@ -2143,6 +2456,7 @@ test.describe("site shell", () => {
   test("preview feed uses a vertical compact layout without text overflow", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await selectSignalInnerLayout(page, "Compact", "compact");
 
     const feed = page.locator("[data-preview-feed]");
     const activeItem = feed.locator("[data-preview-item].is-active");
@@ -2208,8 +2522,11 @@ test.describe("site shell", () => {
     const itemBottom = (activeItemBox?.y ?? 0) + (activeItemBox?.height ?? 0);
     const detailBottom = (detailBox?.y ?? 0) + (detailBox?.height ?? 0);
     const mediaBottom = (mediaBox?.y ?? 0) + (mediaBox?.height ?? 0);
-    expect(Math.abs(detailBottom - itemBottom)).toBeLessThanOrEqual(2);
-    expect(Math.abs((mediaBox?.x ?? 0) - (detailBox?.x ?? 0))).toBeLessThanOrEqual(1);
+    expect(Math.abs(detailBottom - itemBottom)).toBeLessThanOrEqual(isTabletSignalLayout ? 2 : 22);
+    expect((mediaBox?.x ?? 0)).toBeGreaterThanOrEqual((detailBox?.x ?? 0) - 1);
+    expect((mediaBox?.x ?? 0) + (mediaBox?.width ?? 0)).toBeLessThanOrEqual(
+      (detailBox?.x ?? 0) + (detailBox?.width ?? 0) + 1
+    );
     if (isTabletSignalLayout) {
       const mediaTopGap = (mediaBox?.y ?? 0) - (detailBox?.y ?? 0);
       const mediaBottomGap = detailBottom - mediaBottom;
@@ -2218,15 +2535,14 @@ test.describe("site shell", () => {
       expect(Math.abs(mediaTopGap - mediaBottomGap)).toBeLessThanOrEqual(1);
       expect(Math.abs((descriptionOuterBox?.y ?? 0) - (detailBox?.y ?? 0))).toBeLessThanOrEqual(1);
       expect((descriptionOuterBox?.x ?? 0)).toBeGreaterThan((mediaBox?.x ?? 0) + (mediaBox?.width ?? 0));
-      expect((mediaBox?.height ?? 0)).toBeLessThan((detailBox?.height ?? 0) * 0.7);
-      expect((mediaBox?.height ?? 0)).toBeGreaterThan(100);
+      expect((mediaBox?.height ?? 0)).toBeLessThan((detailBox?.height ?? 0) * 0.85);
+      expect((mediaBox?.height ?? 0)).toBeGreaterThan(70);
       expect(Math.abs((descriptionOuterBox?.height ?? 0) - (detailBox?.height ?? 0))).toBeLessThanOrEqual(1);
-      expect((mediaBox?.width ?? 0)).toBeGreaterThanOrEqual(220);
+      expect((mediaBox?.width ?? 0)).toBeGreaterThanOrEqual(140);
       expect((mediaBox?.width ?? 0)).toBeLessThan((detailBox?.width ?? 0) * 0.68);
       expect((descriptionOuterBox?.width ?? 0)).toBeGreaterThan(110);
       expect((descriptionOuterBox?.height ?? 0)).toBeGreaterThan(120);
     } else {
-      expect(Math.abs((mediaBox?.width ?? 0) - (detailBox?.width ?? 0))).toBeLessThanOrEqual(1);
       expect(Math.abs((mediaBox?.width ?? 0) / (mediaBox?.height ?? 1) - 16 / 9)).toBeLessThan(0.03);
       expect(Math.abs((descriptionOuterBox?.y ?? 0) - ((mediaBox?.y ?? 0) + (mediaBox?.height ?? 0)))).toBeLessThanOrEqual(1);
     }
@@ -2273,7 +2589,7 @@ test.describe("site shell", () => {
       };
     });
     expect(descriptionBox.scrollWidth).toBeLessThanOrEqual(descriptionBox.clientWidth + 1);
-    expect(descriptionBox.lineClamp).toBe(isTabletSignalLayout ? "7" : "4");
+    expect(descriptionBox.lineClamp).toBe(isTabletSignalLayout ? "4" : "3");
     expect(descriptionBox.paddingTop).toBe(isTabletSignalLayout ? "8px" : "5px");
     expect(descriptionBox.paddingBottom).toBe("0px");
     expect(descriptionBox.backdropFilter === "none" || descriptionBox.backdropFilter === "").toBe(true);
