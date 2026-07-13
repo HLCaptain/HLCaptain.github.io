@@ -1,6 +1,6 @@
 ---
 title: "SplitEasy AI"
-description: "A receipt-to-settlement prototype that combines reviewable AI assistance with deterministic bill-splitting and reconciliation."
+description: "A receipt-to-split prototype that combines reviewable AI assistance with deterministic parsing and receipt reconciliation."
 publishedAt: 2026-07-13
 tags: ["react", "typescript", "cloudflare", "ai-ocr"]
 featured: true
@@ -43,21 +43,23 @@ price or quantity inspectable instead of asking the user to trust a model-genera
 ## Reliability before automation
 
 Receipt OCR is noisy, and plausible-looking arithmetic is still wrong arithmetic. SplitEasy runs AI
-output through deterministic parsing and reconciliation before it reaches the settlement view.
-Money is calculated in integer minor units, currencies with zero decimal places such as HUF are
-handled explicitly, and receipt totals are checked against the sum of active items.
+output through deterministic parsing and reconciliation before it reaches the split view. Receipt
+reconciliation converts values to currency-specific minor units, handles zero-decimal currencies
+such as HUF explicitly, and checks printed totals against the sum of active items.
 
 The parser distinguishes product rows from quantity details, payment metadata, discounts, deposit
 fees, and receipt-level totals. AI assignment proposals remain separate from manual assignments
-until the user applies them. Multi-currency splits require an explicit settlement currency and
-manual exchange rates rather than silently combining incompatible totals.
+until the user applies them. For mixed-currency receipts, the interface asks for a settlement
+currency and manual exchange rates, and warns when a rate is missing.
 
-## Architecture and privacy
+## Architecture and secret handling
 
 The interface is a static React application. Same-origin Cloudflare Pages Functions own OCR,
 structuring, assignment, one-click splitting, model health, and transcription calls. Provider keys
 for Mistral, OpenAI, and ElevenLabs stay server-side and never enter the browser bundle, local
-storage, or exported split data.
+storage, or exported split data. Receipt documents, chat screenshots, or audio are sent to the
+configured provider when the corresponding AI feature is used; split history can be retained
+locally in the browser.
 
 ## Current state
 
