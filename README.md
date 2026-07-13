@@ -49,11 +49,6 @@ npm exec -- wrangler pages dev dist
 
 The site is static and does not require a Cloudflare adapter.
 
-## Cloudflare Pages dashboard settings
+The preview workflow uses Wrangler Direct Upload. Do not also connect this project to Cloudflare's Git integration; that is a separate deployment path. If you choose dashboard-managed Git integration instead, use `main` as the production branch, `npm run build` as the build command, and `dist` as the output directory.
 
-Connect the GitHub repository in Cloudflare Pages with:
-
-- Production branch: `main`
-- Build command: `npm run build`
-- Build output directory: `dist`
-- Optional environment variable: `SITE_URL=https://your-domain.example`
+Set `SITE_URL=https://your-domain.example` in the relevant deployment environment when a custom production domain is ready.
