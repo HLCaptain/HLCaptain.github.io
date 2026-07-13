@@ -1,6 +1,6 @@
 # HLCaptain Site
 
-Static Astro portfolio and Markdown blog, deployed to GitHub Pages with Cloudflare Pages PR previews.
+Static Astro portfolio and Markdown/MDX blog, deployed to GitHub Pages with Cloudflare Pages PR previews.
 
 ## Commands
 
@@ -14,12 +14,14 @@ npm test
 
 ## Publishing Content
 
-Add Markdown files to:
+Add `.md` or `.mdx` files to:
 
 - `src/content/articles/`
 - `src/content/projects/`
 
 Each file needs frontmatter matching `src/content.config.ts`. Published entries appear on the site and in `/rss.xml` unless `draft: true`.
+
+Use Markdown for prose-only entries. Use MDX when an entry needs imported Astro components, interactive islands, or expressions alongside Markdown. Imports belong immediately after the frontmatter.
 
 ## GitHub Pages production
 
