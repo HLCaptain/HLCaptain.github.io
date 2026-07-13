@@ -2,7 +2,7 @@ import { defineConfig } from "astro/config";
 import icon from "astro-icon";
 import sitemap from "@astrojs/sitemap";
 
-const site = process.env.SITE_URL ?? "https://hlcaptain-site.pages.dev";
+const site = process.env.SITE_URL ?? "https://hlcaptain.github.io";
 
 export default defineConfig({
   site,

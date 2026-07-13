@@ -1,14 +1,19 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const remoteBaseURL = process.env.PLAYWRIGHT_TEST_BASE_URL?.replace(/\/$/, "");
+const localBaseURL = "http://127.0.0.1:4321";
+
 export default defineConfig({
   testDir: "./tests",
-  webServer: {
-    command: "npm run preview -- --host localhost",
-    url: "http://localhost:4321",
-    reuseExistingServer: true
-  },
+  webServer: remoteBaseURL
+    ? undefined
+    : {
+        command: "npm run preview -- --host 127.0.0.1",
+        url: localBaseURL,
+        reuseExistingServer: true
+      },
   use: {
-    baseURL: "http://localhost:4321",
+    baseURL: remoteBaseURL ?? localBaseURL,
     trace: "on-first-retry"
   },
   projects: [
