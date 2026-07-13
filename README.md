@@ -31,12 +31,11 @@ GitHub Pages must be enabled with **GitHub Actions** as its source. Private repo
 
 The PR workflow uses the `cloudflare-preview` GitHub environment and a Direct Upload Pages project named `hlcaptain-site`. It does not deploy `main`.
 
-Create the Pages project once, then add these environment secrets:
+Create the Pages project once, then add this secret to the `cloudflare-preview` environment:
 
 - `CLOUDFLARE_API_TOKEN` with Pages deployment permission
-- `CLOUDFLARE_ACCOUNT_ID`
 
-Optionally set the `CLOUDFLARE_PAGES_PROJECT` environment variable to override the default project name. Without the secrets, validation and local UI tests still run, but the external preview is skipped.
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_PAGES_PROJECT` are already configured as environment variables for this repository. Without the API token, validation and local UI tests still run, but the external preview is skipped.
 
 Cloudflare preview URLs are public by default; use a Cloudflare Access policy if these previews must remain private.
 
