@@ -149,14 +149,29 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Build site for UI tests
+        run: npm run build
+
       - name: Select UI test target
         id: ui-target
         env:
           PREVIEW_URL: ${{ needs.deploy-preview.outputs.preview-url }}
         run: |
+          set -euo pipefail
+
           if [ -n "$PREVIEW_URL" ]; then
-            echo "base_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-            echo "Running against Cloudflare preview: $PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+            preview_html="$(curl --fail --silent --show-error --location --max-time 15 "$PREVIEW_URL/" || true)"
+            if grep -q 'data-grid-pattern=' <<<"$preview_html"; then
+              echo "base_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+              echo "Running against Cloudflare preview: $PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "base_url=" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Cloudflare preview unavailable to browser tests"
+                echo
+                echo "The preview did not return the site shell (for example, it may require Cloudflare Access). Running Playwright against the local build instead."
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
           else
             echo "base_url=" >> "$GITHUB_OUTPUT"
             echo "Running against local Astro preview because Cloudflare deployment is not configured." >> "$GITHUB_STEP_SUMMARY"
