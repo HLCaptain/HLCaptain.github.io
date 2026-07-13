@@ -111,6 +111,9 @@ jobs:
           PREVIEW_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$PREVIEW_BRANCH" = "main" ]; then
+            PREVIEW_BRANCH=manual-preview
+          fi
           deploy_output="$(npm exec --yes --package=wrangler@latest -- wrangler pages deploy dist --project-name="$PROJECT_NAME" --branch="$PREVIEW_BRANCH")"
           printf '%s\n' "$deploy_output"
           deployment_url="$(printf '%s\n' "$deploy_output" | grep -Eo 'https://[^[:space:]]+' | tail -n 1)"
