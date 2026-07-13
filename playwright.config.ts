@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const remoteBaseURL = process.env.PLAYWRIGHT_TEST_BASE_URL?.replace(/\/$/, "");
+const remoteBaseURL = process.env.PLAYWRIGHT_TEST_BASE_URL?.replace(/\/$/, "") || undefined;
 const localBaseURL = "http://127.0.0.1:4321";
 
 export default defineConfig({
