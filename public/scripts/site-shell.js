@@ -302,7 +302,7 @@ function applyArrowStyle(value) {
 
 function applyGridPattern(value) {
   const root = document.documentElement;
-  const pattern = gridPatterns.has(value) ? value : "grid";
+  const pattern = gridPatterns.has(value) ? value : "plus";
   root.dataset.gridPattern = pattern;
   document.querySelectorAll("button[data-grid-pattern]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.gridPattern === pattern));
@@ -314,7 +314,7 @@ function applyGridPattern(value) {
 
 function applySignalLayout(value) {
   const root = document.documentElement;
-  const layout = signalLayouts.has(value) ? value : "split";
+  const layout = signalLayouts.has(value) ? value : "compact";
   root.dataset.signalLayout = layout;
   document.querySelectorAll("button[data-signal-layout]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.signalLayout === layout));

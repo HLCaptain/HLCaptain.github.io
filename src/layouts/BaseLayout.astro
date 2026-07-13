@@ -123,8 +123,8 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
           root.dataset.theme = theme;
           root.dataset.themeMode = themeMode;
           root.dataset.arrowStyle = ["tabler", "lucide", "heroicons", "phosphor", "solar", "remix", "material", "carbon", "fluent", "radix", "pixelart"].includes(arrow) ? arrow : "tabler";
-          root.dataset.gridPattern = ["grid", "dots", "plus", "crosshatch", "diagonal", "circuit", "scanlines"].includes(gridPattern) ? gridPattern : "grid";
-          root.dataset.signalLayout = ["split", "stack", "compact"].includes(signalLayout) ? signalLayout : "split";
+          root.dataset.gridPattern = ["grid", "dots", "plus", "crosshatch", "diagonal", "circuit", "scanlines"].includes(gridPattern) ? gridPattern : "plus";
+          root.dataset.signalLayout = ["split", "stack", "compact"].includes(signalLayout) ? signalLayout : "compact";
           root.dataset.signalRatio = ["square", "landscape", "wide", "portrait"].includes(signalRatio) ? signalRatio : "square";
           root.classList.toggle(
             "sidebar-collapsed",
@@ -193,7 +193,7 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
       </fieldset>
       <fieldset>
         <legend>Background pattern</legend>
-        <p class="debug-current">Current: <span data-grid-pattern-current>Grid</span></p>
+        <p class="debug-current">Current: <span data-grid-pattern-current>Plus signs</span></p>
         <button type="button" data-grid-pattern="grid">Grid</button>
         <button type="button" data-grid-pattern="dots">Dots</button>
         <button type="button" data-grid-pattern="plus">Plus signs</button>
@@ -204,7 +204,7 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
       </fieldset>
       <fieldset>
         <legend>Signal layout</legend>
-        <p class="debug-current">Current: <span data-signal-layout-current>Balanced split</span></p>
+        <p class="debug-current">Current: <span data-signal-layout-current>Compact dock</span></p>
         <button type="button" data-signal-layout="split">Balanced split</button>
         <button type="button" data-signal-layout="stack">Editorial stack</button>
         <button type="button" data-signal-layout="compact">Compact dock</button>

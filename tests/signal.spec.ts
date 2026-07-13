@@ -148,7 +148,7 @@ test.describe("Signal", () => {
     const signal = page.locator("[data-signal]");
     const items = signal.locator("[data-signal-item]");
 
-    await expect(root).toHaveAttribute("data-signal-layout", "split");
+    await expect(root).toHaveAttribute("data-signal-layout", "compact");
     await expect(root).toHaveAttribute("data-signal-ratio", "square");
     await expect(signal).toHaveCount(1);
     await expect(items).toHaveCount(4);
@@ -361,6 +361,7 @@ test.describe("Signal", () => {
   });
 
   test("balanced split keeps a stacked detail inside the desktop hero row", async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem("hlcaptain-signal-layout", "split"));
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
@@ -428,9 +429,10 @@ test.describe("Signal", () => {
     await page.getByRole("button", { name: "Open debug menu" }).click();
     await expect(page.locator("button[data-signal-layout]")).toHaveCount(3);
     await expect(page.locator("button[data-signal-ratio]")).toHaveCount(4);
-    await expect(page.locator("[data-signal-layout-current]")).toHaveText("Balanced split");
+    await expect(page.locator("[data-signal-layout-current]")).toHaveText("Compact dock");
     await expect(page.locator("[data-signal-ratio-current]")).toHaveText("Square 1:1");
 
+    await setSignalOption(page, "Balanced split", "layout", "split");
     const split = await measureSignal(page);
     expect(split.copyLines).toBe(6);
     expect(Math.abs(split.signal.height - 534)).toBeLessThanOrEqual(1);
@@ -511,6 +513,7 @@ test.describe("Signal", () => {
   test("supports optional thumbnail ratios without changing Signal height", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await setSignalOption(page, "Balanced split", "layout", "split");
 
     const signal = page.locator("[data-signal]");
     const image = signal.locator("img[data-signal-image]").first();

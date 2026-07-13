@@ -109,10 +109,12 @@ test.describe("site shell", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await expect(page.getByRole("heading", { name: "HLCaptain" })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-grid-pattern", "plus");
     await expectNoHorizontalOverflow(page);
   });
 
   test("background grid parallax uses a composited transform layer", async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem("hlcaptain-grid-pattern", "grid"));
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
