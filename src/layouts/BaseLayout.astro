@@ -105,8 +105,8 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
               "--line-strong": hex(mix(base.lineStrong, tint, amount * 1.4)),
               "--panel-hover": hex(mix(base.surfaceSoft, tint, amount * 1.35)),
               "--active-fill": hex(mix(base.surfaceStrong, tint, amount * 1.6)),
-              "--grid-line": rgb(tint, theme === "black" ? 0.24 : 0.145),
-              "--grid-line-soft": rgb(tint, theme === "black" ? 0.12 : 0.068)
+              "--grid-line": rgb(tint, theme === "black" ? 0.27 : 0.18),
+              "--grid-line-soft": rgb(tint, theme === "black" ? 0.14 : 0.09)
             }
           };
         };
@@ -126,7 +126,10 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
           root.dataset.gridPattern = ["grid", "dots", "plus", "crosshatch", "diagonal", "circuit", "scanlines"].includes(gridPattern) ? gridPattern : "grid";
           root.dataset.signalLayout = ["split", "stack", "compact"].includes(signalLayout) ? signalLayout : "split";
           root.dataset.signalRatio = ["square", "landscape", "wide", "portrait"].includes(signalRatio) ? signalRatio : "square";
-          root.classList.toggle("sidebar-collapsed", localStorage.getItem(sidebarKey) === "collapsed");
+          root.classList.toggle(
+            "sidebar-collapsed",
+            localStorage.getItem(sidebarKey) === "collapsed" && matchMedia("(min-width: 721px)").matches
+          );
           if (accent) {
             const normalized = normalize(accent, theme);
             if (normalized) {

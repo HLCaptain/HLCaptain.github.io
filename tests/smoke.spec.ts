@@ -10,6 +10,29 @@ async function expectNoHorizontalOverflow(page: Page) {
 
 type ParsedColor = { r: number; g: number; b: number; a: number };
 
+type MobileSidebarTransitionSample = {
+  owner: string;
+  width: number;
+  height: number;
+  visibility: string;
+  oldOpacity: number;
+  newOpacity: number;
+  zIndex: number;
+  sidebarZIndex: number;
+  sidebarOldOpacity: number;
+  sidebarNewOpacity: number;
+  backdropOwner: string;
+  backdropWidth: number;
+  backdropHeight: number;
+  backdropVisibility: string;
+  backdropOldOpacity: number;
+  backdropNewOpacity: number;
+  backdropZIndex: number;
+  pageZIndex: number;
+  viewportWidth: number;
+  viewportHeight: number;
+};
+
 function parseColor(value: string): ParsedColor {
   const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(value);
   if (match) {
@@ -112,15 +135,19 @@ test.describe("site shell", () => {
 
     const readParallax = () =>
       page.evaluate(() => {
-        const style = getComputedStyle(document.documentElement);
+        const rootStyle = getComputedStyle(document.documentElement);
+        const gridStyle = getComputedStyle(document.querySelector(".background-grid")!);
         return {
-          x: style.getPropertyValue("--grid-parallax-x").trim(),
-          y: style.getPropertyValue("--grid-parallax-y").trim()
+          y: rootStyle.getPropertyValue("--grid-parallax-y").trim(),
+          transform: gridStyle.transform,
+          removedProperties: ["--grid-parallax-x", "--grid-pointer-x", "--grid-pointer-y"].map((property) =>
+            rootStyle.getPropertyValue(property).trim()
+          )
         };
       });
 
     const before = await readParallax();
-    expect(before.x).toBe("0px");
+    expect(before.removedProperties).toEqual(["", "", ""]);
     await page.evaluate(() => window.scrollTo(0, 420));
     await expect
       .poll(async () => {
@@ -130,16 +157,19 @@ test.describe("site shell", () => {
       .not.toBe(before.y);
 
     const afterScroll = await readParallax();
-    expect(afterScroll.x).toBe("0px");
-    await page.mouse.move(32, 32);
-    await page.mouse.move(1200, 760);
-    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    const viewport = page.viewportSize()!;
+    await page.mouse.move(8, 8);
+    await page.mouse.move(viewport.width - 8, viewport.height - 8);
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
     expect(await readParallax()).toEqual(afterScroll);
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect.poll(async () => (await readParallax()).y).toBe("0px");
   });
 
-  test("mouse-reactive background patterns keep grid parallax independent", async ({ page }) => {
-    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop fine-pointer background pattern check");
-
+  test("plus signs stay pixel-aligned and ignore pointer movement", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
@@ -148,37 +178,59 @@ test.describe("site shell", () => {
     await page.getByRole("button", { name: "Plus signs" }).click();
     await expect(root).toHaveAttribute("data-grid-pattern", "plus");
 
-    const readMotion = () =>
+    const readPattern = () =>
       page.evaluate(() => {
-        const style = getComputedStyle(document.documentElement);
+        const rootStyle = getComputedStyle(document.documentElement);
+        const gridStyle = getComputedStyle(document.querySelector(".background-grid")!);
+        const maskImage = gridStyle.maskImage || gridStyle.getPropertyValue("-webkit-mask-image");
+        const maskUrl = /url\(["']?(.*?)["']?\)/.exec(maskImage)?.[1] ?? "";
+        const matrix = new DOMMatrix(gridStyle.transform);
         return {
-          parallaxX: style.getPropertyValue("--grid-parallax-x").trim(),
-          parallaxY: style.getPropertyValue("--grid-parallax-y").trim(),
-          pointerX: style.getPropertyValue("--grid-pointer-x").trim(),
-          pointerY: style.getPropertyValue("--grid-pointer-y").trim()
+          y: rootStyle.getPropertyValue("--grid-parallax-y").trim(),
+          gridSize: rootStyle.getPropertyValue("--grid-size").trim(),
+          removedProperties: ["--grid-parallax-x", "--grid-pointer-x", "--grid-pointer-y"].map((property) =>
+            rootStyle.getPropertyValue(property).trim()
+          ),
+          transform: gridStyle.transform,
+          translateX: matrix.m41,
+          translateY: matrix.m42,
+          backgroundImage: gridStyle.backgroundImage,
+          backgroundPosition: gridStyle.backgroundPosition,
+          maskImage,
+          maskPosition: gridStyle.maskPosition,
+          maskRepeat: gridStyle.maskRepeat,
+          maskSize: gridStyle.maskSize,
+          maskSvg: maskUrl ? decodeURIComponent(maskUrl) : ""
         };
       });
 
-    const before = await readMotion();
-    await page.mouse.move(32, 32);
-    await page.mouse.move(1320, 820);
-    await expect
-      .poll(async () => {
-        const after = await readMotion();
-        return `${after.pointerX}:${after.pointerY}`;
-      })
-      .not.toBe(`${before.pointerX}:${before.pointerY}`);
+    const before = await readPattern();
+    expect(before.removedProperties).toEqual(["", "", ""]);
+    expect(before.backgroundImage).toBe("none");
+    expect(before.maskImage).toContain("data:image/svg+xml");
+    expect(before.maskSize).toBe(`${before.gridSize} ${before.gridSize}`);
+    expect(before.maskRepeat).toContain("repeat");
+    expect(before.maskSvg).toMatch(/shape-rendering=['"]crispEdges['"]/);
+    expect(before.maskSvg).not.toMatch(/<(circle|ellipse|filter)\b/);
+    const pathData = /<path[^>]*d=['"]([^'"]+)/.exec(before.maskSvg)?.[1] ?? "";
+    expect(pathData).toMatch(/^[\d\sMmHhVvZz.-]+$/);
+    expect(pathData.match(/-?\d+(?:\.\d+)?/g)?.every((value) => Number.isInteger(Number(value)))).toBe(true);
 
-    const after = await readMotion();
-    expect(after.parallaxX).toBe(before.parallaxX);
-    expect(after.parallaxY).toBe(before.parallaxY);
-    expect(after.pointerX).not.toBe(before.pointerX);
-    expect(after.pointerY).not.toBe(before.pointerY);
+    const viewport = page.viewportSize()!;
+    await page.mouse.move(8, 8);
+    await page.mouse.move(viewport.width - 8, viewport.height - 8);
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+    expect(await readPattern()).toEqual(before);
 
-    const backgroundImage = await page
-      .locator(".background-grid")
-      .evaluate((node) => getComputedStyle(node).backgroundImage);
-    expect(backgroundImage).toContain("radial-gradient");
+    await page.evaluate(() => window.scrollTo(0, 420));
+    await expect.poll(async () => (await readPattern()).y).not.toBe(before.y);
+    const afterScroll = await readPattern();
+    expect(afterScroll.translateX).toBe(0);
+    expect(afterScroll.translateY).not.toBe(0);
+    expect(afterScroll.backgroundPosition).toBe(before.backgroundPosition);
+    expect(afterScroll.maskPosition).toBe(before.maskPosition);
   });
 
   test("debug menu renders each background pattern option", async ({ page }) => {
@@ -204,11 +256,12 @@ test.describe("site shell", () => {
       await expect(root).toHaveAttribute("data-grid-pattern", pattern.value);
       await expect(page.locator("[data-grid-pattern-current]")).toHaveText(pattern.name);
       await expect(page.getByRole("button", { name: pattern.name })).toHaveAttribute("aria-pressed", "true");
-      const backgroundImage = await page
-        .locator(".background-grid")
-        .evaluate((node) => getComputedStyle(node).backgroundImage);
-      expect(backgroundImage).toContain("gradient");
-      renderedBackgrounds.add(backgroundImage);
+      const renderedPattern = await page.locator(".background-grid").evaluate((node) => {
+        const style = getComputedStyle(node);
+        return `${style.backgroundImage}|${style.maskImage}`;
+      });
+      expect(renderedPattern).toMatch(/gradient|data:image\/svg\+xml/);
+      renderedBackgrounds.add(renderedPattern);
     }
 
     expect(renderedBackgrounds.size).toBe(patterns.length);
@@ -327,6 +380,176 @@ test.describe("site shell", () => {
       .toBeGreaterThanOrEqual(overviewScrollY - 120);
   });
 
+  test("mobile sidebar ignores desktop collapse state and toggles from one action", async ({ page, isMobile }) => {
+    test.skip(!isMobile, "Mobile-only sidebar presentation check");
+
+    await page.addInitScript(() => window.localStorage.setItem("hlcaptain-sidebar", "collapsed"));
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const sidebar = page.locator("[data-sidebar]");
+    const toggle = page.locator("[data-sidebar-open]");
+    const backdrop = page.locator(".sidebar-backdrop");
+
+    await expect(toggle).toHaveAccessibleName("Open navigation");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.click();
+    await expect(root).toHaveClass(/sidebar-open/);
+    await expect(toggle).toHaveAccessibleName("Close navigation");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(await page.evaluate(() => window.localStorage.getItem("hlcaptain-sidebar"))).toBe("collapsed");
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const shell = document.querySelector("[data-sidebar]")!;
+          const panelNode = document.querySelector(".sidebar-panel")!;
+          const row = document.querySelector(".nav-item")!;
+          const controls = document.querySelector(".surface-controls")!;
+          const theme = document.querySelector(".surface-control--theme")!;
+          const accent = document.querySelector(".surface-control--accent")!;
+          const reset = document.querySelector(".surface-control--reset")!;
+          const label = theme.querySelector(".surface-control__label")!;
+          const shellRect = shell.getBoundingClientRect();
+          const panelRect = panelNode.getBoundingClientRect();
+          const rowRect = row.getBoundingClientRect();
+          const controlsRect = controls.getBoundingClientRect();
+          const themeRect = theme.getBoundingClientRect();
+          const accentRect = accent.getBoundingClientRect();
+          const resetRect = reset.getBoundingClientRect();
+          const panelStyle = getComputedStyle(panelNode);
+          const rowStyle = getComputedStyle(row);
+          return {
+            shell: { x: Math.round(shellRect.x), width: Math.round(shellRect.width) },
+            panel: { x: Math.round(panelRect.x), width: Math.round(panelRect.width) },
+            panelPadding: Math.round(Number.parseFloat(panelStyle.paddingTop)),
+            panelGap: Math.round(Number.parseFloat(panelStyle.rowGap)),
+            row: {
+              width: Math.round(rowRect.width),
+              paddingLeft: rowStyle.paddingLeft,
+              paddingRight: rowStyle.paddingRight
+            },
+            controls: { width: Math.round(controlsRect.width) },
+            theme: { width: Math.round(themeRect.width), textAlign: getComputedStyle(label).textAlign },
+            accent: { y: Math.round(accentRect.y) },
+            reset: { y: Math.round(resetRect.y), width: Math.round(resetRect.width) }
+          };
+        })
+      )
+      .toEqual({
+        shell: { x: 0, width: 292 },
+        panel: { x: 14, width: 264 },
+        panelPadding: 10,
+        panelGap: 16,
+        row: { width: 242, paddingLeft: "6px", paddingRight: "6px" },
+        controls: { width: 242 },
+        theme: { width: 242, textAlign: "start" },
+        accent: expect.any(Object),
+        reset: expect.any(Object)
+      });
+
+    const appearanceMetrics = await page.evaluate(() => {
+      const accentRect = document.querySelector(".surface-control--accent")!.getBoundingClientRect();
+      const resetRect = document.querySelector(".surface-control--reset")!.getBoundingClientRect();
+      return {
+        rowOffset: Math.abs(Math.round(accentRect.y) - Math.round(resetRect.y)),
+        resetWidth: Math.round(resetRect.width)
+      };
+    });
+    expect(appearanceMetrics).toEqual({ rowOffset: 0, resetWidth: 38 });
+    await expect(page.locator(".sidebar-row__label").first()).toBeVisible();
+    await expect(page.locator(".surface-control__label").first()).toBeVisible();
+    await expect(page.locator("[data-sidebar-collapse]")).toBeHidden();
+
+    const aboutLink = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", {
+      name: "About",
+      exact: true
+    });
+    await aboutLink.hover();
+    await expect
+      .poll(async () =>
+        aboutLink.evaluate((node) => {
+          const rect = node.getBoundingClientRect();
+          const edgeTarget = document.elementFromPoint(rect.right - 1, rect.top + rect.height / 2);
+          return {
+            translated: new DOMMatrixReadOnly(getComputedStyle(node).transform).m41,
+            edgeVisible: edgeTarget?.closest(".sidebar-row") === node
+          };
+        })
+      )
+      .toEqual({ translated: 3, edgeVisible: true });
+
+    await page.mouse.move(220, 220);
+    const actionMetrics = await page.evaluate(() => {
+      const mobile = document.querySelector("[data-sidebar-open]");
+      const regular = document.querySelector("[data-sidebar-collapse]");
+      const mobileIcon = mobile?.querySelector(".mobile-menu-button__icon--close");
+      const regularIcon = regular?.querySelector(".menu-icon");
+      if (!(mobile instanceof HTMLElement) || !(regular instanceof HTMLElement)) return null;
+      const mobileBox = mobile.getBoundingClientRect();
+      const regularBox = regular.getBoundingClientRect();
+      const mobileStyle = getComputedStyle(mobile);
+      const regularStyle = getComputedStyle(regular);
+      return {
+        mobile: {
+          width: mobileBox.width,
+          height: mobileBox.height,
+          shadow: mobileStyle.boxShadow,
+          background: mobileStyle.backgroundColor,
+          borderColor: mobileStyle.borderColor
+        },
+        regular: {
+          width: regularBox.width,
+          height: regularBox.height,
+          shadow: regularStyle.boxShadow,
+          background: regularStyle.backgroundColor,
+          borderColor: regularStyle.borderColor
+        },
+        sharedActionClass:
+          mobile.classList.contains("sidebar-action-button") && regular.classList.contains("sidebar-action-button"),
+        offset: {
+          x: Math.abs(mobileBox.x - regularBox.x),
+          y: Math.abs(mobileBox.y - regularBox.y)
+        },
+        iconColor: mobileIcon && regularIcon
+          ? [getComputedStyle(mobileIcon).color, getComputedStyle(regularIcon).color]
+          : [],
+        iconWidth: mobileIcon && regularIcon
+          ? [mobileIcon.getBoundingClientRect().width, regularIcon.getBoundingClientRect().width]
+          : [],
+        topControl:
+          document.elementFromPoint(mobileBox.x + mobileBox.width / 2, mobileBox.y + mobileBox.height / 2)
+            ?.closest("[data-sidebar-open]") === mobile
+      };
+    });
+    expect(actionMetrics).not.toBeNull();
+    expect(actionMetrics?.mobile).toEqual(actionMetrics?.regular);
+    expect(actionMetrics?.sharedActionClass).toBe(true);
+    expect(actionMetrics?.offset.x).toBeLessThanOrEqual(1);
+    expect(actionMetrics?.offset.y).toBeLessThanOrEqual(1);
+    expect(actionMetrics?.iconColor[0]).toBe(actionMetrics?.iconColor[1]);
+    expect(actionMetrics?.iconWidth).toEqual([22, 22]);
+    expect(actionMetrics?.topControl).toBe(true);
+
+    await toggle.click();
+    await expect(root).not.toHaveClass(/sidebar-open/);
+    await expect(toggle).toHaveAccessibleName("Open navigation");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(backdrop).toHaveCSS("pointer-events", "none");
+    await expect.poll(async () => (await sidebar.boundingBox())?.x ?? 0).toBeLessThan(0);
+
+    await toggle.click();
+    await expect(root).toHaveClass(/sidebar-open/);
+    await expect(toggle).toHaveAccessibleName("Close navigation");
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(root).not.toHaveClass(/sidebar-open/);
+    await expect(root).toHaveClass(/sidebar-collapsed/);
+    await expect(toggle).toBeHidden();
+    await expect(page.getByRole("button", { name: "Expand sidebar" })).toBeVisible();
+  });
+
   test("mobile sidebar overlay stays open during navigation", async ({ page, isMobile }) => {
     test.skip(!isMobile, "Mobile-only overlay navigation check");
 
@@ -335,13 +558,109 @@ test.describe("site shell", () => {
 
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    await page.getByRole("button", { name: "Open navigation" }).click();
+    const toggle = page.locator("[data-sidebar-open]");
+    await toggle.click();
     await expect(root).toHaveClass(/sidebar-open/);
 
-    await nav.getByRole("link", { name: "Articles", exact: true }).click();
+    const toggleTransitionSamples = page.evaluate(
+      () =>
+        new Promise<MobileSidebarTransitionSample[]>((resolve) => {
+          const samples: MobileSidebarTransitionSample[] = [];
+          const startedAt = performance.now();
+          let sawTransition = false;
+
+          const sample = () => {
+            const rootNode = document.documentElement;
+            const transitionActive = rootNode.hasAttribute("data-astro-transition");
+            if (transitionActive) {
+              sawTransition = true;
+              const button = document.querySelector("[data-sidebar-open]");
+              const backdrop = document.querySelector(".sidebar-backdrop");
+              const owner = button ? getComputedStyle(button).getPropertyValue("view-transition-name").trim() : "";
+              const backdropOwner = backdrop
+                ? getComputedStyle(backdrop).getPropertyValue("view-transition-name").trim()
+                : "";
+              if (owner && owner !== "none" && backdropOwner && backdropOwner !== "none") {
+                const group = getComputedStyle(rootNode, `::view-transition-group(${owner})`);
+                const oldLayer = getComputedStyle(rootNode, `::view-transition-old(${owner})`);
+                const newLayer = getComputedStyle(rootNode, `::view-transition-new(${owner})`);
+                const sidebarGroup = getComputedStyle(rootNode, "::view-transition-group(sidebar-shell)");
+                const sidebarOldLayer = getComputedStyle(rootNode, "::view-transition-old(sidebar-shell)");
+                const sidebarNewLayer = getComputedStyle(rootNode, "::view-transition-new(sidebar-shell)");
+                const backdropGroup = getComputedStyle(rootNode, `::view-transition-group(${backdropOwner})`);
+                const backdropOldLayer = getComputedStyle(rootNode, `::view-transition-old(${backdropOwner})`);
+                const backdropNewLayer = getComputedStyle(rootNode, `::view-transition-new(${backdropOwner})`);
+                const pageGroup = getComputedStyle(rootNode, "::view-transition-group(page-content)");
+                const width = Number.parseFloat(group.width);
+                const height = Number.parseFloat(group.height);
+                const backdropWidth = Number.parseFloat(backdropGroup.width);
+                const backdropHeight = Number.parseFloat(backdropGroup.height);
+                if (width > 0 && height > 0 && backdropWidth > 0 && backdropHeight > 0) {
+                  samples.push({
+                    owner,
+                    width,
+                    height,
+                    visibility: group.visibility,
+                    oldOpacity: Number(oldLayer.opacity),
+                    newOpacity: Number(newLayer.opacity),
+                    zIndex: Number(group.zIndex),
+                    sidebarZIndex: Number(sidebarGroup.zIndex),
+                    sidebarOldOpacity: Number(sidebarOldLayer.opacity),
+                    sidebarNewOpacity: Number(sidebarNewLayer.opacity),
+                    backdropOwner,
+                    backdropWidth,
+                    backdropHeight,
+                    backdropVisibility: backdropGroup.visibility,
+                    backdropOldOpacity: Number(backdropOldLayer.opacity),
+                    backdropNewOpacity: Number(backdropNewLayer.opacity),
+                    backdropZIndex: Number(backdropGroup.zIndex),
+                    pageZIndex: Number(pageGroup.zIndex),
+                    viewportWidth: window.innerWidth,
+                    viewportHeight: window.innerHeight
+                  });
+                }
+              }
+            }
+
+            if ((sawTransition && !transitionActive) || performance.now() - startedAt > 1500) {
+              resolve(samples);
+              return;
+            }
+            requestAnimationFrame(sample);
+          };
+
+          requestAnimationFrame(sample);
+        })
+    );
+
+    await nav.getByRole("link", { name: "Articles", exact: true }).click({ noWaitAfter: true });
+    const transitionSamples = await toggleTransitionSamples;
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveClass(/sidebar-open/);
-    await expect(page.getByRole("button", { name: "Open navigation" })).toHaveAttribute("aria-expanded", "true");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(toggle).toHaveAccessibleName("Close navigation");
+    expect(transitionSamples.length).toBeGreaterThanOrEqual(2);
+    transitionSamples.forEach((sample) => {
+      expect(sample.owner).toBe("mobile-sidebar-toggle");
+      expect(sample.width).toBeGreaterThanOrEqual(34);
+      expect(sample.height).toBeGreaterThanOrEqual(34);
+      expect(sample.visibility).toBe("visible");
+      expect(sample.oldOpacity).toBe(1);
+      expect(sample.newOpacity).toBe(0);
+      expect(sample.zIndex).toBeGreaterThan(sample.sidebarZIndex);
+      expect(sample.sidebarOldOpacity).toBe(0);
+      expect(sample.sidebarNewOpacity).toBe(1);
+      expect(sample.backdropOwner).toBe("mobile-sidebar-backdrop");
+      expect(Math.abs(sample.backdropWidth - sample.viewportWidth)).toBeLessThanOrEqual(1);
+      expect(Math.abs(sample.backdropHeight - sample.viewportHeight)).toBeLessThanOrEqual(1);
+      expect(sample.backdropVisibility).toBe("visible");
+      expect(sample.backdropOldOpacity).toBe(1);
+      expect(sample.backdropNewOpacity).toBe(0);
+      expect(sample.backdropZIndex).toBeGreaterThan(sample.pageZIndex);
+      expect(sample.backdropZIndex).toBeLessThan(sample.sidebarZIndex);
+    });
+    await toggle.click();
+    await expect(root).not.toHaveClass(/sidebar-open/);
   });
 
   test("sidebar navigation direction follows item order and accepts rapid clicks", async ({ page }) => {
@@ -1303,7 +1622,7 @@ test.describe("site shell", () => {
     await expect(root).toHaveAttribute("data-theme", "black");
     await expect(page.getByRole("button", { name: "Switch to system theme" }).locator("[data-theme-label]")).toHaveText("Dark");
     const blackGridSoft = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--grid-line-soft").trim());
-    expect(blackGridSoft.includes("/ 0.12") || blackGridSoft === "#b9843b1f").toBe(true);
+    expect(blackGridSoft.includes("/ 0.14") || blackGridSoft === "#b9843b24").toBe(true);
     await expect
       .poll(async () =>
         page.locator(".entry-card__link").first().evaluate((node) => getComputedStyle(node).backgroundColor)

@@ -1,3 +1,4 @@
+(() => {
 const storageKey = "hlcaptain-accent";
 const themeKey = "hlcaptain-theme";
 const sidebarKey = "hlcaptain-sidebar";
@@ -142,7 +143,7 @@ const customThemeProperties = [
   "--grid-line-soft"
 ];
 
-const gridParallaxProperties = ["--grid-parallax-x", "--grid-parallax-y", "--grid-pointer-x", "--grid-pointer-y"];
+const gridParallaxProperties = ["--grid-parallax-y"];
 const pageTransitionProperties = ["--page-old-scroll-offset-y"];
 let lastSettledPath = null;
 
@@ -176,8 +177,8 @@ function buildThemeTokens(theme, tint) {
     "--line-strong": toHex(mixRgb(base.lineStrong, tint, mixAmount * 1.4)),
     "--panel-hover": toHex(mixRgb(base.surfaceSoft, tint, mixAmount * 1.35)),
     "--active-fill": toHex(mixRgb(base.surfaceStrong, tint, mixAmount * 1.6)),
-    "--grid-line": toRgbChannels(tint, theme === "black" ? 0.24 : 0.145),
-    "--grid-line-soft": toRgbChannels(tint, theme === "black" ? 0.12 : 0.068)
+    "--grid-line": toRgbChannels(tint, theme === "black" ? 0.27 : 0.18),
+    "--grid-line-soft": toRgbChannels(tint, theme === "black" ? 0.14 : 0.09)
   };
 }
 
@@ -412,17 +413,11 @@ function initBackgroundParallax() {
   window.__hlGridParallaxBound = true;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
   const root = document.documentElement;
-  let pointerX = 0.5;
-  let pointerY = 0.5;
   let frame = 0;
 
   const reset = () => {
-    root.style.setProperty("--grid-parallax-x", "0px");
     root.style.setProperty("--grid-parallax-y", "0px");
-    root.style.setProperty("--grid-pointer-x", "0px");
-    root.style.setProperty("--grid-pointer-y", "0px");
   };
 
   const gridSize = () => Number.parseFloat(getComputedStyle(root).getPropertyValue("--grid-size")) || 28;
@@ -430,7 +425,10 @@ function initBackgroundParallax() {
     const shifted = value % size;
     return shifted < 0 ? shifted + size : shifted;
   };
-  const round = (value) => Math.round(value * 100) / 100;
+  const snapToDevicePixel = (value) => {
+    const scale = Math.max(window.devicePixelRatio || 1, 1);
+    return Math.round(value * scale) / scale;
+  };
 
   const update = () => {
     frame = 0;
@@ -440,14 +438,9 @@ function initBackgroundParallax() {
     }
 
     const size = gridSize();
-    const scrollShiftY = window.scrollY * -0.065;
-    const pointerShiftX = finePointer.matches ? (pointerX - 0.5) * 14 : 0;
-    const pointerShiftY = finePointer.matches ? (pointerY - 0.5) * 10 : 0;
+    const scrollShiftY = wrap(snapToDevicePixel(window.scrollY * -0.065), size);
 
-    root.style.setProperty("--grid-parallax-x", "0px");
-    root.style.setProperty("--grid-parallax-y", `${round(wrap(scrollShiftY, size))}px`);
-    root.style.setProperty("--grid-pointer-x", `${round(pointerShiftX)}px`);
-    root.style.setProperty("--grid-pointer-y", `${round(pointerShiftY)}px`);
+    root.style.setProperty("--grid-parallax-y", `${scrollShiftY}px`);
   };
 
   const requestUpdate = () => {
@@ -456,18 +449,7 @@ function initBackgroundParallax() {
 
   window.addEventListener("scroll", requestUpdate, { passive: true });
   window.addEventListener("resize", requestUpdate, { passive: true });
-  window.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!finePointer.matches) return;
-      pointerX = event.clientX / Math.max(window.innerWidth, 1);
-      pointerY = event.clientY / Math.max(window.innerHeight, 1);
-      requestUpdate();
-    },
-    { passive: true }
-  );
   reduceMotion.addEventListener?.("change", requestUpdate);
-  finePointer.addEventListener?.("change", requestUpdate);
   requestUpdate();
 }
 
@@ -478,9 +460,11 @@ function initSidebar() {
   const root = document.documentElement;
   const sidebar = document.querySelector("[data-sidebar]");
   const openButton = document.querySelector("[data-sidebar-open]");
+  const openButtonLabel = openButton?.querySelector("[data-sidebar-toggle-label]");
   const closeTargets = document.querySelectorAll("[data-sidebar-close]");
   const collapseButton = document.querySelector("[data-sidebar-collapse]");
   const desktopOverlayQuery = window.matchMedia("(min-width: 721px)");
+  let collapsedPreference = window.localStorage.getItem(sidebarKey) === "collapsed";
   const overlayCloseDelay = 80;
   const overlayClosePadding = 2;
   let overlayCloseTimer = 0;
@@ -494,8 +478,18 @@ function initSidebar() {
   };
 
   const setOpen = (open) => {
+    const label = open ? "Close navigation" : "Open navigation";
     root.classList.toggle("sidebar-open", open);
     openButton?.setAttribute("aria-expanded", String(open));
+    openButton?.setAttribute("aria-label", label);
+    if (openButtonLabel) openButtonLabel.textContent = label;
+  };
+
+  const syncCollapsedPresentation = () => {
+    const collapsed = collapsedPreference && desktopOverlayQuery.matches;
+    root.classList.toggle("sidebar-collapsed", collapsed);
+    collapseButton?.setAttribute("aria-pressed", String(collapsed));
+    collapseButton?.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
   };
 
   const canUseOverlay = () => root.classList.contains("sidebar-collapsed") && desktopOverlayQuery.matches;
@@ -618,10 +612,20 @@ function initSidebar() {
     }
   };
 
-  setOpen(root.classList.contains("sidebar-open"));
+  const syncSidebarViewport = () => {
+    clearOverlayCloseTimer();
+    closeOverlayIfUnavailable();
+    syncCollapsedPresentation();
+    if (desktopOverlayQuery.matches) setOpen(false);
+  };
+
+  syncCollapsedPresentation();
+  setOpen(!desktopOverlayQuery.matches && root.classList.contains("sidebar-open"));
   setOverlayOpen(root.classList.contains("sidebar-overlay-open"), { clearPending: false });
 
-  openButton?.addEventListener("click", () => setOpen(true), { signal: sidebarSignal });
+  openButton?.addEventListener("click", () => setOpen(!root.classList.contains("sidebar-open")), {
+    signal: sidebarSignal
+  });
   closeTargets.forEach((target) => {
     target.addEventListener("click", () => setOpen(false), { signal: sidebarSignal });
   });
@@ -633,22 +637,15 @@ function initSidebar() {
     clearOverlayCloseTimer();
     setOverlayOpen(false);
   }, { signal: sidebarSignal });
-  desktopOverlayQuery.addEventListener?.("change", closeOverlayIfUnavailable, { signal: sidebarSignal });
+  desktopOverlayQuery.addEventListener?.("change", syncSidebarViewport, { signal: sidebarSignal });
 
   if (collapseButton) {
-    const collapsed = window.localStorage.getItem(sidebarKey) === "collapsed";
-    root.classList.toggle("sidebar-collapsed", collapsed);
-    collapseButton.setAttribute("aria-pressed", String(collapsed));
-    collapseButton.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
-
     collapseButton.addEventListener("click", (event) => {
-      const next = !root.classList.contains("sidebar-collapsed");
-      root.classList.toggle("sidebar-collapsed", next);
-      collapseButton.setAttribute("aria-pressed", String(next));
-      collapseButton.setAttribute("aria-label", next ? "Expand sidebar" : "Collapse sidebar");
-      window.localStorage.setItem(sidebarKey, next ? "collapsed" : "expanded");
-      syncOverlayAfterCollapsedChange(next);
-      if (next && event.detail > 0) collapseButton.blur();
+      collapsedPreference = !collapsedPreference;
+      window.localStorage.setItem(sidebarKey, collapsedPreference ? "collapsed" : "expanded");
+      syncCollapsedPresentation();
+      syncOverlayAfterCollapsedChange(root.classList.contains("sidebar-collapsed"));
+      if (collapsedPreference && event.detail > 0) collapseButton.blur();
     }, { signal: sidebarSignal });
   }
 }
@@ -1005,9 +1002,13 @@ function preserveShellState(event) {
   });
   const navGroupState = saveNavGroupState();
   applyNavGroupState(event.newDocument, navGroupState);
-  event.newDocument
-    ?.querySelector("[data-sidebar-open]")
-    ?.setAttribute("aria-expanded", String(root.classList.contains("sidebar-open")));
+  const nextOpenButton = event.newDocument?.querySelector("[data-sidebar-open]");
+  const sidebarOpen = root.classList.contains("sidebar-open");
+  const sidebarToggleLabel = sidebarOpen ? "Close navigation" : "Open navigation";
+  nextOpenButton?.setAttribute("aria-expanded", String(sidebarOpen));
+  nextOpenButton?.setAttribute("aria-label", sidebarToggleLabel);
+  const nextOpenButtonLabel = nextOpenButton?.querySelector("[data-sidebar-toggle-label]");
+  if (nextOpenButtonLabel) nextOpenButtonLabel.textContent = sidebarToggleLabel;
 
   if (root.dataset.accent === "custom") {
     nextRoot.dataset.accent = "custom";
@@ -1309,6 +1310,7 @@ function initSignals() {
     const select = (index) => {
       activeIndex = (index + items.length) % items.length;
       feed.style.setProperty("--active-index", String(activeIndex));
+      feed.style.setProperty("--active-progress", `${(activeIndex / items.length) * 100}%`);
       items.forEach((item, itemIndex) => {
         const active = itemIndex === activeIndex;
         const trigger = item.querySelector("[data-signal-trigger]");
@@ -1322,7 +1324,7 @@ function initSignals() {
 
     const start = () => {
       stop();
-      if (motionQuery.matches || document.hidden) return;
+      if (motionQuery.matches || document.hidden || feed.matches(":hover, :focus-within")) return;
       timer = window.setInterval(() => select(activeIndex + 1), 4600);
     };
 
@@ -1409,3 +1411,4 @@ if (!window.__hlShellEventsBound) {
 }
 
 init();
+})();

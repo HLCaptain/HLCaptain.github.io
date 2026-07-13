@@ -30,11 +30,21 @@ const navigation = siteConfig.navigation.map((group) => ({
 }));
 ---
 
-<button class="mobile-menu-button" type="button" data-sidebar-open aria-controls="site-sidebar" aria-expanded="false">
-  <span class="menu-icon" aria-hidden="true">
+<button
+  class="mobile-menu-button sidebar-action-button"
+  type="button"
+  data-sidebar-open
+  aria-controls="site-sidebar"
+  aria-expanded="false"
+  aria-label="Open navigation"
+>
+  <span class="menu-icon mobile-menu-button__icon mobile-menu-button__icon--open" aria-hidden="true">
     <Icon name="lucide:menu" />
   </span>
-  <span class="sr-only">Open navigation</span>
+  <span class="menu-icon mobile-menu-button__icon mobile-menu-button__icon--close" aria-hidden="true">
+    <Icon name="lucide:x" />
+  </span>
+  <span class="sr-only" data-sidebar-toggle-label>Open navigation</span>
 </button>
 
 <div class="sidebar-backdrop" data-sidebar-close></div>
@@ -42,7 +52,7 @@ const navigation = siteConfig.navigation.map((group) => ({
 <aside id="site-sidebar" class="site-sidebar" data-sidebar>
   <div class="sidebar-panel">
     <header class="sidebar-header">
-      <button class="sidebar-toggle" type="button" data-sidebar-collapse aria-label="Collapse sidebar" aria-pressed="false">
+      <button class="sidebar-toggle sidebar-action-button" type="button" data-sidebar-collapse aria-label="Collapse sidebar" aria-pressed="false">
         <span class="menu-icon" aria-hidden="true">
           <Icon name="lucide:menu" />
         </span>

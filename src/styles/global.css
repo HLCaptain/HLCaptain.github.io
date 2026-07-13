@@ -16,15 +16,12 @@
   --panel-bg: var(--surface);
   --panel-hover: #efe8d8;
   --active-fill: #ddd1b7;
-  --grid-line: rgb(185 132 59 / 0.16);
-  --grid-line-soft: rgb(185 132 59 / 0.075);
+  --grid-line: rgb(185 132 59 / 0.18);
+  --grid-line-soft: rgb(185 132 59 / 0.09);
   --grid-size: 28px;
   --grid-half-size: 14px;
   --grid-large-size: 56px;
-  --grid-parallax-x: 0px;
   --grid-parallax-y: 0px;
-  --grid-pointer-x: 0px;
-  --grid-pointer-y: 0px;
   --shadow: 0 24px 70px rgb(23 23 18 / 0.16);
   --sidebar-width: 292px;
   --sidebar-collapsed-width: 84px;
@@ -59,8 +56,8 @@
   --panel-bg: var(--surface);
   --panel-hover: #252318;
   --active-fill: #302d1f;
-  --grid-line: rgb(185 132 59 / 0.24);
-  --grid-line-soft: rgb(185 132 59 / 0.12);
+  --grid-line: rgb(185 132 59 / 0.27);
+  --grid-line-soft: rgb(185 132 59 / 0.14);
   --shadow: 0 24px 70px rgb(0 0 0 / 0.46);
 }
 
@@ -102,40 +99,36 @@ body {
     linear-gradient(0deg, var(--grid-line-soft) 1px, transparent 1px) 0 0 / var(--grid-size) var(--grid-size);
   backface-visibility: hidden;
   contain: strict;
-  transform: translate3d(var(--grid-parallax-x), var(--grid-parallax-y), 0);
+  transform: translate3d(0, var(--grid-parallax-y), 0);
   will-change: transform;
 }
 
 :root[data-grid-pattern="dots"] .background-grid {
   background:
-    radial-gradient(circle, var(--grid-line) 0 1.15px, transparent 1.35px) var(--grid-pointer-x) var(--grid-pointer-y) /
-      var(--grid-size) var(--grid-size),
-    radial-gradient(circle, var(--grid-line-soft) 0 0.95px, transparent 1.15px)
-      calc(var(--grid-half-size) + var(--grid-pointer-x)) calc(var(--grid-half-size) + var(--grid-pointer-y)) /
-      var(--grid-size) var(--grid-size);
+    radial-gradient(circle, var(--grid-line) 0 1.15px, transparent 1.35px) 0 0 / var(--grid-size)
+      var(--grid-size),
+    radial-gradient(circle, var(--grid-line-soft) 0 0.95px, transparent 1.15px) var(--grid-half-size)
+      var(--grid-half-size) / var(--grid-size) var(--grid-size);
 }
 
 :root[data-grid-pattern="plus"] .background-grid {
-  background:
-    radial-gradient(circle at 50% 50%, var(--grid-line) 0 1.05px, transparent 1.25px) var(--grid-pointer-x)
-      var(--grid-pointer-y) / var(--grid-size) var(--grid-size),
-    radial-gradient(circle at 36% 50%, var(--grid-line-soft) 0 0.95px, transparent 1.15px) var(--grid-pointer-x)
-      var(--grid-pointer-y) / var(--grid-size) var(--grid-size),
-    radial-gradient(circle at 64% 50%, var(--grid-line-soft) 0 0.95px, transparent 1.15px) var(--grid-pointer-x)
-      var(--grid-pointer-y) / var(--grid-size) var(--grid-size),
-    radial-gradient(circle at 50% 36%, var(--grid-line-soft) 0 0.95px, transparent 1.15px) var(--grid-pointer-x)
-      var(--grid-pointer-y) / var(--grid-size) var(--grid-size),
-    radial-gradient(circle at 50% 64%, var(--grid-line-soft) 0 0.95px, transparent 1.15px) var(--grid-pointer-x)
-      var(--grid-pointer-y) / var(--grid-size) var(--grid-size);
+  background: var(--grid-line);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28' shape-rendering='crispEdges'%3E%3Cpath fill='white' d='M14 10h1v4h4v1h-4v4h-1v-4h-4v-1h4z'/%3E%3C/svg%3E");
+  -webkit-mask-position: 0 0;
+  -webkit-mask-repeat: repeat;
+  -webkit-mask-size: var(--grid-size) var(--grid-size);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28' shape-rendering='crispEdges'%3E%3Cpath fill='white' d='M14 10h1v4h4v1h-4v4h-1v-4h-4v-1h4z'/%3E%3C/svg%3E");
+  mask-position: 0 0;
+  mask-repeat: repeat;
+  mask-size: var(--grid-size) var(--grid-size);
 }
 
 :root[data-grid-pattern="crosshatch"] .background-grid {
   background:
     linear-gradient(45deg, transparent 48%, var(--grid-line-soft) 49%, var(--grid-line-soft) 51%, transparent 52%)
-      var(--grid-pointer-x) var(--grid-pointer-y) / var(--grid-large-size) var(--grid-large-size),
+      0 0 / var(--grid-large-size) var(--grid-large-size),
     linear-gradient(-45deg, transparent 48%, var(--grid-line-soft) 49%, var(--grid-line-soft) 51%, transparent 52%)
-      calc(var(--grid-half-size) + var(--grid-pointer-x)) var(--grid-pointer-y) / var(--grid-large-size)
-      var(--grid-large-size);
+      var(--grid-half-size) 0 / var(--grid-large-size) var(--grid-large-size);
 }
 
 :root[data-grid-pattern="diagonal"] .background-grid {
@@ -146,34 +139,33 @@ body {
         var(--grid-line-soft) 15px 16px,
         transparent 16px 30px
       )
-      var(--grid-pointer-x) var(--grid-pointer-y) / var(--grid-large-size) var(--grid-large-size),
+      0 0 / var(--grid-large-size) var(--grid-large-size),
     repeating-linear-gradient(
         135deg,
         transparent 0 27px,
         var(--grid-line) 27px 28px,
         transparent 28px 56px
       )
-      calc(var(--grid-half-size) + var(--grid-pointer-x)) var(--grid-pointer-y) / var(--grid-large-size)
-      var(--grid-large-size);
+      var(--grid-half-size) 0 / var(--grid-large-size) var(--grid-large-size);
 }
 
 :root[data-grid-pattern="circuit"] .background-grid {
   background:
-    radial-gradient(circle at 0 0, var(--grid-line) 0 1.35px, transparent 1.55px) var(--grid-pointer-x)
-      var(--grid-pointer-y) / var(--grid-large-size) var(--grid-large-size),
-    radial-gradient(circle at 100% 50%, var(--grid-line-soft) 0 1.15px, transparent 1.35px) var(--grid-pointer-x)
-      var(--grid-pointer-y) / var(--grid-large-size) var(--grid-large-size),
-    linear-gradient(90deg, var(--grid-line-soft) 1px, transparent 1px) var(--grid-pointer-x) var(--grid-pointer-y) /
-      var(--grid-large-size) var(--grid-half-size),
-    linear-gradient(0deg, var(--grid-line-soft) 1px, transparent 1px) var(--grid-pointer-x) var(--grid-pointer-y) /
-      var(--grid-half-size) var(--grid-large-size);
+    radial-gradient(circle at 0 0, var(--grid-line) 0 1.35px, transparent 1.55px) 0 0 / var(--grid-large-size)
+      var(--grid-large-size),
+    radial-gradient(circle at 100% 50%, var(--grid-line-soft) 0 1.15px, transparent 1.35px) 0 0 /
+      var(--grid-large-size) var(--grid-large-size),
+    linear-gradient(90deg, var(--grid-line-soft) 1px, transparent 1px) 0 0 / var(--grid-large-size)
+      var(--grid-half-size),
+    linear-gradient(0deg, var(--grid-line-soft) 1px, transparent 1px) 0 0 / var(--grid-half-size)
+      var(--grid-large-size);
 }
 
 :root[data-grid-pattern="scanlines"] .background-grid {
   background:
-    linear-gradient(0deg, var(--grid-line-soft) 1px, transparent 1px) 0 var(--grid-pointer-y) / 100% 9px,
+    linear-gradient(0deg, var(--grid-line-soft) 1px, transparent 1px) 0 0 / 100% 9px,
     linear-gradient(90deg, transparent 47%, var(--grid-line-soft) 48%, var(--grid-line-soft) 52%, transparent 53%)
-      var(--grid-pointer-x) 0 / var(--grid-large-size) var(--grid-large-size);
+      0 0 / var(--grid-large-size) var(--grid-large-size);
 }
 
 a {
@@ -290,11 +282,12 @@ svg {
   min-height: var(--sidebar-row-size);
 }
 
-.sidebar-toggle {
+.sidebar-action-button {
   position: relative;
   display: grid;
   width: var(--sidebar-row-size);
   height: var(--sidebar-row-size);
+  padding: 0;
   place-items: center;
   border: 1px solid var(--line);
   background: transparent;
@@ -305,7 +298,7 @@ svg {
     transform 180ms var(--ease);
 }
 
-.sidebar-toggle:hover {
+.sidebar-action-button:hover {
   border-color: var(--accent-readable);
   background: color-mix(in srgb, var(--accent-readable) 16%, transparent);
 }
@@ -640,8 +633,10 @@ svg {
 }
 
 .surface-control__label {
+  justify-self: start;
   min-width: 0;
   overflow: hidden;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -734,7 +729,7 @@ svg {
   stroke-width: 2;
 }
 
-.sidebar-toggle:hover .menu-icon {
+.sidebar-action-button:hover .menu-icon {
   transform: scale(1.04);
 }
 
@@ -1542,17 +1537,35 @@ svg {
   z-index: 8;
 }
 
+::view-transition-group(mobile-sidebar-toggle) {
+  z-index: 9;
+  animation: none;
+}
+
+::view-transition-group(mobile-sidebar-backdrop) {
+  z-index: 7;
+  animation: none;
+}
+
 ::view-transition-old(sidebar-shell),
-::view-transition-new(sidebar-shell) {
+::view-transition-new(sidebar-shell),
+::view-transition-old(mobile-sidebar-backdrop),
+::view-transition-new(mobile-sidebar-backdrop),
+::view-transition-old(mobile-sidebar-toggle),
+::view-transition-new(mobile-sidebar-toggle) {
   animation: none;
   mix-blend-mode: normal;
 }
 
-::view-transition-old(sidebar-shell) {
+::view-transition-old(sidebar-shell),
+::view-transition-new(mobile-sidebar-backdrop),
+::view-transition-new(mobile-sidebar-toggle) {
   opacity: 0;
 }
 
-::view-transition-new(sidebar-shell) {
+::view-transition-new(sidebar-shell),
+::view-transition-old(mobile-sidebar-backdrop),
+::view-transition-old(mobile-sidebar-toggle) {
   opacity: 1;
 }
 
@@ -1693,6 +1706,11 @@ svg {
     --grid-large-size: 44px;
   }
 
+  :root[data-grid-pattern="plus"] .background-grid {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22' shape-rendering='crispEdges'%3E%3Cpath fill='white' d='M11 7h1v4h4v1h-4v4h-1v-4h-4v-1h4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22' shape-rendering='crispEdges'%3E%3Cpath fill='white' d='M11 7h1v4h4v1h-4v4h-1v-4h-4v-1h4z'/%3E%3C/svg%3E");
+  }
+
   .site-frame,
   .sidebar-collapsed .site-frame {
     display: block;
@@ -1707,29 +1725,53 @@ svg {
   .mobile-menu-button {
     position: fixed;
     z-index: 42;
-    top: 14px;
-    left: 14px;
+    top: calc(var(--sidebar-outer-padding) + 1px + var(--sidebar-inner-padding));
+    left: calc(var(--sidebar-outer-padding) + 1px + var(--sidebar-inner-padding));
     display: grid;
-    width: 44px;
-    height: 44px;
+    width: var(--sidebar-row-size);
+    height: var(--sidebar-row-size);
     place-items: center;
-    border: 1px solid var(--line-strong);
-    background: var(--panel-bg);
-    box-shadow: 0 12px 34px color-mix(in srgb, var(--ink) 14%, transparent);
+    color: var(--accent-readable);
+    border-color: var(--line);
+    box-shadow: none;
+    view-transition-name: mobile-sidebar-toggle;
   }
 
-  .mobile-menu-button .menu-icon {
-    width: 20px;
-    height: 20px;
-    color: var(--ink);
+  .mobile-menu-button__icon {
+    grid-area: 1 / 1;
+    width: 22px;
+    height: 22px;
+    color: currentColor;
+    transition:
+      opacity 160ms var(--ease),
+      transform 200ms var(--ease);
+  }
+
+  .mobile-menu-button__icon--close {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.72);
+  }
+
+  .sidebar-open .mobile-menu-button {
+    background: transparent;
+  }
+
+  .sidebar-open .mobile-menu-button__icon--open {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.72);
+  }
+
+  .sidebar-open .mobile-menu-button__icon--close {
+    opacity: 1;
+    transform: rotate(0) scale(1);
   }
 
   .site-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    width: min(86vw, 320px);
+    width: var(--sidebar-width);
     height: 100dvh;
-    padding: 10px;
+    padding: var(--sidebar-outer-padding);
     transform: translateX(-104%);
     transition: transform 260ms var(--ease);
   }
@@ -1737,10 +1779,16 @@ svg {
   .sidebar-nav {
     overflow-y: auto;
     overflow-x: hidden;
+    margin-inline-end: -3px;
+    padding-inline-end: 3px;
   }
 
   .sidebar-open .site-sidebar {
     transform: translateX(0);
+  }
+
+  .sidebar-open .site-sidebar .sidebar-panel {
+    box-shadow: 0 24px 80px color-mix(in srgb, var(--ink) 18%, transparent);
   }
 
   .sidebar-backdrop {
@@ -1752,6 +1800,7 @@ svg {
     opacity: 0;
     pointer-events: none;
     transition: opacity 220ms var(--ease);
+    view-transition-name: mobile-sidebar-backdrop;
   }
 
   .sidebar-open .sidebar-backdrop {
@@ -1804,15 +1853,17 @@ svg {
     display: inline-block;
   }
 
-  .sidebar-toggle {
+  .site-sidebar .sidebar-toggle {
     display: grid;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .sidebar-row,
   .sidebar-collapsed .sidebar-row {
     grid-template-columns: var(--sidebar-row-icon-size) minmax(0, 1fr) auto;
     justify-items: stretch;
-    padding-inline: 10px;
+    padding-inline: var(--sidebar-row-gap);
   }
 
   .sidebar-collapsed .nav-group:has(.nav-item.is-active)::before,
@@ -1876,10 +1927,7 @@ svg {
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --grid-parallax-x: 0px;
     --grid-parallax-y: 0px;
-    --grid-pointer-x: 0px;
-    --grid-pointer-y: 0px;
   }
 
   *,
