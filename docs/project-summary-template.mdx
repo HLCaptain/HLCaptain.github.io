@@ -1,0 +1,46 @@
+---
+title: "Project name"
+description: "One sentence: what it does, who it helps, and what makes it distinct."
+publishedAt: YYYY-MM-DD
+tags: ["primary-platform", "core-technology", "problem-domain"]
+featured: false
+status: "active"
+links:
+  - label: "Public repository"
+    href: "https://github.com/owner/repository"
+---
+
+import ProjectFacts from "../../components/content/ProjectFacts.astro";
+
+<ProjectFacts
+  items={[
+    { label: "Role", value: "Your ownership" },
+    { label: "Status", value: "Release or prototype state" },
+    { label: "Stack", value: "Only the technologies that explain the work" },
+    { label: "Outcome", value: "A concrete result or capability" }
+  ]}
+/>
+
+## Overview
+
+State the user, problem, and result in two short paragraphs. Lead with the outcome rather than the
+technology.
+
+## Problem or product flow
+
+Explain the original friction or walk through the shortest successful user journey.
+
+## Key engineering decisions
+
+Describe two or three consequential decisions. For each, connect the mechanism to the benefit or
+tradeoff.
+
+## Hard problem
+
+Show where the obvious solution breaks and how the project handles failure, ambiguity, scale,
+platform constraints, or trust.
+
+## Current state
+
+Separate released capabilities, active work, and possible next steps. Remove this section if the
+status is already obvious and there is nothing specific to add.
