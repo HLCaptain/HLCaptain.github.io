@@ -23,7 +23,7 @@ Each file needs frontmatter matching `src/content.config.ts`. Published entries 
 
 ## GitHub Pages production
 
-The production workflow targets the profile-root repository `HLCaptain/HLCaptain.github.io` and deploys `main` with GitHub Actions.
+The production workflow targets the profile-root repository `HLCaptain/HLCaptain.github.io` and is manual-only for now. Run it from the Actions tab when the site is ready; add a `push` trigger for `main` later if automatic production deploys are wanted.
 
 GitHub Pages must be enabled with **GitHub Actions** as its source. Private repositories require a GitHub Pro, Team, or Enterprise plan for Pages.
 
