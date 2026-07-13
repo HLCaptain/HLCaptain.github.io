@@ -43,8 +43,8 @@ slows down the feedback loop, while inspector-only controls make spatial edits h
 
 ProtoRamp keeps those decisions editable in the scene. It supports adjustable dimensions and step
 count, standard and fine grid snapping, filled or hollow geometry for underpasses, collision
-generation, and navigation meshes. Every editor interaction participates in Godot's undo/redo
-history, so experimentation stays reversible.
+generation, and navigation meshes. Gizmo-based edits participate in Godot's undo/redo history, so
+shape experimentation stays reversible.
 
 ## Editor tooling as a reusable system
 
@@ -58,5 +58,5 @@ classes, so exported games do not inherit an unnecessary dependency on Godot's e
 ## Current state
 
 ProtoShape is released under the MIT license and installable from Godot's Asset Library or GitHub
-Releases. The current version targets Godot 4.5 and provides a stable base for adding more dynamic
+Releases. The current version targets Godot 4.5 and provides a reusable base for adding more dynamic
 blockout shapes without duplicating the editor-integration work.
