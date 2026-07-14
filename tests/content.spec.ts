@@ -44,6 +44,33 @@ test.describe("project case studies", () => {
     await expect(headingCopyButtons.first()).toHaveAttribute("data-heading-copy", "overview");
     await expect(headingCopyButtons.first()).toHaveAttribute("data-copy-path", "/work/proto-shape/#overview");
     await expect(headingCopyButtons.first()).toHaveCSS("position", "absolute");
+    await expect(headingCopyButtons.first()).toHaveCSS("opacity", "0");
+    await markdownHeadings.first().hover();
+    await expect(headingCopyButtons.first()).toHaveCSS("opacity", "1");
+    const headingReferenceGeometry = await markdownHeadings.first().evaluate((heading) => {
+      const button = heading.querySelector<HTMLElement>(".heading-reference")!;
+      const range = document.createRange();
+      range.selectNodeContents(heading.firstChild ?? heading);
+      const title = range.getBoundingClientRect();
+      const icon = button.getBoundingClientRect();
+      return {
+        titleCenterY: title.top + title.height / 2,
+        iconCenterY: icon.top + icon.height / 2,
+        headingLeft: heading.getBoundingClientRect().left,
+        headingRight: heading.getBoundingClientRect().right,
+        iconLeft: icon.left,
+        iconRight: icon.right,
+        viewportWidth: window.innerWidth
+      };
+    });
+    expect(Math.abs(headingReferenceGeometry.iconCenterY - headingReferenceGeometry.titleCenterY)).toBeLessThanOrEqual(8);
+    expect(headingReferenceGeometry.iconLeft).toBeGreaterThanOrEqual(0);
+    expect(headingReferenceGeometry.iconRight).toBeLessThanOrEqual(headingReferenceGeometry.viewportWidth);
+    if (page.viewportSize()!.width <= 720) {
+      expect(headingReferenceGeometry.iconLeft).toBeGreaterThanOrEqual(headingReferenceGeometry.headingRight);
+    } else {
+      expect(headingReferenceGeometry.iconRight).toBeLessThanOrEqual(headingReferenceGeometry.headingLeft);
+    }
     await headingCopyButtons.first().click();
     await expect(headingCopyButtons.first()).toHaveClass(/is-copied/);
     await expect(page.getByLabel("Project facts")).toContainText("Creator and maintainer");

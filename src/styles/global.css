@@ -1365,7 +1365,8 @@ svg {
 
 .heading-reference {
   position: absolute;
-  top: 50%;
+  z-index: 1;
+  top: 0.55em;
   left: -28px;
   display: inline-grid;
   width: 20px;
@@ -1376,7 +1377,7 @@ svg {
   background: transparent;
   border: 0;
   cursor: pointer;
-  opacity: 0.7;
+  opacity: 0;
   transform: translateY(-50%);
   transition:
     color 160ms var(--ease),
@@ -1384,12 +1385,17 @@ svg {
     transform 160ms var(--ease);
 }
 
-.heading-reference:hover,
+.prose :is(h1, h2, h3, h4, h5, h6)[id]:hover .heading-reference,
+.prose :is(h1, h2, h3, h4, h5, h6)[id]:focus-within .heading-reference,
 .heading-reference:focus-visible,
 .heading-reference.is-copied {
   color: var(--accent-readable);
   opacity: 1;
-  transform: translate(-2px, -50%);
+  transform: translateY(-50%);
+}
+
+.prose h2 .heading-reference {
+  top: 1.3em;
 }
 
 .heading-reference svg {
@@ -1983,14 +1989,15 @@ svg {
   }
 
   .heading-reference {
-    left: -16px;
-    width: 14px;
+    right: -12px;
+    left: auto;
+    width: 12px;
     height: 18px;
   }
 
   .heading-reference svg {
-    width: 13px;
-    height: 13px;
+    width: 12px;
+    height: 12px;
   }
 
   .home-hero__copy {
