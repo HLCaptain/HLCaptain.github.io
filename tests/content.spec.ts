@@ -23,7 +23,19 @@ test.describe("project case studies", () => {
   test("ProtoShape renders MDX facts, decisions, and public links", async ({ page }) => {
     await page.goto("/work/proto-shape/");
 
-    await expect(page.getByRole("heading", { name: "ProtoShape" })).toBeVisible();
+    const pageHeader = page.locator(".page-header");
+    await expect(pageHeader.getByRole("heading", { name: "ProtoShape" })).toBeVisible();
+    await expect(pageHeader.locator(".page-header__back")).toHaveText("Projects");
+    await expect(pageHeader.locator(".page-header__back")).toHaveAttribute("href", "/work/");
+    await expect(pageHeader.locator(".page-header__back-icon svg")).toHaveCount(1);
+    await expect(pageHeader.locator(".page-header__title-row .eyebrow")).toHaveText("shipped");
+    const titleLayout = await pageHeader.locator(".page-header__title-row").evaluate((node) => {
+      const title = node.querySelector("h1")!.getBoundingClientRect();
+      const status = node.querySelector(".eyebrow")!.getBoundingClientRect();
+      return { titleRight: title.right, statusLeft: status.left, statusTop: status.top, titleBottom: title.bottom };
+    });
+    expect(titleLayout.statusLeft).toBeGreaterThan(titleLayout.titleRight);
+    expect(titleLayout.statusTop).toBeLessThan(titleLayout.titleBottom);
     await expect(page.getByLabel("Project facts")).toContainText("Creator and maintainer");
     await expect(page.getByRole("heading", { name: "Editor tooling as a reusable system" })).toBeVisible();
     const projectLinks = page.getByRole("navigation", { name: "Project links" });

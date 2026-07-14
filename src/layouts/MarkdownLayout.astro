@@ -10,14 +10,22 @@ type Props = {
   updatedAt?: Date;
   tags?: string[];
   eyebrow: string;
+  backHref?: string;
+  backLabel?: string;
 };
 
-const { title, description, publishedAt, updatedAt, tags = [], eyebrow } = Astro.props;
+const { title, description, publishedAt, updatedAt, tags = [], eyebrow, backHref, backLabel } = Astro.props;
 ---
 
 <BaseLayout title={title} description={description}>
   <article class="prose-shell">
-    <PageHeader eyebrow={eyebrow} title={title} description={description} />
+    <PageHeader
+      eyebrow={eyebrow}
+      title={title}
+      description={description}
+      backHref={backHref}
+      backLabel={backLabel}
+    />
     <slot name="subheader" />
     <div class="document-meta">
       <time datetime={publishedAt.toISOString()}>{formatDate(publishedAt)}</time>

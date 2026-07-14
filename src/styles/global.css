@@ -834,6 +834,55 @@ svg {
   border-bottom: 1px solid var(--line);
 }
 
+.page-header__back {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 20px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.page-header__back:hover,
+.page-header__back:focus-visible {
+  color: var(--ink);
+}
+
+.page-header__back-icon {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  transition: transform 180ms var(--ease);
+}
+
+.page-header__back-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.page-header__back:hover .page-header__back-icon,
+.page-header__back:focus-visible .page-header__back-icon {
+  transform: translateX(-3px);
+}
+
+.page-header__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: baseline;
+}
+
+.page-header__title-row .eyebrow {
+  margin: 0;
+  padding-left: 10px;
+  color: var(--accent-readable);
+  border-left: 2px solid var(--accent-readable);
+}
+
 .page-header h1,
 .home-hero h1,
 .empty-state h1 {
