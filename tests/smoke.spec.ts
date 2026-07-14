@@ -318,7 +318,7 @@ test.describe("site shell", () => {
     const articlesGroup = page.locator("[data-nav-group='Articles']");
 
     await expect(articlesGroup.locator('a[href^="/articles/"]')).toHaveCount(4);
-    await expect(page.locator("[data-nav-group='Projects'] a[href^='/work/']")).toHaveCount(4);
+    await expect(page.locator("[data-nav-group='Projects'] a[href^='/work/']")).toHaveCount(3);
 
     if (isMobile) {
       await page.getByRole("button", { name: "Open navigation" }).click();
@@ -326,7 +326,7 @@ test.describe("site shell", () => {
       await page.getByRole("button", { name: "Collapse sidebar" }).click();
       await page.mouse.move(1000, 520);
       await expect(root).not.toHaveClass(/sidebar-overlay-open/);
-      await expect(articlesGroup.locator(".nav-items")).toHaveCSS("display", "none");
+      await expect(articlesGroup.locator(".nav-items")).toHaveCSS("display", "grid");
       await articlesGroup.locator("summary").focus();
       await expect(root).toHaveClass(/sidebar-overlay-open/);
     }
@@ -350,9 +350,16 @@ test.describe("site shell", () => {
     await projectsGroup.locator("summary").click();
     await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
     await projectsGroup.locator("summary").click();
-    await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    await expect
+      .poll(async () =>
+        projectsGroup.evaluate((node) => ({
+          open: (node as HTMLDetailsElement).open,
+          animating: node.classList.contains("is-expanding") || node.classList.contains("is-collapsing")
+        }))
+      )
+      .toEqual({ open: true, animating: false });
 
-    const projectLink = nav.getByRole("link", { name: "Proto Shape", exact: true });
+    const projectLink = nav.getByRole("link", { name: "ProtoShape", exact: true });
     await projectLink.click();
     await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
     await expect(projectLink).toHaveAttribute("aria-current", "page");
@@ -831,19 +838,17 @@ test.describe("site shell", () => {
     const articles = nav.getByRole("link", { name: "All articles", exact: true });
     const projects = nav.getByRole("link", { name: "All projects", exact: true });
 
-    await articles.click({ noWaitAfter: true });
-    await expect(articles).toHaveClass(/is-selection-entering/);
-    const selectionEffect = await articles.evaluate((node) => {
+    const selectionState = await articles.evaluate((node) => {
+      (node as HTMLElement).click();
       const layer = getComputedStyle(node, "::after");
       return {
-        animationName: layer.animationName,
+        entering: node.classList.contains("is-selection-entering"),
+        sweeping: layer.animationName.includes("nav-selection-sweep"),
         pointerEvents: layer.pointerEvents,
-        willChange: layer.willChange
+        transforms: layer.willChange.includes("transform")
       };
     });
-    expect(selectionEffect.animationName).toContain("nav-selection-sweep");
-    expect(selectionEffect.pointerEvents).toBe("none");
-    expect(selectionEffect.willChange).toContain("transform");
+    expect(selectionState).toEqual({ entering: true, sweeping: true, pointerEvents: "none", transforms: true });
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveAttribute("data-astro-transition", /forward|back/);
 
@@ -863,6 +868,95 @@ test.describe("site shell", () => {
     const body = await response.text();
     expect(body).toContain("<rss");
     expect(body).toContain("HLCaptain");
+  });
+
+  test("collapsed rail reuses leaf elements while the overlay opens and closes", async ({ page }) => {
+    const viewport = page.viewportSize();
+    test.skip((viewport?.width ?? 0) <= 720, "Collapsed rail overlay check");
+
+    await page.goto("/articles/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const panel = page.locator(".sidebar-panel");
+    const longArticleLink = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", {
+      name: "Interface motion that preserves orientation",
+      exact: true
+    });
+    const longArticleHandle = await longArticleLink.elementHandle();
+    expect(longArticleHandle).not.toBeNull();
+    if (!longArticleHandle) return;
+    const expandedLabelLayout = await longArticleHandle.evaluate((node) => {
+      const label = node.querySelector(".sidebar-row__label")!;
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      return {
+        width: Math.round(label.getBoundingClientRect().width),
+        lines: new Set(Array.from(range.getClientRects(), (rect) => Math.round(rect.top))).size
+      };
+    });
+    expect(expandedLabelLayout.lines).toBeGreaterThan(1);
+    const moveOutside = () => page.mouse.move((viewport?.width ?? 1440) - 24, (viewport?.height ?? 960) / 2);
+
+    await page.getByRole("button", { name: "Collapse sidebar" }).click();
+    await moveOutside();
+    await expect(root).not.toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+
+    const closedState = await longArticleHandle.evaluate((node) => {
+      return {
+        connected: node.isConnected,
+        display: getComputedStyle(node).display,
+        width: Math.round(node.getBoundingClientRect().width),
+        labelWidth: Math.round(node.querySelector(".sidebar-row__label")!.getBoundingClientRect().width),
+        navItemsDisplay: Array.from(document.querySelectorAll(".nav-items")).map(
+          (items) => getComputedStyle(items).display
+        ),
+        leafWidths: Array.from(document.querySelectorAll(".nav-item")).map((item) =>
+          Math.round(item.getBoundingClientRect().width)
+        )
+      };
+    });
+    expect(closedState.connected).toBe(true);
+    expect(closedState.display).toBe("grid");
+    expect(closedState.width).toBeGreaterThan(30);
+    expect(closedState.labelWidth).toBe(expandedLabelLayout.width);
+    expect(closedState.navItemsDisplay.every((display) => display === "grid")).toBe(true);
+    expect(closedState.leafWidths.length).toBeGreaterThan(0);
+    expect(closedState.leafWidths.every((width) => width > 30)).toBe(true);
+
+    const isSharedMidTransition = () =>
+      longArticleHandle.evaluate((node, expectedLabelWidth) => {
+        const panelWidth = document.querySelector(".sidebar-panel")!.getBoundingClientRect().width;
+        const label = node.querySelector(".sidebar-row__label")!;
+        const labelOpacity = Number.parseFloat(getComputedStyle(label).opacity);
+        return (
+          node.isConnected &&
+          getComputedStyle(node).display === "grid" &&
+          panelWidth > 56 &&
+          panelWidth < 264 &&
+          Math.abs(label.getBoundingClientRect().width - expectedLabelWidth) <= 1 &&
+          labelOpacity > 0 &&
+          labelOpacity < 1
+        );
+      }, expandedLabelLayout.width);
+    const motionPoll = { timeout: 1000, intervals: Array.from({ length: 40 }, () => 16) };
+
+    const closedBox = await longArticleLink.boundingBox();
+    expect(closedBox).not.toBeNull();
+    await page.mouse.move(
+      (closedBox?.x ?? 0) + (closedBox?.width ?? 0) / 2,
+      (closedBox?.y ?? 0) + (closedBox?.height ?? 0) / 2
+    );
+    await expect.poll(isSharedMidTransition, motionPoll).toBe(true);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(264);
+
+    await moveOutside();
+    await expect.poll(isSharedMidTransition, motionPoll).toBe(true);
+    await expect(root).not.toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+    await expect.poll(async () => longArticleHandle.evaluate((node) => node.isConnected)).toBe(true);
   });
 
   test("desktop sidebar collapses to icons and expands again", async ({ page }) => {
@@ -995,7 +1089,14 @@ test.describe("site shell", () => {
       )
       .toBe("84px");
     const compactSurfaceControls = await page.evaluate(() => {
-      const labels = Array.from(document.querySelectorAll(".accent-panel .surface-control__label")).map((node) => getComputedStyle(node).display);
+      const labels = Array.from(document.querySelectorAll(".accent-panel .surface-control__label")).map((node) => {
+        const style = getComputedStyle(node);
+        return {
+          display: style.display,
+          opacity: Number.parseFloat(style.opacity),
+          pointerEvents: style.pointerEvents
+        };
+      });
       const controls = Array.from(document.querySelectorAll(".accent-panel .surface-control")).map((node) => {
         const style = getComputedStyle(node);
         return {
@@ -1009,7 +1110,11 @@ test.describe("site shell", () => {
         swatchesCount: document.querySelectorAll(".accent-swatches").length
       };
     });
-    expect(compactSurfaceControls.labels.every((display) => display === "none")).toBe(true);
+    expect(
+      compactSurfaceControls.labels.every(
+        ({ display, opacity, pointerEvents }) => display !== "none" && opacity === 0 && pointerEvents === "none"
+      )
+    ).toBe(true);
     expect(compactSurfaceControls.swatchesCount).toBe(0);
     expect(compactSurfaceControls.controls).toEqual([
       { display: "grid", width: 34 },
@@ -1221,12 +1326,19 @@ test.describe("site shell", () => {
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
 
-    const labelDisplay = await nav
+    const labelState = await nav
       .locator('a[href="/articles/"]')
       .locator("span")
       .last()
-      .evaluate((node) => getComputedStyle(node).display);
-    expect(labelDisplay).toBe("none");
+      .evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          display: style.display,
+          opacity: Number.parseFloat(style.opacity),
+          pointerEvents: style.pointerEvents
+        };
+      });
+    expect(labelState).toEqual({ display: "block", opacity: 0, pointerEvents: "none" });
     const collapsedSpacing = await page.evaluate(() => {
       const number = (value: string) => Math.round(Number.parseFloat(value));
       const box = (selector: string) => {
@@ -1253,12 +1365,13 @@ test.describe("site shell", () => {
         itemWidth: box(".nav-item")
       };
     });
-    expect(collapsedSpacing).toEqual({
+    const { itemWidth, ...collapsedContainerSpacing } = collapsedSpacing;
+    expect(collapsedContainerSpacing).toEqual({
       panelPadding: 10,
       panelGap: 10,
       navGap: 6,
-      navOverflowX: "visible",
-      navOverflowY: "visible",
+      navOverflowX: "hidden",
+      navOverflowY: "auto",
       navPaddingLeft: 0,
       navPaddingRight: 0,
       groupPaddingTop: 0,
@@ -1266,9 +1379,10 @@ test.describe("site shell", () => {
       groupPaddingBottom: 0,
       groupPaddingLeft: 0,
       groupWidth: 34,
-      summaryWidth: 32,
-      itemWidth: 0
+      summaryWidth: 32
     });
+    expect(itemWidth).toBeGreaterThanOrEqual(31);
+    expect(itemWidth).toBeLessThanOrEqual(34);
     const glyphBox = await page.locator("[data-nav-group='Articles'] summary .pixel-glyph").boundingBox();
     expect(glyphBox?.width ?? 0).toBeGreaterThan(8);
 
@@ -1291,6 +1405,9 @@ test.describe("site shell", () => {
       const groupDeltas = Array.from(document.querySelectorAll(".nav-group__icon"))
         .filter(isVisible)
         .map((icon) => Math.abs(centerOf(icon) - panelCenter));
+      const itemDeltas = Array.from(document.querySelectorAll(".nav-item .sidebar-row__icon"))
+        .filter(isVisible)
+        .map((icon) => Math.abs(centerOf(icon) - panelCenter));
       const group = document.querySelector(".nav-group");
       const arrow = group?.querySelector(".group-toggle-icon");
       const glyph = group?.querySelector(".nav-group__icon .pixel-glyph");
@@ -1298,6 +1415,7 @@ test.describe("site shell", () => {
       const glyphStyle = glyph ? getComputedStyle(glyph) : null;
       return {
         maxGroupDelta: Math.max(...groupDeltas),
+        maxItemDelta: Math.max(...itemDeltas),
         arrowVisibility: arrowStyle?.visibility,
         arrowOpacity: Number.parseFloat(arrowStyle?.opacity ?? "1"),
         glyphVisibility: glyphStyle?.visibility,
@@ -1305,6 +1423,7 @@ test.describe("site shell", () => {
       };
     });
     expect(collapsedAlignment.maxGroupDelta).toBeLessThanOrEqual(1);
+    expect(collapsedAlignment.maxItemDelta).toBeLessThanOrEqual(1);
     expect(collapsedAlignment.arrowVisibility).toBe("hidden");
     expect(collapsedAlignment.arrowOpacity).toBeLessThan(0.2);
     expect(collapsedAlignment.glyphVisibility).toBe("visible");
@@ -1515,6 +1634,50 @@ test.describe("site shell", () => {
         visibility: "hidden",
         height: 0
       });
+  });
+
+  test("reverses an interrupted sidebar group collapse", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    if ((page.viewportSize()?.width ?? 0) <= 720) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+    }
+
+    const articlesGroup = page.locator("[data-nav-group='Articles']");
+    const articleItems = articlesGroup.locator(".nav-items");
+    const summary = articlesGroup.locator("summary");
+    const initialHeight = await articleItems.evaluate((node) => node.getBoundingClientRect().height);
+
+    await summary.click();
+    await expect
+      .poll(async () =>
+        articlesGroup.evaluate(
+          (node, expandedHeight) => {
+            const height = node.querySelector(".nav-items")!.getBoundingClientRect().height;
+            return node.classList.contains("is-collapsing") && height > 8 && height < expandedHeight - 8;
+          },
+          initialHeight
+        )
+      )
+      .toBe(true);
+
+    await summary.click();
+    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
+    await expect
+      .poll(async () =>
+        page.evaluate(() => JSON.parse(window.sessionStorage.getItem("hlcaptain-nav-groups") || "{}").Articles)
+      )
+      .toBe(true);
+    await expect
+      .poll(async () =>
+        articlesGroup.evaluate((node) => ({
+          open: (node as HTMLDetailsElement).open,
+          animating: node.classList.contains("is-expanding") || node.classList.contains("is-collapsing"),
+          height: Math.round(node.querySelector(".nav-items")!.getBoundingClientRect().height)
+        }))
+      )
+      .toEqual({ open: true, animating: false, height: Math.round(initialHeight) });
   });
 
   test("sidebar group item lists animate open and closed", async ({ page }) => {

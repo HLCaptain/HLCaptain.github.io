@@ -751,15 +751,15 @@ function initNavGroups() {
       (event) => {
         event.preventDefault();
 
+        const wasOpen = navGroupIsVisuallyOpen(group);
         group._navGroupCancel?.();
 
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-          saveNavGroupState({ group, open: !group.open });
-          group.open = !group.open;
+          saveNavGroupState({ group, open: !wasOpen });
+          group.open = !wasOpen;
           return;
         }
 
-        const wasOpen = group.open;
         saveNavGroupState({ group, open: !wasOpen });
         let complete = false;
         let timeout = null;
