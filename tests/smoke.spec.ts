@@ -838,20 +838,17 @@ test.describe("site shell", () => {
     const articles = nav.getByRole("link", { name: "All articles", exact: true });
     const projects = nav.getByRole("link", { name: "All projects", exact: true });
 
-    await articles.click({ noWaitAfter: true });
-    await expect
-      .poll(async () =>
-        articles.evaluate((node) => {
-          const layer = getComputedStyle(node, "::after");
-          return {
-            entering: node.classList.contains("is-selection-entering"),
-            sweeping: layer.animationName.includes("nav-selection-sweep"),
-            pointerEvents: layer.pointerEvents,
-            transforms: layer.willChange.includes("transform")
-          };
-        })
-      )
-      .toEqual({ entering: true, sweeping: true, pointerEvents: "none", transforms: true });
+    const selectionState = await articles.evaluate((node) => {
+      (node as HTMLElement).click();
+      const layer = getComputedStyle(node, "::after");
+      return {
+        entering: node.classList.contains("is-selection-entering"),
+        sweeping: layer.animationName.includes("nav-selection-sweep"),
+        pointerEvents: layer.pointerEvents,
+        transforms: layer.willChange.includes("transform")
+      };
+    });
+    expect(selectionState).toEqual({ entering: true, sweeping: true, pointerEvents: "none", transforms: true });
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveAttribute("data-astro-transition", /forward|back/);
 
