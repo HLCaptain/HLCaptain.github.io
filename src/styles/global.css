@@ -1351,16 +1351,28 @@ svg {
   border-left: 3px solid var(--accent);
 }
 
+.prose video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 24px 0;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+}
+
 .link-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 34px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
+  margin: 0 0 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
 }
 
 .link-strip a {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
   padding: 8px 12px;
   border: 1px solid var(--line-strong);
   text-decoration: none;

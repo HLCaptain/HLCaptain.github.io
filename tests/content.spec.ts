@@ -26,9 +26,17 @@ test.describe("project case studies", () => {
     await expect(page.getByRole("heading", { name: "ProtoShape" })).toBeVisible();
     await expect(page.getByLabel("Project facts")).toContainText("Creator and maintainer");
     await expect(page.getByRole("heading", { name: "Editor tooling as a reusable system" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "GitHub repository" })).toHaveAttribute(
+    const projectLinks = page.getByRole("navigation", { name: "Project links" });
+    await expect(projectLinks).toBeVisible();
+    await expect(projectLinks.getByRole("link", { name: "GitHub repository" })).toHaveAttribute(
       "href",
       "https://github.com/HLCaptain/proto-shape"
+    );
+    await expect(projectLinks.getByRole("link")).toHaveCount(3);
+    await expect(projectLinks.locator(".external-link-icon")).toHaveCount(3);
+    await expect(page.locator("video")).toHaveAttribute(
+      "src",
+      "https://github.com/HLCaptain/proto-shape/assets/22623259/730a527c-d6ba-4eaa-93b6-dbcbbd8aba52"
     );
     await expectNoHorizontalOverflow(page);
   });

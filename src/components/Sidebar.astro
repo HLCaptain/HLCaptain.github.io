@@ -38,18 +38,20 @@ const projectItems = projects.map((project) => ({
 }));
 
 let navIndex = 0;
-const navigation = siteConfig.navigation.map((group) => ({
-  ...group,
-  items: (group.label === "Articles"
-    ? [group.items[0], ...articleItems, ...group.items.slice(1)]
-    : group.label === "Projects"
-      ? [group.items[0], ...projectItems]
-      : group.items
-  ).map((item) => ({
-    ...item,
-    navIndex: navIndex++
-  }))
-}));
+const navigation = siteConfig.navigation
+  .filter((group) => group.label !== "Articles" || articles.length > 0)
+  .map((group) => ({
+    ...group,
+    items: (group.label === "Articles"
+      ? [group.items[0], ...articleItems, ...group.items.slice(1)]
+      : group.label === "Projects"
+        ? [group.items[0], ...projectItems]
+        : group.items
+    ).map((item) => ({
+      ...item,
+      navIndex: navIndex++
+    }))
+  }));
 ---
 
 <button

@@ -18,6 +18,7 @@ const { title, description, publishedAt, updatedAt, tags = [], eyebrow } = Astro
 <BaseLayout title={title} description={description}>
   <article class="prose-shell">
     <PageHeader eyebrow={eyebrow} title={title} description={description} />
+    <slot name="subheader" />
     <div class="document-meta">
       <time datetime={publishedAt.toISOString()}>{formatDate(publishedAt)}</time>
       {updatedAt && <span>Updated {formatDate(updatedAt)}</span>}

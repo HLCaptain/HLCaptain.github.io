@@ -151,14 +151,14 @@ test.describe("Signal", () => {
     await expect(root).toHaveAttribute("data-signal-layout", "compact");
     await expect(root).toHaveAttribute("data-signal-ratio", "square");
     await expect(signal).toHaveCount(1);
-    await expect(items).toHaveCount(4);
+    await expect(items).toHaveCount(2);
     await expect(items.locator("[data-signal-trigger][aria-expanded='true']")).toHaveCount(1);
     await expect(items.locator("[data-signal-panel][aria-hidden='false']")).toHaveCount(1);
-    await expect(items.locator("[data-signal-panel][aria-hidden='true'][inert]")).toHaveCount(3);
+    await expect(items.locator("[data-signal-panel][aria-hidden='true'][inert]")).toHaveCount(1);
     await expect(signal.locator("[data-signal-panel][aria-hidden='false'] [data-signal-link]")).toHaveCount(1);
     await expect(signal.locator("img[data-signal-image]").first()).toHaveAttribute(
       "src",
-      "/visuals/signal-article-1-1.svg"
+      "/visuals/signal-project-1-1.svg"
     );
 
     const mediaBox = await signal.locator("[data-signal-item].is-active .signal__media").boundingBox();
@@ -254,12 +254,12 @@ test.describe("Signal", () => {
     const action = media.locator(".signal__media-action");
     const summary = second.locator("[data-signal-trigger]");
     const copy = second.locator(".signal__copy");
-    await expect(action).toHaveAttribute("aria-label", /Open article: Interface motion/);
-    const [arrowColor, readArticlesColor] = await Promise.all([
+    await expect(action).toHaveAttribute("aria-label", /Open profile: About HLCaptain/);
+    const [arrowColor, viewWorkColor] = await Promise.all([
       action.locator(".arrow-icon").evaluate((node) => getComputedStyle(node).color),
-      page.getByRole("link", { name: "Read articles" }).evaluate((node) => getComputedStyle(node).color)
+      page.getByRole("link", { name: "View work" }).evaluate((node) => getComputedStyle(node).color)
     ]);
-    expect(arrowColor).toBe(readArticlesColor);
+    expect(arrowColor).toBe(viewWorkColor);
     const canHover = await page.evaluate(() => matchMedia("(hover: hover)").matches);
     if (canHover) {
       await page.mouse.move(0, 0);
@@ -293,7 +293,7 @@ test.describe("Signal", () => {
     }
     await expect.poll(async () => action.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))).toBeGreaterThan(0.8);
     await action.click();
-    await expect(page).toHaveURL(/\/articles\/interface-motion\/$/);
+    await expect(page).toHaveURL(/\/about\/$/);
   });
 
   test("uses a pointer cursor only across clickable Signal item surfaces", async ({ page }) => {
@@ -328,7 +328,7 @@ test.describe("Signal", () => {
     expect(Object.values(nonInteractiveCursors).every((cursor) => cursor !== "pointer")).toBe(true);
 
     await item.locator(".signal__copy p").click();
-    await expect(page).toHaveURL(/\/articles\/interface-motion\/$/);
+    await expect(page).toHaveURL(/\/about\/$/);
   });
 
   test("pauses automatic selection while hovered and resumes after leaving", async ({ page }) => {
@@ -373,12 +373,12 @@ test.describe("Signal", () => {
     expect(geometry.columns).toBe(mobile || desktop ? 1 : 2);
     const expectedHeight =
       geometry.activeItemHeight +
-      3 * geometry.summaryHeight +
-      3 * geometry.itemGap +
+      geometry.summaryHeight +
+      geometry.itemGap +
       2 * geometry.shellPadding +
       geometry.shellBorder;
     expect(Math.abs(geometry.signal.height - expectedHeight)).toBeLessThanOrEqual(1);
-    expect(Math.abs(geometry.signal.height - 534)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.signal.height - 406)).toBeLessThanOrEqual(1);
     expect(geometry.signal.height / geometry.signal.width).toBeLessThanOrEqual(mobile ? 1.5 : desktop ? 1.25 : 1.35);
     expect(geometry.panelPadding.left).toBe(8);
     expect(geometry.panelPadding.right).toBe(8);
@@ -435,11 +435,11 @@ test.describe("Signal", () => {
     await setSignalOption(page, "Balanced split", "layout", "split");
     const split = await measureSignal(page);
     expect(split.copyLines).toBe(6);
-    expect(Math.abs(split.signal.height - 534)).toBeLessThanOrEqual(1);
+    expect(Math.abs(split.signal.height - 406)).toBeLessThanOrEqual(1);
     await setSignalOption(page, "Editorial stack", "layout", "stack");
     const stack = await measureSignal(page);
     expect(stack.copyLines).toBe(6);
-    expect(Math.abs(stack.signal.height - 558)).toBeLessThanOrEqual(1);
+    expect(Math.abs(stack.signal.height - 430)).toBeLessThanOrEqual(1);
     expect(stack.columns).toBe(1);
     expect(stack.copy.y).toBeGreaterThanOrEqual(stack.media.y + stack.media.height);
     expect(stack.signal.height).toBeGreaterThan(split.signal.height);
@@ -449,7 +449,7 @@ test.describe("Signal", () => {
     await setSignalOption(page, "Compact dock", "layout", "compact");
     const compact = await measureSignal(page);
     expect(compact.copyLines).toBe(6);
-    expect(Math.abs(compact.signal.height - 442)).toBeLessThanOrEqual(1);
+    expect(Math.abs(compact.signal.height - 314)).toBeLessThanOrEqual(1);
     expect(compact.columns).toBe(2);
     expect(compact.copy.x).toBeGreaterThan(compact.media.x + compact.media.width);
     expect(compact.signal.height).toBeLessThan(split.signal.height);
@@ -524,10 +524,10 @@ test.describe("Signal", () => {
     const action = active.locator(".signal__media-action");
     const initialHeight = (await signal.boundingBox())?.height ?? 0;
     const choices = [
-      { name: "Landscape 4:3", value: "landscape", source: "/visuals/signal-article-4-3.svg", aspect: 4 / 3 },
-      { name: "Wide 16:9", value: "wide", source: "/visuals/article-preview.svg", aspect: 16 / 9 },
-      { name: "Portrait 3:4", value: "portrait", source: "/visuals/signal-article-3-4.svg", aspect: 3 / 4 },
-      { name: "Square 1:1", value: "square", source: "/visuals/signal-article-1-1.svg", aspect: 1 }
+      { name: "Landscape 4:3", value: "landscape", source: "/visuals/signal-project-4-3.svg", aspect: 4 / 3 },
+      { name: "Wide 16:9", value: "wide", source: "/visuals/project-preview.svg", aspect: 16 / 9 },
+      { name: "Portrait 3:4", value: "portrait", source: "/visuals/signal-project-3-4.svg", aspect: 3 / 4 },
+      { name: "Square 1:1", value: "square", source: "/visuals/signal-project-1-1.svg", aspect: 1 }
     ];
 
     for (const choice of choices) {
@@ -576,14 +576,14 @@ test.describe("Signal", () => {
     const action = media.locator(".signal__media-action");
     const copy = active.locator(".signal__copy");
     const choices = [
-      { name: "Square 1:1", value: "square", source: "/visuals/signal-article-1-1.svg", aspect: 1 },
-      { name: "Landscape 4:3", value: "landscape", source: "/visuals/signal-article-4-3.svg", aspect: 4 / 3 },
-      { name: "Wide 16:9", value: "wide", source: "/visuals/article-preview.svg", aspect: 16 / 9 },
-      { name: "Portrait 3:4", value: "portrait", source: "/visuals/signal-article-3-4.svg", aspect: 3 / 4 }
+      { name: "Square 1:1", value: "square", source: "/visuals/signal-project-1-1.svg", aspect: 1 },
+      { name: "Landscape 4:3", value: "landscape", source: "/visuals/signal-project-4-3.svg", aspect: 4 / 3 },
+      { name: "Wide 16:9", value: "wide", source: "/visuals/project-preview.svg", aspect: 16 / 9 },
+      { name: "Portrait 3:4", value: "portrait", source: "/visuals/signal-project-3-4.svg", aspect: 3 / 4 }
     ];
 
     await expect(page.locator("html")).toHaveAttribute("data-signal-layout", "compact");
-    await expect.poll(async () => (await signal.boundingBox())?.height ?? 0).toBe(442);
+    await expect.poll(async () => (await signal.boundingBox())?.height ?? 0).toBe(314);
 
     for (const choice of choices) {
       await setSignalOption(page, choice.name, "ratio", choice.value);
@@ -618,7 +618,7 @@ test.describe("Signal", () => {
         })
       ]);
 
-      expect(Math.abs((signalBox?.height ?? 0) - 442)).toBeLessThanOrEqual(1);
+      expect(Math.abs((signalBox?.height ?? 0) - 314)).toBeLessThanOrEqual(1);
       expect((mediaBox?.width ?? 0) / Math.max(mediaBox?.height ?? 0, 1)).toBeCloseTo(choice.aspect, 1);
       expect(Math.max(mediaBox?.width ?? 0, mediaBox?.height ?? 0)).toBeLessThanOrEqual(160.5);
       if (choice.value === "portrait") expect(mediaBox?.width ?? 0).toBeLessThanOrEqual(120.5);
@@ -642,9 +642,9 @@ test.describe("Signal", () => {
     const items = signal.locator("[data-signal-item]");
     const marker = signal.locator("[data-signal-marker]");
     const layouts = [
-      { name: "Balanced split", value: "split", height: 534 },
-      { name: "Editorial stack", value: "stack", height: 558 },
-      { name: "Compact dock", value: "compact", height: 442 }
+      { name: "Balanced split", value: "split", height: 406 },
+      { name: "Editorial stack", value: "stack", height: 430 },
+      { name: "Compact dock", value: "compact", height: 314 }
     ];
 
     for (const layout of layouts) {
@@ -654,8 +654,7 @@ test.describe("Signal", () => {
       await page.waitForTimeout(420);
 
       const activeIndex = await items.evaluateAll((nodes) => nodes.findIndex((node) => node.classList.contains("is-active")));
-      const nextIndex = (activeIndex + 1) % 4;
-      const interruptedIndex = (activeIndex + 2) % 4;
+      const nextIndex = (activeIndex + 1) % 2;
       const beforeHeight = (await signal.boundingBox())?.height ?? 0;
       expect(Math.abs(beforeHeight - layout.height)).toBeLessThanOrEqual(1);
       const markerBefore = await marker.boundingBox();
@@ -666,11 +665,9 @@ test.describe("Signal", () => {
       await items.nth(nextIndex).locator("[data-signal-trigger]").click();
       await page.waitForTimeout(110);
       const movingItem = await items.nth(nextIndex).boundingBox();
-      const collapsedItem = await items.nth((interruptedIndex + 1) % 4).boundingBox();
+      const collapsedItem = await items.nth(activeIndex).boundingBox();
       expect(movingItem?.height ?? 0).toBeGreaterThan((collapsedItem?.height ?? 0) + 1);
 
-      await items.nth(interruptedIndex).locator("[data-signal-trigger]").click();
-      await expect(items.nth(interruptedIndex)).toHaveClass(/is-active/);
       const [samples, outgoingMediaSamples, incomingMediaSamples] = await Promise.all([
         samplesPromise,
         outgoingMediaSamplesPromise,
@@ -683,8 +680,8 @@ test.describe("Signal", () => {
 
       const markerAfter = await marker.boundingBox();
       expect(Math.abs((markerAfter?.y ?? 0) - (markerBefore?.y ?? 0))).toBeGreaterThan(8);
-      await expect(items.nth(interruptedIndex).locator("[data-signal-trigger]")).toHaveAttribute("aria-expanded", "true");
-      await expect(items.nth(interruptedIndex).locator("[data-signal-panel]")).toHaveAttribute("aria-hidden", "false");
+      await expect(items.nth(nextIndex).locator("[data-signal-trigger]")).toHaveAttribute("aria-expanded", "true");
+      await expect(items.nth(nextIndex).locator("[data-signal-panel]")).toHaveAttribute("aria-hidden", "false");
     }
 
     if (testInfo.project.name === "tablet") {
@@ -711,7 +708,7 @@ test.describe("Signal", () => {
 
     const [firstTrackBox, firstMarkerBox] = await Promise.all([track.boundingBox(), marker.boundingBox()]);
     expect(Math.abs((firstMarkerBox?.y ?? 0) - (firstTrackBox?.y ?? 0))).toBeLessThanOrEqual(1);
-    expect(Math.abs((firstMarkerBox?.height ?? 0) - (firstTrackBox?.height ?? 0) / 4)).toBeLessThanOrEqual(1);
+    expect(Math.abs((firstMarkerBox?.height ?? 0) - (firstTrackBox?.height ?? 0) / 2)).toBeLessThanOrEqual(1);
 
     await items.last().locator("[data-signal-trigger]").click();
     await expect(items.last()).toHaveClass(/is-active/);
@@ -732,8 +729,8 @@ test.describe("Signal", () => {
     await page.getByRole("button", { name: "Circuit", exact: true }).click();
     await closeDebugPanel(page);
 
-    await page.getByRole("link", { name: "Read articles" }).click();
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await page.getByRole("link", { name: "View work" }).click();
+    await expect(page).toHaveURL(/\/work\/$/);
     const root = page.locator("html");
     await expect(root).toHaveAttribute("data-signal-layout", "stack");
     await expect(root).toHaveAttribute("data-signal-ratio", "portrait");
@@ -771,8 +768,8 @@ test.describe("Signal", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await navigateAndSettle(page.getByRole("link", { name: "Read articles" }));
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await navigateAndSettle(page.getByRole("link", { name: "View work" }));
+    await expect(page).toHaveURL(/\/work\/$/);
     await navigateAndSettle(page.getByRole("link", { name: "Overview" }));
     await expect(page).toHaveURL(/\/$/);
     await navigateAndSettle(page.getByRole("link", { name: "About" }));

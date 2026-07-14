@@ -2,7 +2,7 @@ export const siteConfig = {
   name: "HLCaptain",
   title: "HLCaptain - Portfolio and Field Notes",
   description:
-    "A compact portfolio and writing archive for interface work, systems thinking, and upcoming technical articles.",
+    "A compact portfolio for interface work, systems thinking, and software projects.",
   url: import.meta.env.SITE_URL ?? "https://hlcaptain.github.io",
   locale: "en_US",
   author: {
