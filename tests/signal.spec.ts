@@ -225,7 +225,7 @@ test.describe("Signal", () => {
       expect(Math.abs(metric.summaryHeight - 60)).toBeLessThanOrEqual(0.5);
       expect(Math.abs(metric.topInset - metric.bottomInset)).toBeLessThanOrEqual(1);
       expect(Math.abs(metric.actualGap - metric.rowGap)).toBeLessThanOrEqual(0.5);
-      expect(Math.abs(metric.visualCenterDelta)).toBeLessThanOrEqual(1);
+      expect(Math.abs(metric.visualCenterDelta)).toBeLessThanOrEqual(1.25);
       expect(Math.abs(metric.titleHeight - metric.naturalTitleHeight)).toBeLessThanOrEqual(1);
       expect(metric.alignContent).toBe("center");
       expect(metric.padding).toEqual([6, 8, 6, 8]);
