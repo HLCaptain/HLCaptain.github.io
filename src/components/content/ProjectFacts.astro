@@ -1,0 +1,57 @@
+---
+type Fact = {
+  label: string;
+  value: string;
+};
+
+type Props = {
+  items: Fact[];
+};
+
+const { items } = Astro.props;
+---
+
+<dl class="project-facts" aria-label="Project facts">
+  {items.map((item) => (
+    <div class="project-facts__item">
+      <dt>{item.label}</dt>
+      <dd>{item.value}</dd>
+    </div>
+  ))}
+</dl>
+
+<style>
+  .project-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    gap: 1px;
+    margin: 1.75rem 0;
+    padding: 1px;
+    border: 1px solid var(--line);
+    background: var(--line);
+  }
+
+  .project-facts__item {
+    min-width: 0;
+    margin: 0;
+    padding: 0.85rem 1rem;
+    background: var(--surface-soft);
+  }
+
+  dt {
+    margin-bottom: 0.25rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.92rem;
+    overflow-wrap: anywhere;
+  }
+</style>

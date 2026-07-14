@@ -1,0 +1,69 @@
+---
+title: "SplitEasy AI"
+description: "A receipt-to-split prototype that combines reviewable AI assistance with deterministic parsing and receipt reconciliation."
+publishedAt: 2026-07-13
+tags: ["react", "typescript", "cloudflare", "ai-ocr"]
+featured: true
+status: "active"
+links: []
+---
+
+import ProjectFacts from "../../components/content/ProjectFacts.astro";
+
+<ProjectFacts
+  items={[
+    { label: "Role", value: "Product and full-stack engineering" },
+    { label: "Status", value: "Active private prototype" },
+    { label: "Frontend", value: "React · TypeScript · Vite" },
+    { label: "Backend", value: "Cloudflare Pages Functions" }
+  ]}
+/>
+
+## Overview
+
+SplitEasy AI turns a receipt image or PDF—and the way a group naturally describes who had what—into
+a split that can be checked before anyone pays. It is designed around a simple constraint: AI can
+accelerate the tedious parts, but it should never silently decide the final numbers.
+
+The result is a review-first workflow rather than a one-shot chatbot response.
+
+## Product flow
+
+1. Upload a receipt PDF or image and run OCR.
+2. Review the normalized receipt table, including quantities, discounts, deposits, and the printed
+   total.
+3. Add people and describe the split with text, a chat screenshot, or a voice transcript.
+4. Review the proposed assignments and choose equal, per-item, weighted, percentage, or fixed-amount
+   allocation where needed.
+5. Export a Revolut-friendly summary, a detailed breakdown, CSV, or JSON.
+
+Line items can retain evidence references back to OCR text and receipt regions. That makes an odd
+price or quantity inspectable instead of asking the user to trust a model-generated table.
+
+## Reliability before automation
+
+Receipt OCR is noisy, and plausible-looking arithmetic is still wrong arithmetic. SplitEasy runs AI
+output through deterministic parsing and reconciliation before it reaches the split view. Receipt
+reconciliation converts values to currency-specific minor units, handles zero-decimal currencies
+such as HUF explicitly, and checks printed totals against the sum of active items.
+
+The parser distinguishes product rows from quantity details, payment metadata, discounts, deposit
+fees, and receipt-level totals. AI assignment proposals remain separate from manual assignments
+until the user applies them. For mixed-currency receipts, the interface asks for a settlement
+currency and manual exchange rates, and warns when a rate is missing.
+
+## Architecture and secret handling
+
+The interface is a static React application. Same-origin Cloudflare Pages Functions own OCR,
+structuring, assignment, one-click splitting, model health, and transcription calls. Provider keys
+for Mistral, OpenAI, and ElevenLabs stay server-side and never enter the browser bundle, local
+storage, or exported split data. Receipt documents, chat screenshots, or audio are sent to the
+configured provider when the corresponding AI feature is used; split history can be retained
+locally in the browser.
+
+## Current state
+
+SplitEasy is an actively developed private prototype, not a public production service. The core
+receipt-review, assignment, reconciliation, evidence, multi-currency, local-history, and export
+flows are implemented; current work is focused on hardening real-world receipt parsing and reducing
+the amount of manual repair needed after OCR.
