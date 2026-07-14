@@ -1,5 +1,6 @@
 ---
 import { ClientRouter } from "astro:transitions";
+import HeadingReferenceIcon from "@components/HeadingReferenceIcon.astro";
 import Sidebar from "@components/Sidebar.astro";
 import { siteConfig } from "../site.config";
 import "@styles/global.css";
@@ -161,6 +162,7 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
   </head>
   <body>
     <div class="background-grid" aria-hidden="true"></div>
+    <template data-heading-reference-icon><HeadingReferenceIcon /></template>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <div class="site-frame">
       <Sidebar currentPath={Astro.url.pathname} transition:persist />

@@ -724,18 +724,18 @@ svg {
   stroke-width: 2;
 }
 
-:root:not([data-arrow-style]) .arrow-icon__svg[data-icon-style="tabler"],
-:root[data-arrow-style="tabler"] .arrow-icon__svg[data-icon-style="tabler"],
-:root[data-arrow-style="lucide"] .arrow-icon__svg[data-icon-style="lucide"],
-:root[data-arrow-style="heroicons"] .arrow-icon__svg[data-icon-style="heroicons"],
-:root[data-arrow-style="phosphor"] .arrow-icon__svg[data-icon-style="phosphor"],
-:root[data-arrow-style="solar"] .arrow-icon__svg[data-icon-style="solar"],
-:root[data-arrow-style="remix"] .arrow-icon__svg[data-icon-style="remix"],
-:root[data-arrow-style="material"] .arrow-icon__svg[data-icon-style="material"],
-:root[data-arrow-style="carbon"] .arrow-icon__svg[data-icon-style="carbon"],
-:root[data-arrow-style="fluent"] .arrow-icon__svg[data-icon-style="fluent"],
-:root[data-arrow-style="radix"] .arrow-icon__svg[data-icon-style="radix"],
-:root[data-arrow-style="pixelart"] .arrow-icon__svg[data-icon-style="pixelart"] {
+:root:not([data-arrow-style]) :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="tabler"],
+:root[data-arrow-style="tabler"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="tabler"],
+:root[data-arrow-style="lucide"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="lucide"],
+:root[data-arrow-style="heroicons"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="heroicons"],
+:root[data-arrow-style="phosphor"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="phosphor"],
+:root[data-arrow-style="solar"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="solar"],
+:root[data-arrow-style="remix"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="remix"],
+:root[data-arrow-style="material"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="material"],
+:root[data-arrow-style="carbon"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="carbon"],
+:root[data-arrow-style="fluent"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="fluent"],
+:root[data-arrow-style="radix"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="radix"],
+:root[data-arrow-style="pixelart"] :is(.arrow-icon__svg, .heading-reference__svg)[data-icon-style="pixelart"] {
   display: block;
 }
 
@@ -1366,16 +1366,17 @@ svg {
 .heading-reference {
   position: absolute;
   z-index: 1;
-  top: 0.55em;
-  left: -28px;
+  top: var(--heading-reference-y, 0.7em);
+  left: var(--heading-reference-x, -44px);
   display: inline-grid;
-  width: 20px;
-  height: 20px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   place-items: center;
   color: var(--muted);
-  background: transparent;
-  border: 0;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink) 10%, transparent);
   cursor: pointer;
   opacity: 0;
   transform: translateY(-50%);
@@ -1386,21 +1387,29 @@ svg {
 }
 
 .prose :is(h1, h2, h3, h4, h5, h6)[id]:hover .heading-reference,
-.prose :is(h1, h2, h3, h4, h5, h6)[id]:focus-within .heading-reference,
+.prose :is(h1, h2, h3, h4, h5, h6)[id]:focus-within .heading-reference {
+  opacity: 1;
+}
+
+.heading-reference:hover,
 .heading-reference:focus-visible,
 .heading-reference.is-copied {
   color: var(--accent-readable);
-  opacity: 1;
-  transform: translateY(-50%);
+  border-color: var(--accent-readable);
+  background: color-mix(in srgb, var(--accent-readable) 12%, var(--surface-soft));
 }
 
-.prose h2 .heading-reference {
-  top: 1.3em;
+.heading-reference__icon {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
 }
 
-.heading-reference svg {
-  width: 15px;
-  height: 15px;
+.heading-reference__svg {
+  display: none;
+  width: 100%;
+  height: 100%;
 }
 
 .prose h2 {
@@ -1468,8 +1477,30 @@ svg {
   gap: 8px;
   align-items: center;
   padding: 8px 12px;
+  color: var(--ink);
   border: 1px solid var(--line-strong);
   text-decoration: none;
+  transition:
+    background-color 180ms var(--ease),
+    border-color 180ms var(--ease),
+    box-shadow 180ms var(--ease),
+    color 180ms var(--ease),
+    transform 180ms var(--ease);
+}
+
+.link-strip a:hover,
+.link-strip a:focus-visible {
+  color: var(--accent-readable);
+  background: color-mix(in srgb, var(--accent-readable) 12%, var(--surface-soft));
+  border-color: var(--accent-readable);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink) 10%, transparent);
+  transform: translateY(-2px);
+}
+
+.link-strip a:hover .external-link-icon,
+.link-strip a:focus-visible .external-link-icon {
+  color: var(--accent-readable);
+  transform: translate(2px, -1px);
 }
 
 .empty-state {
@@ -1821,6 +1852,7 @@ svg {
     height: var(--sidebar-row-size);
     place-items: center;
     color: var(--accent-readable);
+    background: var(--surface);
     border-color: var(--line);
     box-shadow: none;
     view-transition-name: mobile-sidebar-toggle;
@@ -1986,18 +2018,6 @@ svg {
 
   .page-header {
     margin-bottom: 24px;
-  }
-
-  .heading-reference {
-    right: -12px;
-    left: auto;
-    width: 12px;
-    height: 18px;
-  }
-
-  .heading-reference svg {
-    width: 12px;
-    height: 12px;
   }
 
   .home-hero__copy {

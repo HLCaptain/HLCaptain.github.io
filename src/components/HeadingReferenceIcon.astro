@@ -1,0 +1,23 @@
+---
+import { Icon } from "astro-icon/components";
+
+const iconSources = [
+  ["tabler", "tabler:link"],
+  ["lucide", "lucide:link"],
+  ["heroicons", "heroicons:link"],
+  ["phosphor", "ph:link"],
+  ["solar", "solar:link-linear"],
+  ["remix", "ri:link"],
+  ["material", "mdi:link"],
+  ["carbon", "carbon:link"],
+  ["fluent", "fluent:link-24-regular"],
+  ["radix", "radix-icons:link-2"],
+  ["pixelart", "pixelarticons:link"]
+];
+---
+
+<span class="heading-reference__icon" aria-hidden="true">
+  {iconSources.map(([style, name]) => (
+    <Icon name={name} class="heading-reference__svg" data-icon-style={style} />
+  ))}
+</span>

@@ -8,6 +8,17 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(fits).toBe(true);
 }
 
+async function resolvedColor(page: Page, token: string) {
+  return page.evaluate((tokenName) => {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${tokenName})`;
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  }, token);
+}
+
 test.describe("project case studies", () => {
   test("work index lists the real projects and removes placeholders", async ({ page }) => {
     await page.goto("/work/");
@@ -39,35 +50,59 @@ test.describe("project case studies", () => {
     expect(titleLayout.statusTop).toBeLessThan(titleLayout.titleBottom);
     const markdownHeadings = page.locator(".prose :is(h1, h2, h3, h4, h5, h6)[id]");
     const headingCopyButtons = page.locator(".heading-reference");
+    const [mutedColor, accentColor] = await Promise.all([resolvedColor(page, "--muted"), resolvedColor(page, "--accent-readable")]);
     await expect(markdownHeadings).toHaveCount(4);
     await expect(headingCopyButtons).toHaveCount(4);
     await expect(headingCopyButtons.first()).toHaveAttribute("data-heading-copy", "overview");
     await expect(headingCopyButtons.first()).toHaveAttribute("data-copy-path", "/work/proto-shape/#overview");
     await expect(headingCopyButtons.first()).toHaveCSS("position", "absolute");
+    await expect(headingCopyButtons.first()).toHaveCSS("width", "36px");
+    await expect(headingCopyButtons.first().locator(".heading-reference__svg")).toHaveCount(11);
     await expect(headingCopyButtons.first()).toHaveCSS("opacity", "0");
     await markdownHeadings.first().hover();
     await expect(headingCopyButtons.first()).toHaveCSS("opacity", "1");
-    const headingReferenceGeometry = await markdownHeadings.first().evaluate((heading) => {
-      const button = heading.querySelector<HTMLElement>(".heading-reference")!;
+    await expect(headingCopyButtons.first()).toHaveCSS("color", mutedColor);
+    await headingCopyButtons.first().hover();
+    await expect(headingCopyButtons.first()).toHaveCSS("color", accentColor);
+    const iconStyle = await headingCopyButtons.first().locator(".heading-reference__svg").evaluateAll((icons) =>
+      icons.filter((icon) => getComputedStyle(icon).display !== "none").map((icon) => icon.getAttribute("data-icon-style"))
+    );
+    expect(iconStyle).toEqual(["tabler"]);
+    await page.getByRole("button", { name: "Open debug menu" }).click();
+    await page.getByRole("button", { name: "Phosphor", exact: true }).click();
+    await expect(headingCopyButtons.first().locator('[data-icon-style="phosphor"]')).toBeVisible();
+    await page.getByRole("button", { name: "Close debug menu" }).click();
+    await markdownHeadings.nth(2).evaluate((heading) => {
+      (heading as HTMLElement).style.maxWidth = "260px";
+      window.dispatchEvent(new Event("resize"));
+    });
+    const headingReferenceGeometry = await markdownHeadings.nth(2).evaluate((heading) => {
+      const button = heading.querySelector<HTMLElement>(":scope > .heading-reference")!;
       const range = document.createRange();
-      range.selectNodeContents(heading.firstChild ?? heading);
-      const title = range.getBoundingClientRect();
+      range.selectNodeContents(heading);
+      range.setEndBefore(button);
+      const lines = Array.from(range.getClientRects()).filter(({ width, height }) => width && height);
+      const title = lines[window.innerWidth <= 720 ? lines.length - 1 : 0];
       const icon = button.getBoundingClientRect();
+      const headingRect = heading.getBoundingClientRect();
       return {
+        lineCount: lines.length,
         titleCenterY: title.top + title.height / 2,
         iconCenterY: icon.top + icon.height / 2,
-        headingLeft: heading.getBoundingClientRect().left,
-        headingRight: heading.getBoundingClientRect().right,
+        headingLeft: headingRect.left,
+        headingRight: headingRect.right,
         iconLeft: icon.left,
         iconRight: icon.right,
+        expectedMobileLeft: Math.min(title.right + 6, headingRect.right - icon.width),
         viewportWidth: window.innerWidth
       };
     });
-    expect(Math.abs(headingReferenceGeometry.iconCenterY - headingReferenceGeometry.titleCenterY)).toBeLessThanOrEqual(8);
+    expect(headingReferenceGeometry.lineCount).toBeGreaterThan(1);
+    expect(Math.abs(headingReferenceGeometry.iconCenterY - headingReferenceGeometry.titleCenterY)).toBeLessThanOrEqual(1);
     expect(headingReferenceGeometry.iconLeft).toBeGreaterThanOrEqual(0);
     expect(headingReferenceGeometry.iconRight).toBeLessThanOrEqual(headingReferenceGeometry.viewportWidth);
     if (page.viewportSize()!.width <= 720) {
-      expect(headingReferenceGeometry.iconLeft).toBeGreaterThanOrEqual(headingReferenceGeometry.headingRight);
+      expect(Math.abs(headingReferenceGeometry.iconLeft - headingReferenceGeometry.expectedMobileLeft)).toBeLessThanOrEqual(1);
     } else {
       expect(headingReferenceGeometry.iconRight).toBeLessThanOrEqual(headingReferenceGeometry.headingLeft);
     }
@@ -83,6 +118,16 @@ test.describe("project case studies", () => {
     );
     await expect(projectLinks.getByRole("link")).toHaveCount(3);
     await expect(projectLinks.locator(".external-link-icon")).toHaveCount(3);
+    const firstProjectLink = projectLinks.getByRole("link").first();
+    await firstProjectLink.hover();
+    await expect
+      .poll(async () =>
+        firstProjectLink.evaluate((link) => ({
+          color: getComputedStyle(link).color,
+          transform: new DOMMatrixReadOnly(getComputedStyle(link).transform).m42
+        }))
+      )
+      .toEqual({ color: accentColor, transform: -2 });
     await expect(page.locator("video")).toHaveAttribute(
       "src",
       "https://github.com/HLCaptain/proto-shape/assets/22623259/730a527c-d6ba-4eaa-93b6-dbcbbd8aba52"

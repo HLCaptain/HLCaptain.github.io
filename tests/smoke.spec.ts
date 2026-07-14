@@ -629,6 +629,11 @@ test.describe("site shell", () => {
     await expect(root).not.toHaveClass(/sidebar-open/);
     await expect(toggle).toHaveAccessibleName("Open navigation");
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect
+      .poll(async () =>
+        toggle.evaluate((button) => getComputedStyle(button).backgroundColor !== "rgba(0, 0, 0, 0)")
+      )
+      .toBe(true);
     await expect(backdrop).toHaveCSS("pointer-events", "none");
     await expect.poll(async () => (await sidebar.boundingBox())?.x ?? 0).toBeLessThan(0);
 

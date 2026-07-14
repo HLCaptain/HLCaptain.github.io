@@ -1400,10 +1400,34 @@ function initSignals() {
   });
 }
 
+function positionHeadingReferences() {
+  const mobile = window.matchMedia("(max-width: 720px)").matches;
+
+  document.querySelectorAll(".prose :is(h1, h2, h3, h4, h5, h6)[id]").forEach((heading) => {
+    const button = heading.querySelector(":scope > [data-heading-copy]");
+    if (!(button instanceof HTMLElement)) return;
+
+    const range = document.createRange();
+    range.selectNodeContents(heading);
+    range.setEndBefore(button);
+    const lines = Array.from(range.getClientRects()).filter(({ width, height }) => width && height);
+    const line = lines[mobile ? lines.length - 1 : 0];
+    if (!line) return;
+
+    const headingRect = heading.getBoundingClientRect();
+    const x = mobile
+      ? Math.max(0, Math.min(line.right - headingRect.left + 6, headingRect.width - button.offsetWidth))
+      : -button.offsetWidth - 8;
+    const y = line.top - headingRect.top + line.height / 2;
+    heading.style.setProperty("--heading-reference-x", `${x}px`);
+    heading.style.setProperty("--heading-reference-y", `${y}px`);
+  });
+}
+
 function initHeadingReferences() {
   const headings = document.querySelectorAll(".prose :is(h1, h2, h3, h4, h5, h6)[id]");
-  const icon =
-    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71m-4.25 4.25a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>';
+  const iconTemplate = document.querySelector("template[data-heading-reference-icon]");
+  if (!(iconTemplate instanceof HTMLTemplateElement)) return;
 
   headings.forEach((heading) => {
     if (heading.querySelector(":scope > [data-heading-copy]")) return;
@@ -1416,7 +1440,7 @@ function initHeadingReferences() {
     button.dataset.copyPath = `${window.location.pathname}${window.location.search}#${heading.id}`;
     button.setAttribute("aria-label", `Copy link to ${label}`);
     button.title = "Copy link";
-    button.innerHTML = icon;
+    button.append(iconTemplate.content.cloneNode(true));
     button.addEventListener("click", async () => {
       const url = new URL(window.location.href);
       url.hash = heading.id;
@@ -1433,6 +1457,12 @@ function initHeadingReferences() {
     });
     heading.append(button);
   });
+
+  window.requestAnimationFrame(positionHeadingReferences);
+  if (!window.__hlHeadingReferenceResizeBound) {
+    window.__hlHeadingReferenceResizeBound = true;
+    window.addEventListener("resize", positionHeadingReferences, { passive: true });
+  }
 }
 
 function getSignal(element, key) {
