@@ -879,13 +879,23 @@ test.describe("site shell", () => {
 
     const root = page.locator("html");
     const panel = page.locator(".sidebar-panel");
-    const aboutLink = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", {
-      name: "About",
+    const longArticleLink = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", {
+      name: "Interface motion that preserves orientation",
       exact: true
     });
-    const aboutHandle = await aboutLink.elementHandle();
-    expect(aboutHandle).not.toBeNull();
-    if (!aboutHandle) return;
+    const longArticleHandle = await longArticleLink.elementHandle();
+    expect(longArticleHandle).not.toBeNull();
+    if (!longArticleHandle) return;
+    const expandedLabelLayout = await longArticleHandle.evaluate((node) => {
+      const label = node.querySelector(".sidebar-row__label")!;
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      return {
+        width: Math.round(label.getBoundingClientRect().width),
+        lines: new Set(Array.from(range.getClientRects(), (rect) => Math.round(rect.top))).size
+      };
+    });
+    expect(expandedLabelLayout.lines).toBeGreaterThan(1);
     const moveOutside = () => page.mouse.move((viewport?.width ?? 1440) - 24, (viewport?.height ?? 960) / 2);
 
     await page.getByRole("button", { name: "Collapse sidebar" }).click();
@@ -893,11 +903,12 @@ test.describe("site shell", () => {
     await expect(root).not.toHaveClass(/sidebar-overlay-open/);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
 
-    const closedState = await aboutHandle.evaluate((node) => {
+    const closedState = await longArticleHandle.evaluate((node) => {
       return {
         connected: node.isConnected,
         display: getComputedStyle(node).display,
         width: Math.round(node.getBoundingClientRect().width),
+        labelWidth: Math.round(node.querySelector(".sidebar-row__label")!.getBoundingClientRect().width),
         navItemsDisplay: Array.from(document.querySelectorAll(".nav-items")).map(
           (items) => getComputedStyle(items).display
         ),
@@ -909,26 +920,29 @@ test.describe("site shell", () => {
     expect(closedState.connected).toBe(true);
     expect(closedState.display).toBe("grid");
     expect(closedState.width).toBeGreaterThan(30);
+    expect(closedState.labelWidth).toBe(expandedLabelLayout.width);
     expect(closedState.navItemsDisplay.every((display) => display === "grid")).toBe(true);
     expect(closedState.leafWidths.length).toBeGreaterThan(0);
     expect(closedState.leafWidths.every((width) => width > 30)).toBe(true);
 
     const isSharedMidTransition = () =>
-      aboutHandle.evaluate((node) => {
+      longArticleHandle.evaluate((node, expectedLabelWidth) => {
         const panelWidth = document.querySelector(".sidebar-panel")!.getBoundingClientRect().width;
-        const labelOpacity = Number.parseFloat(getComputedStyle(node.querySelector(".sidebar-row__label")!).opacity);
+        const label = node.querySelector(".sidebar-row__label")!;
+        const labelOpacity = Number.parseFloat(getComputedStyle(label).opacity);
         return (
           node.isConnected &&
           getComputedStyle(node).display === "grid" &&
           panelWidth > 56 &&
           panelWidth < 264 &&
+          Math.abs(label.getBoundingClientRect().width - expectedLabelWidth) <= 1 &&
           labelOpacity > 0 &&
           labelOpacity < 1
         );
-      });
+      }, expandedLabelLayout.width);
     const motionPoll = { timeout: 1000, intervals: Array.from({ length: 40 }, () => 16) };
 
-    const closedBox = await aboutLink.boundingBox();
+    const closedBox = await longArticleLink.boundingBox();
     expect(closedBox).not.toBeNull();
     await page.mouse.move(
       (closedBox?.x ?? 0) + (closedBox?.width ?? 0) / 2,
@@ -942,7 +956,7 @@ test.describe("site shell", () => {
     await expect.poll(isSharedMidTransition, motionPoll).toBe(true);
     await expect(root).not.toHaveClass(/sidebar-overlay-open/);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
-    await expect.poll(async () => aboutHandle.evaluate((node) => node.isConnected)).toBe(true);
+    await expect.poll(async () => longArticleHandle.evaluate((node) => node.isConnected)).toBe(true);
   });
 
   test("desktop sidebar collapses to icons and expands again", async ({ page }) => {

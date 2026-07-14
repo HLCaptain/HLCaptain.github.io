@@ -1163,6 +1163,28 @@ svg {
 }
 
 @media (min-width: 721px) {
+  :root.sidebar-collapsed .sidebar-row__label {
+    inline-size: calc(
+      var(--sidebar-width)
+      - (var(--sidebar-outer-padding) * 2)
+      - (var(--sidebar-inner-padding) * 2)
+      - (var(--sidebar-row-gap) * 2)
+      - var(--sidebar-row-icon-size)
+      - 24px
+    );
+  }
+
+  :root.sidebar-collapsed .sidebar-row:has(> .external-link-icon) > .sidebar-row__label {
+    inline-size: calc(
+      var(--sidebar-width)
+      - (var(--sidebar-outer-padding) * 2)
+      - (var(--sidebar-inner-padding) * 2)
+      - (var(--sidebar-row-gap) * 2)
+      - var(--sidebar-row-icon-size)
+      - 39px
+    );
+  }
+
   .sidebar-collapsed .site-sidebar {
     width: var(--sidebar-collapsed-width);
     min-width: var(--sidebar-collapsed-width);
