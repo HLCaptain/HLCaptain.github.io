@@ -10,11 +10,10 @@ type Props = {
   updatedAt?: Date;
   tags?: string[];
   eyebrow: string;
-  backHref?: string;
   backLabel?: string;
 };
 
-const { title, description, publishedAt, updatedAt, tags = [], eyebrow, backHref, backLabel } = Astro.props;
+const { title, description, publishedAt, updatedAt, tags = [], eyebrow, backLabel } = Astro.props;
 ---
 
 <BaseLayout title={title} description={description}>
@@ -23,7 +22,6 @@ const { title, description, publishedAt, updatedAt, tags = [], eyebrow, backHref
       eyebrow={eyebrow}
       title={title}
       description={description}
-      backHref={backHref}
       backLabel={backLabel}
     />
     <slot name="subheader" />

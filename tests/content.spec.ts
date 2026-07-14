@@ -37,8 +37,8 @@ test.describe("project case studies", () => {
 
     const pageHeader = page.locator(".page-header");
     await expect(pageHeader.getByRole("heading", { name: "ProtoShape" })).toBeVisible();
-    await expect(pageHeader.locator(".page-header__back")).toHaveText("Projects");
-    await expect(pageHeader.locator(".page-header__back")).toHaveAttribute("href", "/work/");
+    await expect(pageHeader.getByRole("button", { name: "Projects" })).toHaveAttribute("data-history-back", "");
+    await expect(pageHeader.locator("a.page-header__back")).toHaveCount(0);
     await expect(pageHeader.locator(".page-header__back-icon svg")).toHaveCount(1);
     await expect(pageHeader.locator(".page-header__title-row .eyebrow")).toHaveText("shipped");
     const titleLayout = await pageHeader.locator(".page-header__title-row").evaluate((node) => {
@@ -59,11 +59,16 @@ test.describe("project case studies", () => {
     await expect(headingCopyButtons.first()).toHaveCSS("width", "36px");
     await expect(headingCopyButtons.first().locator(".heading-reference__svg")).toHaveCount(11);
     await expect(headingCopyButtons.first()).toHaveCSS("opacity", "0");
-    await markdownHeadings.first().hover();
+    await markdownHeadings.first().hover({ position: { x: 2, y: 2 } });
     await expect(headingCopyButtons.first()).toHaveCSS("opacity", "1");
     await expect(headingCopyButtons.first()).toHaveCSS("color", mutedColor);
     await headingCopyButtons.first().hover();
     await expect(headingCopyButtons.first()).toHaveCSS("color", accentColor);
+    const viewport = page.viewportSize()!;
+    await page.mouse.down();
+    await page.mouse.move(viewport.width - 2, viewport.height - 2);
+    await page.mouse.up();
+    await expect(headingCopyButtons.first()).toHaveCSS("opacity", "0");
     const iconStyle = await headingCopyButtons.first().locator(".heading-reference__svg").evaluateAll((icons) =>
       icons.filter((icon) => getComputedStyle(icon).display !== "none").map((icon) => icon.getAttribute("data-icon-style"))
     );
@@ -133,6 +138,16 @@ test.describe("project case studies", () => {
       "https://github.com/HLCaptain/proto-shape/assets/22623259/730a527c-d6ba-4eaa-93b6-dbcbbd8aba52"
     );
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("project back control traverses browser history", async ({ page }) => {
+    await page.goto("/work/");
+    await page.locator("#main-content").getByRole("link", { name: "Open ProtoShape" }).click();
+    await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
+
+    await page.getByRole("button", { name: "Projects" }).click();
+    await expect(page).toHaveURL(/\/work\/$/);
+    await expect(page.getByRole("heading", { name: "Selected work" })).toBeVisible();
   });
 
   test("SplitEasy clearly renders as a private active prototype", async ({ page }) => {

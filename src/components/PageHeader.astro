@@ -5,19 +5,18 @@ type Props = {
   eyebrow: string;
   title: string;
   description: string;
-  backHref?: string;
   backLabel?: string;
 };
 
-const { eyebrow, title, description, backHref, backLabel } = Astro.props;
+const { eyebrow, title, description, backLabel } = Astro.props;
 ---
 
 <header class="page-header">
-  {backHref && backLabel && (
-    <a class="page-header__back" href={backHref}>
+  {backLabel && (
+    <button class="page-header__back" type="button" data-history-back>
       <span class="page-header__back-icon" aria-hidden="true"><Icon name="lucide:arrow-left" /></span>
       <span>{backLabel}</span>
-    </a>
+    </button>
   )}
   <div class="page-header__title-row">
     <h1>{title}</h1>

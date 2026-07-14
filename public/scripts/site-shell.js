@@ -1271,6 +1271,12 @@ function handleTransitionPreparation(event) {
 }
 
 function handleNavigationIntent(event) {
+  if (event.target.closest?.("[data-history-back]")) {
+    event.preventDefault();
+    window.history.back();
+    return;
+  }
+
   if (shouldConsumeInterceptedClick(event)) return;
 
   const link = event.target.closest?.("a[href]");

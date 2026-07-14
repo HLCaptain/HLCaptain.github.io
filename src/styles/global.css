@@ -839,9 +839,13 @@ svg {
   gap: 8px;
   align-items: center;
   margin-bottom: 20px;
+  padding: 0;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.78rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
   text-decoration: none;
   text-transform: uppercase;
 }
@@ -1386,8 +1390,7 @@ svg {
     transform 160ms var(--ease);
 }
 
-.prose :is(h1, h2, h3, h4, h5, h6)[id]:hover .heading-reference,
-.prose :is(h1, h2, h3, h4, h5, h6)[id]:focus-within .heading-reference {
+.prose :is(h1, h2, h3, h4, h5, h6)[id]:hover .heading-reference {
   opacity: 1;
 }
 
@@ -1395,6 +1398,7 @@ svg {
 .heading-reference:focus-visible,
 .heading-reference.is-copied {
   color: var(--accent-readable);
+  opacity: 1;
   border-color: var(--accent-readable);
   background: color-mix(in srgb, var(--accent-readable) 12%, var(--surface-soft));
 }
