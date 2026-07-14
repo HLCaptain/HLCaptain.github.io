@@ -1,0 +1,62 @@
+---
+title: "ProtoShape"
+description: "An open-source Godot 4 editor plugin for rapid 3D blockouts, combining dynamic CSG shapes with reusable custom-gizmo tooling."
+publishedAt: 2026-07-13
+tags: ["godot", "gdscript", "editor-tools", "3d"]
+featured: true
+status: "shipped"
+links:
+  - label: "GitHub repository"
+    href: "https://github.com/HLCaptain/proto-shape"
+  - label: "Latest release"
+    href: "https://github.com/HLCaptain/proto-shape/releases/latest"
+  - label: "Feature showcase"
+    href: "https://youtube.com/playlist?list=PL1C7-40JVAoKh9hsaS_wFPziyKAF1DTJ2&si=0ItpHT7-StKODXbC"
+---
+
+import ProjectFacts from "../../components/content/ProjectFacts.astro";
+
+<ProjectFacts
+  items={[
+    { label: "Role", value: "Creator and maintainer" },
+    { label: "Release", value: "Open source · v1.1.6" },
+    { label: "Stack", value: "Godot 4.5 · GDScript · CSG" },
+    { label: "Distribution", value: "Godot AssetLib and GitHub Releases" }
+  ]}
+/>
+
+## Overview
+
+ProtoShape shortens the distance between a rough 3D idea and a playable Godot scene. Instead of
+rebuilding temporary geometry whenever a level changes, developers can place a dynamic shape,
+adjust it directly in the editor, and keep iterating.
+
+The project ships both a practical blockout tool and a foundation for other editor plugins:
+**ProtoRamp** handles common ramp and staircase geometry, while **ProtoGizmoWrapper** and
+**ProtoGizmoUtils** make custom drag handles reusable across `Node3D` tools.
+
+## What it solves
+
+Level blockouts change constantly. A ramp that looked right yesterday may need a different rise,
+width, step count, collision shape, or navigation surface today. Recreating meshes for every pass
+slows down the feedback loop, while inspector-only controls make spatial edits harder to judge.
+
+ProtoRamp keeps those decisions editable in the scene. It supports adjustable dimensions and step
+count, standard and fine grid snapping, filled or hollow geometry for underpasses, collision
+generation, and navigation meshes. Gizmo-based edits participate in Godot's undo/redo history, so
+shape experimentation stays reversible.
+
+## Editor tooling as a reusable system
+
+The harder problem was not generating a staircase. It was making 3D handles feel native without
+reimplementing camera projection and drag-plane math for every new shape.
+
+The gizmo utilities centralize that math and let custom nodes expose focused editing handles with a
+small amount of project-specific code. Runtime shape logic is kept separate from editor-only gizmo
+classes, so exported games do not inherit an unnecessary dependency on Godot's editor APIs.
+
+## Current state
+
+ProtoShape is released under the MIT license and installable from Godot's Asset Library or GitHub
+Releases. The current version targets Godot 4.5 and provides a reusable base for adding more dynamic
+blockout shapes without duplicating the editor-integration work.

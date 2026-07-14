@@ -23,6 +23,9 @@ Each file needs frontmatter matching `src/content.config.ts`. Published entries 
 
 Use Markdown for prose-only entries. Use MDX when an entry needs imported Astro components, interactive islands, or expressions alongside Markdown. Imports belong immediately after the frontmatter.
 
+For portfolio entries, follow the [project summary authoring guide](docs/project-summaries.md) and
+start from the [MDX project template](docs/project-summary-template.mdx).
+
 ## GitHub Pages production
 
 The production workflow targets the profile-root repository `HLCaptain/HLCaptain.github.io` and is manual-only for now. Run it from the Actions tab when the site is ready; add a `push` trigger for `main` later if automatic production deploys are wanted.
