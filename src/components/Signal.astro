@@ -275,6 +275,7 @@ const { items, label = "Site preview signal" } = Astro.props;
   .signal__panel {
     min-inline-size: 0;
     min-block-size: 0;
+    block-size: calc(var(--signal-panel-height) - 2px);
     padding: 0 var(--signal-panel-space) var(--signal-panel-space);
     overflow: hidden;
     opacity: 0;

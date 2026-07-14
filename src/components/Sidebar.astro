@@ -1,6 +1,6 @@
 ---
-import { siteConfig, type NavItem } from "../site.config";
-import { stripTrailingSlash } from "@lib/content";
+import { siteConfig } from "../site.config";
+import { getPublishedArticles, getPublishedProjects, stripTrailingSlash } from "@lib/content";
 import { Icon } from "astro-icon/components";
 import SidebarRow from "./SidebarRow.astro";
 
@@ -11,19 +11,41 @@ type Props = {
 const { currentPath } = Astro.props;
 const normalizedPath = stripTrailingSlash(currentPath);
 
-const isExternal = (item: NavItem) => "external" in item && item.external === true;
-
-const isActive = (item: NavItem) => {
-  if (isExternal(item)) return false;
-  const href = stripTrailingSlash(item.href);
-  if (href === "/") return normalizedPath === "/";
-  return normalizedPath === href || normalizedPath.startsWith(`${href}/`);
+type NavigationItem = {
+  label: string;
+  href: string;
+  glyph: string;
+  external?: true;
 };
+
+const isExternal = (item: NavigationItem) => item.external === true;
+
+const isActive = (item: NavigationItem) => {
+  if (isExternal(item)) return false;
+  return normalizedPath === stripTrailingSlash(item.href);
+};
+
+const [articles, projects] = await Promise.all([getPublishedArticles(), getPublishedProjects()]);
+const articleItems = articles.map((article) => ({
+  label: article.data.title,
+  href: `/articles/${article.id}/`,
+  glyph: "writing"
+}));
+const projectItems = projects.map((project) => ({
+  label: project.data.title,
+  href: `/work/${project.id}/`,
+  glyph: "work"
+}));
 
 let navIndex = 0;
 const navigation = siteConfig.navigation.map((group) => ({
   ...group,
-  items: group.items.map((item) => ({
+  items: (group.label === "Articles"
+    ? [group.items[0], ...articleItems, ...group.items.slice(1)]
+    : group.label === "Projects"
+      ? [group.items[0], ...projectItems]
+      : group.items
+  ).map((item) => ({
     ...item,
     navIndex: navIndex++
   }))

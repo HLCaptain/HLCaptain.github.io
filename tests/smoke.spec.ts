@@ -278,7 +278,7 @@ test.describe("site shell", () => {
       await page.getByRole("button", { name: "Open navigation" }).click();
     }
 
-    await nav.getByRole("link", { name: "Articles", exact: true }).click();
+    await nav.getByRole("link", { name: "All articles", exact: true }).click();
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(page.getByRole("heading", { name: "Articles" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-page-direction", "down");
@@ -302,11 +302,99 @@ test.describe("site shell", () => {
       )
     ).toBe(true);
     await expect(page.locator("#main-content")).not.toHaveClass(/is-page-/);
-    await expect(nav.getByRole("link", { name: "Articles", exact: true })).toHaveAttribute(
+    await expect(nav.getByRole("link", { name: "All articles", exact: true })).toHaveAttribute(
       "aria-current",
       "page"
     );
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("sidebar selects individual articles and projects in every layout", async ({ page, isMobile }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const articlesGroup = page.locator("[data-nav-group='Articles']");
+
+    await expect(articlesGroup.locator('a[href^="/articles/"]')).toHaveCount(4);
+    await expect(page.locator("[data-nav-group='Projects'] a[href^='/work/']")).toHaveCount(4);
+
+    if (isMobile) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+    } else if ((page.viewportSize()?.width ?? 0) >= 1200) {
+      await page.getByRole("button", { name: "Collapse sidebar" }).click();
+      await page.mouse.move(1000, 520);
+      await expect(root).not.toHaveClass(/sidebar-overlay-open/);
+      await expect(articlesGroup.locator(".nav-items")).toHaveCSS("display", "none");
+      await articlesGroup.locator("summary").focus();
+      await expect(root).toHaveClass(/sidebar-overlay-open/);
+    }
+
+    const articleLink = nav.getByRole("link", {
+      name: "Interface motion that preserves orientation",
+      exact: true
+    });
+    await articleLink.click();
+    await expect(page).toHaveURL(/\/articles\/interface-motion\/$/);
+    await expect(articleLink).toHaveAttribute("aria-current", "page");
+    await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
+    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+
+    const projectsGroup = page.locator("[data-nav-group='Projects']");
+    if ((page.viewportSize()?.width ?? 0) >= 1200) {
+      await projectsGroup.locator("summary").focus();
+      await expect(root).toHaveClass(/sidebar-overlay-open/);
+    }
+
+    await projectsGroup.locator("summary").click();
+    await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
+    await projectsGroup.locator("summary").click();
+    await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+
+    const projectLink = nav.getByRole("link", { name: "Proto Shape", exact: true });
+    await projectLink.click();
+    await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
+    await expect(projectLink).toHaveAttribute("aria-current", "page");
+    await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
+
+    if ((page.viewportSize()?.width ?? 0) >= 1200) {
+      await page.locator("[data-nav-group='Network'] summary").focus();
+      await expect(root).toHaveClass(/sidebar-overlay-open/);
+    }
+    const emailLink = nav.getByRole("link", { name: "Email", exact: true });
+    await emailLink.scrollIntoViewIfNeeded();
+    await expect(emailLink).toBeVisible();
+    expect(
+      await emailLink.evaluate((node) => {
+        const link = node.getBoundingClientRect();
+        const navigation = node.closest(".sidebar-nav")!.getBoundingClientRect();
+        return link.top >= navigation.top - 1 && link.bottom <= navigation.bottom + 1;
+      })
+    ).toBe(true);
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("active sidebar leaf reopens a remembered closed group", async ({ page }) => {
+    await page.goto("/");
+    await page.evaluate(() =>
+      window.sessionStorage.setItem(
+        "hlcaptain-nav-groups",
+        JSON.stringify({ Index: true, Articles: false, Projects: false, Network: true })
+      )
+    );
+
+    await page.goto("/articles/accent-color-systems/");
+    await page.waitForLoadState("networkidle");
+
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const articlesGroup = page.locator("[data-nav-group='Articles']");
+    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    await expect(nav.getByRole("link", { name: "Accent color as a local preference" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
   });
 
   test("article card navigation enters with a vertical page direction", async ({ page }) => {
@@ -326,7 +414,7 @@ test.describe("site shell", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    const allArticles = page.getByRole("link", { name: "All articles" });
+    const allArticles = page.locator("#main-content").getByRole("link", { name: "All articles" });
     await allArticles.scrollIntoViewIfNeeded();
     const overviewTargetScrollY = await allArticles.evaluate((node) => {
       const rect = node.getBoundingClientRect();
@@ -635,7 +723,7 @@ test.describe("site shell", () => {
         })
     );
 
-    await nav.getByRole("link", { name: "Articles", exact: true }).click({ noWaitAfter: true });
+    await nav.getByRole("link", { name: "All articles", exact: true }).click({ noWaitAfter: true });
     const transitionSamples = await toggleTransitionSamples;
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveClass(/sidebar-open/);
@@ -677,7 +765,7 @@ test.describe("site shell", () => {
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
 
-    await nav.getByRole("link", { name: "Articles", exact: true }).click();
+    await nav.getByRole("link", { name: "All articles", exact: true }).click();
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
 
@@ -685,8 +773,8 @@ test.describe("site shell", () => {
     await expect(page).toHaveURL(/\/about\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "up");
 
-    await nav.getByRole("link", { name: "Articles", exact: true }).click({ noWaitAfter: true });
-    await nav.getByRole("link", { name: "Projects", exact: true }).click();
+    await nav.getByRole("link", { name: "All articles", exact: true }).click({ noWaitAfter: true });
+    await nav.getByRole("link", { name: "All projects", exact: true }).click();
     await expect(page).toHaveURL(/\/work\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
     expect(pageErrors.filter((message) => message.includes("interceptedSidebarNavigationClick"))).toEqual([]);
@@ -701,7 +789,7 @@ test.describe("site shell", () => {
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
 
-    await nav.getByRole("link", { name: "Articles", exact: true }).click();
+    await nav.getByRole("link", { name: "All articles", exact: true }).click();
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
 
@@ -726,8 +814,8 @@ test.describe("site shell", () => {
 
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
 
-    await nav.getByRole("link", { name: "Articles", exact: true }).click({ noWaitAfter: true });
-    await nav.getByRole("link", { name: "Projects", exact: true }).click({ noWaitAfter: true });
+    await nav.getByRole("link", { name: "All articles", exact: true }).click({ noWaitAfter: true });
+    await nav.getByRole("link", { name: "All projects", exact: true }).click({ noWaitAfter: true });
     await expect(page).toHaveURL(/\/work\/$/);
     await expect(page.getByRole("heading", { name: "Selected work", level: 1 })).toBeVisible();
   });
@@ -740,8 +828,8 @@ test.describe("site shell", () => {
 
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    const articles = nav.getByRole("link", { name: "Articles", exact: true });
-    const projects = nav.getByRole("link", { name: "Projects", exact: true });
+    const articles = nav.getByRole("link", { name: "All articles", exact: true });
+    const projects = nav.getByRole("link", { name: "All projects", exact: true });
 
     await articles.click({ noWaitAfter: true });
     await expect(articles).toHaveClass(/is-selection-entering/);
@@ -838,7 +926,7 @@ test.describe("site shell", () => {
     );
     expect(expandedMetrics.groupPaddingLeft).toBe(expandedMetrics.itemPaddingLeft);
     expect(expandedMetrics.selectedArrowInsideGroup).toBe(false);
-    const expandedActive = await nav.getByRole("link", { name: "Articles", exact: true }).evaluate((node) => {
+    const expandedActive = await nav.getByRole("link", { name: "All articles", exact: true }).evaluate((node) => {
       const style = getComputedStyle(node);
       return {
         border: style.borderColor,
@@ -944,7 +1032,7 @@ test.describe("site shell", () => {
     await expect
       .poll(async () =>
         nav
-          .getByRole("link", { name: "Articles", exact: true })
+          .getByRole("link", { name: "All articles", exact: true })
           .locator("span")
           .last()
           .evaluate((node) => getComputedStyle(node).display)
@@ -982,7 +1070,7 @@ test.describe("site shell", () => {
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
 
-    const collapsedArticlesBox = await nav.getByRole("link", { name: "Articles", exact: true }).boundingBox();
+    const collapsedArticlesBox = await page.locator("[data-nav-group='Articles'] summary").boundingBox();
     expect(collapsedArticlesBox).not.toBeNull();
     await page.mouse.move(
       (collapsedArticlesBox?.x ?? 0) + (collapsedArticlesBox?.width ?? 0) / 2,
@@ -1094,7 +1182,7 @@ test.describe("site shell", () => {
     await expect
       .poll(async () =>
         nav
-          .getByRole("link", { name: "Articles", exact: true })
+          .getByRole("link", { name: "All articles", exact: true })
           .locator("span")
           .last()
           .evaluate((node) => getComputedStyle(node).display)
@@ -1126,32 +1214,19 @@ test.describe("site shell", () => {
 
     await aboutLink.focus();
     await page.mouse.move(1000, 520);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBeGreaterThan(240);
+
+    await page.getByRole("button", { name: "Open debug menu" }).focus();
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
 
-    await page.mouse.move(1000, 520);
-    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
-
     const labelDisplay = await nav
-      .getByRole("link", { name: "Articles", exact: true })
+      .locator('a[href="/articles/"]')
       .locator("span")
       .last()
       .evaluate((node) => getComputedStyle(node).display);
     expect(labelDisplay).toBe("none");
-    const collapsedActive = await nav.getByRole("link", { name: "Articles", exact: true }).evaluate((node) => {
-      const style = getComputedStyle(node);
-      return {
-        border: style.borderColor,
-        boxShadow: style.boxShadow,
-        background: style.backgroundColor,
-        paddingLeft: style.paddingLeft,
-        paddingRight: style.paddingRight
-      };
-    });
-    expect(collapsedActive.border).toBe(expandedActive.border);
-    expect(collapsedActive.boxShadow).toBe(expandedActive.boxShadow);
-    expect(collapsedActive.background).not.toBe("rgba(0, 0, 0, 0)");
-    expect(collapsedActive.paddingLeft).toBe(collapsedActive.paddingRight);
     const collapsedSpacing = await page.evaluate(() => {
       const number = (value: string) => Math.round(Number.parseFloat(value));
       const box = (selector: string) => {
@@ -1192,12 +1267,9 @@ test.describe("site shell", () => {
       groupPaddingLeft: 0,
       groupWidth: 34,
       summaryWidth: 32,
-      itemWidth: 32
+      itemWidth: 0
     });
-    const glyphBox = await nav
-      .getByRole("link", { name: "Articles", exact: true })
-      .locator(".pixel-glyph")
-      .boundingBox();
+    const glyphBox = await page.locator("[data-nav-group='Articles'] summary .pixel-glyph").boundingBox();
     expect(glyphBox?.width ?? 0).toBeGreaterThan(8);
 
     const collapsedAlignment = await page.evaluate(() => {
@@ -1219,9 +1291,6 @@ test.describe("site shell", () => {
       const groupDeltas = Array.from(document.querySelectorAll(".nav-group__icon"))
         .filter(isVisible)
         .map((icon) => Math.abs(centerOf(icon) - panelCenter));
-      const itemDeltas = Array.from(document.querySelectorAll(".nav-item .sidebar-row__icon"))
-        .filter(isVisible)
-        .map((icon) => Math.abs(centerOf(icon) - panelCenter));
       const group = document.querySelector(".nav-group");
       const arrow = group?.querySelector(".group-toggle-icon");
       const glyph = group?.querySelector(".nav-group__icon .pixel-glyph");
@@ -1229,7 +1298,6 @@ test.describe("site shell", () => {
       const glyphStyle = glyph ? getComputedStyle(glyph) : null;
       return {
         maxGroupDelta: Math.max(...groupDeltas),
-        maxItemDelta: Math.max(...itemDeltas),
         arrowVisibility: arrowStyle?.visibility,
         arrowOpacity: Number.parseFloat(arrowStyle?.opacity ?? "1"),
         glyphVisibility: glyphStyle?.visibility,
@@ -1237,7 +1305,6 @@ test.describe("site shell", () => {
       };
     });
     expect(collapsedAlignment.maxGroupDelta).toBeLessThanOrEqual(1);
-    expect(collapsedAlignment.maxItemDelta).toBeLessThanOrEqual(1);
     expect(collapsedAlignment.arrowVisibility).toBe("hidden");
     expect(collapsedAlignment.arrowOpacity).toBeLessThan(0.2);
     expect(collapsedAlignment.glyphVisibility).toBe("visible");
@@ -1332,7 +1399,7 @@ test.describe("site shell", () => {
     await sidebar.hover();
     await expect(root).toHaveClass(/sidebar-overlay-open/);
 
-    const projectsLink = nav.getByRole("link", { name: "Projects", exact: true });
+    const projectsLink = nav.getByRole("link", { name: "All projects", exact: true });
     const projectsBox = await projectsLink.boundingBox();
     expect(projectsBox).not.toBeNull();
     await page.mouse.move(
@@ -1396,7 +1463,7 @@ test.describe("site shell", () => {
     await page.mouse.move(1000, 520);
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
 
-    const allArticles = page.getByRole("link", { name: "All articles" });
+    const allArticles = page.locator("#main-content").getByRole("link", { name: "All articles" });
     await allArticles.scrollIntoViewIfNeeded();
     await allArticles.click();
     await expect(page).toHaveURL(/\/articles\/$/);
@@ -1423,17 +1490,17 @@ test.describe("site shell", () => {
     }
 
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    const archiveGroup = page.locator("[data-nav-group='Archive']");
-    await expect.poll(async () => archiveGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    const articlesGroup = page.locator("[data-nav-group='Articles']");
+    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
 
-    await archiveGroup.locator("summary").click();
-    await expect.poll(async () => archiveGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
+    await articlesGroup.locator("summary").click();
+    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
     await nav.getByRole("link", { name: "About", exact: true }).click();
 
     await expect(page).toHaveURL(/\/about\/$/);
     await expect
       .poll(async () =>
-        page.locator("[data-nav-group='Archive']").evaluate((node) => ({
+        page.locator("[data-nav-group='Articles']").evaluate((node) => ({
           open: (node as HTMLDetailsElement).open,
           collapsing: node.classList.contains("is-collapsing"),
           expanding: node.classList.contains("is-expanding"),
@@ -1458,12 +1525,12 @@ test.describe("site shell", () => {
       await page.getByRole("button", { name: "Open navigation" }).click();
     }
 
-    const archiveGroup = page.locator(".nav-group").nth(1);
-    const archiveItems = archiveGroup.locator(".nav-items");
-    const initialHeight = await archiveItems.evaluate((node) => node.getBoundingClientRect().height);
+    const articlesGroup = page.locator("[data-nav-group='Articles']");
+    const articleItems = articlesGroup.locator(".nav-items");
+    const initialHeight = await articleItems.evaluate((node) => node.getBoundingClientRect().height);
     expect(initialHeight).toBeGreaterThan(40);
 
-    const collapseCleanupPromise = archiveGroup.evaluate(
+    const collapseCleanupPromise = articlesGroup.evaluate(
       (node) =>
         new Promise<{
           before: { height: number; paddingTop: number; paddingBottom: number; collapsing: boolean };
@@ -1520,11 +1587,11 @@ test.describe("site shell", () => {
         )
     );
 
-    await archiveGroup.locator("summary").click();
-    await expect.poll(async () => archiveGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
+    await articlesGroup.locator("summary").click();
+    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
     await expect
       .poll(async () =>
-        archiveGroup.evaluate((node) => {
+        articlesGroup.evaluate((node) => {
           const arrow = node.querySelector(".group-toggle-icon")!;
           const transform = getComputedStyle(arrow).transform;
           const matrix = transform === "none" ? new DOMMatrixReadOnly() : new DOMMatrixReadOnly(transform);
@@ -1534,10 +1601,10 @@ test.describe("site shell", () => {
       )
       .toBe(true);
     await expect
-      .poll(async () => archiveItems.evaluate((node) => node.getBoundingClientRect().height))
+      .poll(async () => articleItems.evaluate((node) => node.getBoundingClientRect().height))
       .toBeLessThan(initialHeight);
-    await expect.poll(async () => archiveGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
-    const closedState = await archiveItems.evaluate((node) => ({
+    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
+    const closedState = await articleItems.evaluate((node) => ({
       display: getComputedStyle(node).display,
       visibility: getComputedStyle(node).visibility,
       height: node.getBoundingClientRect().height
@@ -1552,7 +1619,7 @@ test.describe("site shell", () => {
     expect(Math.abs(collapseCleanup.after.paddingTop - collapseCleanup.before.paddingTop)).toBeLessThanOrEqual(1);
     expect(Math.abs(collapseCleanup.after.paddingBottom - collapseCleanup.before.paddingBottom)).toBeLessThanOrEqual(1);
 
-    const expandSamples = archiveGroup.evaluate(
+    const expandSamples = articlesGroup.evaluate(
       (node) =>
         new Promise<Array<{ height: number; expanding: boolean }>>((resolve) => {
           const items = node.querySelector(".nav-items")!;
@@ -1576,11 +1643,11 @@ test.describe("site shell", () => {
         })
     );
 
-    await archiveGroup.locator("summary").click();
-    await expect.poll(async () => archiveGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
-    await expect.poll(async () => archiveGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    await articlesGroup.locator("summary").click();
+    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
+    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
     await expect
-      .poll(async () => archiveItems.evaluate((node) => node.getBoundingClientRect().height))
+      .poll(async () => articleItems.evaluate((node) => node.getBoundingClientRect().height))
       .toBeGreaterThan(40);
     const samples = await expandSamples;
     const cleanupIndex = samples.findIndex((sample, index) => index > 0 && samples[index - 1].expanding && !sample.expanding);
@@ -1588,7 +1655,7 @@ test.describe("site shell", () => {
     expect(Math.abs(samples[cleanupIndex].height - samples[cleanupIndex - 1].height)).toBeLessThanOrEqual(4);
     await expect
       .poll(async () =>
-        archiveGroup.evaluate((node) => ({
+        articlesGroup.evaluate((node) => ({
           open: (node as HTMLDetailsElement).open,
           animating: node.classList.contains("is-expanding") || node.classList.contains("is-collapsing"),
           display: getComputedStyle(node.querySelector(".nav-items")!).display,

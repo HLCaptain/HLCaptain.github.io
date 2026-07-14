@@ -564,7 +564,7 @@ function initSidebar() {
   const closeOverlayAfterLeave = (event) => {
     if (!root.classList.contains("sidebar-overlay-open")) return;
     const pointer = capturePointer(event);
-    if (pointerIsInsideOverlaySurface(pointer)) {
+    if (pointerIsInsideOverlaySurface(pointer) || sidebar?.contains(document.activeElement)) {
       clearOverlayCloseTimer();
       delete root.dataset.sidebarOverlayClosePending;
       return;
@@ -576,7 +576,8 @@ function initSidebar() {
       if (
         root.classList.contains("sidebar-overlay-open") &&
         lastOverlayPointer &&
-        !pointerIsInsideOverlaySurface(lastOverlayPointer)
+        !pointerIsInsideOverlaySurface(lastOverlayPointer) &&
+        !sidebar?.contains(document.activeElement)
       ) {
         requestOverlayClose();
       }
@@ -607,7 +608,7 @@ function initSidebar() {
       return;
     }
 
-    if (sidebar?.matches(":hover")) {
+    if (sidebar?.matches(":hover") || sidebar?.contains(document.activeElement)) {
       setOverlayOpen(true);
     }
   };
@@ -631,6 +632,12 @@ function initSidebar() {
   });
   sidebar?.addEventListener("pointerenter", openOverlayFromSidebar, { signal: sidebarSignal });
   sidebar?.addEventListener("pointerleave", closeOverlayAfterLeave, { signal: sidebarSignal });
+  sidebar?.addEventListener("focusin", () => {
+    if (canUseOverlay()) setOverlayOpen(true);
+  }, { signal: sidebarSignal });
+  sidebar?.addEventListener("focusout", (event) => {
+    if (!sidebar.contains(event.relatedTarget) && !sidebar.matches(":hover")) requestOverlayClose();
+  }, { signal: sidebarSignal });
   document.addEventListener("pointermove", closeOverlayAfterLeave, { signal: sidebarSignal });
   document.addEventListener("pointerdown", closeOverlayFromOutsidePointer, { signal: sidebarSignal });
   document.addEventListener("pointercancel", () => {
@@ -698,6 +705,14 @@ function clearNavGroupAnimationState(group) {
   items.style.transition = "";
 }
 
+function openNavGroupForLink(link) {
+  const group = link?.closest("[data-nav-group]");
+  if (!group || group.open) return false;
+  group.open = true;
+  clearNavGroupAnimationState(group);
+  return true;
+}
+
 function applyNavGroupState(scope, state) {
   if (!state) return;
   navGroupElements(scope).forEach((group, index) => {
@@ -710,6 +725,8 @@ function applyNavGroupState(scope, state) {
 
 function applyStoredNavGroupState(scope) {
   applyNavGroupState(scope, storedNavGroupState());
+  const activeLink = scope.querySelector("[data-nav-index][aria-current='page']");
+  if (openNavGroupForLink(activeLink) && scope === document) saveNavGroupState();
 }
 
 function saveNavGroupState(override = null) {
@@ -1151,6 +1168,7 @@ function restartNavSelectionAnimation(link, className, duration = 320) {
 function setSidebarActivePath(path, { animate = true } = {}) {
   const target = navLinkForPath(path);
   if (!target) return false;
+  if (openNavGroupForLink(target)) saveNavGroupState();
 
   const activeLinks = Array.from(document.querySelectorAll("[data-nav-index].is-active, [data-nav-index][aria-current='page']"));
   const alreadyActive =

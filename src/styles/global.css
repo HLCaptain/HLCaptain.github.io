@@ -318,6 +318,14 @@ svg {
   padding: 0;
 }
 
+:root:not(.sidebar-collapsed) .sidebar-nav,
+.sidebar-collapsed.sidebar-overlay-open .site-sidebar .sidebar-nav {
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin-inline-end: -3px;
+  padding-inline-end: 3px;
+}
+
 .nav-group {
   position: relative;
   border-block-start: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
@@ -1108,6 +1116,10 @@ svg {
 }
 
 @media (min-width: 721px) {
+  .sidebar-collapsed:not(.sidebar-overlay-open) .site-sidebar .nav-items {
+    display: none;
+  }
+
   .sidebar-collapsed .site-sidebar {
     width: var(--sidebar-collapsed-width);
     min-width: var(--sidebar-collapsed-width);
@@ -1203,6 +1215,7 @@ svg {
   }
 
   .sidebar-collapsed.sidebar-overlay-open .site-sidebar .nav-items {
+    display: grid;
     gap: 4px;
     padding: 2px 0 8px;
   }

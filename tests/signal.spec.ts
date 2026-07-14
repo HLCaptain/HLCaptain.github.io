@@ -634,7 +634,7 @@ test.describe("Signal", () => {
     }
   });
 
-  test("keeps its outer height invariant through normal and interrupted selection animations", async ({ page }) => {
+  test("keeps its outer height and thumbnail size invariant through selection animations", async ({ page }, testInfo) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
@@ -660,6 +660,8 @@ test.describe("Signal", () => {
       expect(Math.abs(beforeHeight - layout.height)).toBeLessThanOrEqual(1);
       const markerBefore = await marker.boundingBox();
       const samplesPromise = sampleHeight(signal, 760);
+      const outgoingMediaSamplesPromise = sampleHeight(items.nth(activeIndex).locator(".signal__media"), 420);
+      const incomingMediaSamplesPromise = sampleHeight(items.nth(nextIndex).locator(".signal__media"), 420);
 
       await items.nth(nextIndex).locator("[data-signal-trigger]").click();
       await page.waitForTimeout(110);
@@ -669,14 +671,31 @@ test.describe("Signal", () => {
 
       await items.nth(interruptedIndex).locator("[data-signal-trigger]").click();
       await expect(items.nth(interruptedIndex)).toHaveClass(/is-active/);
-      const samples = await samplesPromise;
+      const [samples, outgoingMediaSamples, incomingMediaSamples] = await Promise.all([
+        samplesPromise,
+        outgoingMediaSamplesPromise,
+        incomingMediaSamplesPromise
+      ]);
       expect(Math.max(...samples) - Math.min(...samples)).toBeLessThanOrEqual(1);
+      expect(Math.max(...outgoingMediaSamples) - Math.min(...outgoingMediaSamples)).toBeLessThanOrEqual(1);
+      expect(Math.max(...incomingMediaSamples) - Math.min(...incomingMediaSamples)).toBeLessThanOrEqual(1);
       expect(Math.abs(((await signal.boundingBox())?.height ?? 0) - beforeHeight)).toBeLessThanOrEqual(1);
 
       const markerAfter = await marker.boundingBox();
       expect(Math.abs((markerAfter?.y ?? 0) - (markerBefore?.y ?? 0))).toBeGreaterThan(8);
       await expect(items.nth(interruptedIndex).locator("[data-signal-trigger]")).toHaveAttribute("aria-expanded", "true");
       await expect(items.nth(interruptedIndex).locator("[data-signal-panel]")).toHaveAttribute("aria-hidden", "false");
+    }
+
+    if (testInfo.project.name === "tablet") {
+      await setSignalOption(page, "Compact dock", "layout", "compact");
+      await closeDebugPanel(page);
+      await page.setViewportSize({ width: 1024, height: 900 });
+      const wideMediaWidth = (await signal.locator("[data-signal-item].is-active .signal__media").boundingBox())?.width ?? 0;
+      await page.setViewportSize({ width: 390, height: 900 });
+      await expect
+        .poll(async () => (await signal.locator("[data-signal-item].is-active .signal__media").boundingBox())?.width ?? 0)
+        .toBeLessThan(wideMediaWidth - 1);
     }
   });
 

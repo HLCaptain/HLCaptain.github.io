@@ -29,19 +29,19 @@ export const siteConfig = {
       ]
     },
     {
-      label: "Archive",
-      glyph: "archive",
+      label: "Articles",
+      glyph: "writing",
       open: true,
       items: [
-        { label: "Articles", href: "/articles/", glyph: "writing" },
+        { label: "All articles", href: "/articles/", glyph: "archive" },
         { label: "RSS", href: "/rss.xml", glyph: "feed" }
       ]
     },
     {
-      label: "Work",
+      label: "Projects",
       glyph: "work",
       open: true,
-      items: [{ label: "Projects", href: "/work/", glyph: "work" }]
+      items: [{ label: "All projects", href: "/work/", glyph: "archive" }]
     },
     {
       label: "Network",
@@ -54,6 +54,3 @@ export const siteConfig = {
     }
   ]
 } as const;
-
-export type NavGroup = (typeof siteConfig.navigation)[number];
-export type NavItem = NavGroup["items"][number];
