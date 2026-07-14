@@ -326,7 +326,7 @@ test.describe("site shell", () => {
       await page.getByRole("button", { name: "Collapse sidebar" }).click();
       await page.mouse.move(1000, 520);
       await expect(root).not.toHaveClass(/sidebar-overlay-open/);
-      await expect(articlesGroup.locator(".nav-items")).toHaveCSS("display", "none");
+      await expect(articlesGroup.locator(".nav-items")).toHaveCSS("display", "grid");
       await articlesGroup.locator("summary").focus();
       await expect(root).toHaveClass(/sidebar-overlay-open/);
     }
@@ -873,6 +873,81 @@ test.describe("site shell", () => {
     expect(body).toContain("HLCaptain");
   });
 
+  test("collapsed rail reuses leaf elements while the overlay opens and closes", async ({ page }) => {
+    const viewport = page.viewportSize();
+    test.skip((viewport?.width ?? 0) <= 720, "Collapsed rail overlay check");
+
+    await page.goto("/articles/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const panel = page.locator(".sidebar-panel");
+    const aboutLink = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", {
+      name: "About",
+      exact: true
+    });
+    const aboutHandle = await aboutLink.elementHandle();
+    expect(aboutHandle).not.toBeNull();
+    if (!aboutHandle) return;
+    const moveOutside = () => page.mouse.move((viewport?.width ?? 1440) - 24, (viewport?.height ?? 960) / 2);
+
+    await page.getByRole("button", { name: "Collapse sidebar" }).click();
+    await moveOutside();
+    await expect(root).not.toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+
+    const closedState = await aboutHandle.evaluate((node) => {
+      return {
+        connected: node.isConnected,
+        display: getComputedStyle(node).display,
+        width: Math.round(node.getBoundingClientRect().width),
+        navItemsDisplay: Array.from(document.querySelectorAll(".nav-items")).map(
+          (items) => getComputedStyle(items).display
+        ),
+        leafWidths: Array.from(document.querySelectorAll(".nav-item")).map((item) =>
+          Math.round(item.getBoundingClientRect().width)
+        )
+      };
+    });
+    expect(closedState.connected).toBe(true);
+    expect(closedState.display).toBe("grid");
+    expect(closedState.width).toBeGreaterThan(30);
+    expect(closedState.navItemsDisplay.every((display) => display === "grid")).toBe(true);
+    expect(closedState.leafWidths.length).toBeGreaterThan(0);
+    expect(closedState.leafWidths.every((width) => width > 30)).toBe(true);
+
+    const isSharedMidTransition = () =>
+      aboutHandle.evaluate((node) => {
+        const panelWidth = document.querySelector(".sidebar-panel")!.getBoundingClientRect().width;
+        const labelOpacity = Number.parseFloat(getComputedStyle(node.querySelector(".sidebar-row__label")!).opacity);
+        return (
+          node.isConnected &&
+          getComputedStyle(node).display === "grid" &&
+          panelWidth > 56 &&
+          panelWidth < 264 &&
+          labelOpacity > 0 &&
+          labelOpacity < 1
+        );
+      });
+    const motionPoll = { timeout: 1000, intervals: Array.from({ length: 40 }, () => 16) };
+
+    const closedBox = await aboutLink.boundingBox();
+    expect(closedBox).not.toBeNull();
+    await page.mouse.move(
+      (closedBox?.x ?? 0) + (closedBox?.width ?? 0) / 2,
+      (closedBox?.y ?? 0) + (closedBox?.height ?? 0) / 2
+    );
+    await expect.poll(isSharedMidTransition, motionPoll).toBe(true);
+    await expect(root).toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(264);
+
+    await moveOutside();
+    await expect.poll(isSharedMidTransition, motionPoll).toBe(true);
+    await expect(root).not.toHaveClass(/sidebar-overlay-open/);
+    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
+    await expect.poll(async () => aboutHandle.evaluate((node) => node.isConnected)).toBe(true);
+  });
+
   test("desktop sidebar collapses to icons and expands again", async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only sidebar state check");
 
@@ -1003,7 +1078,14 @@ test.describe("site shell", () => {
       )
       .toBe("84px");
     const compactSurfaceControls = await page.evaluate(() => {
-      const labels = Array.from(document.querySelectorAll(".accent-panel .surface-control__label")).map((node) => getComputedStyle(node).display);
+      const labels = Array.from(document.querySelectorAll(".accent-panel .surface-control__label")).map((node) => {
+        const style = getComputedStyle(node);
+        return {
+          display: style.display,
+          opacity: Number.parseFloat(style.opacity),
+          pointerEvents: style.pointerEvents
+        };
+      });
       const controls = Array.from(document.querySelectorAll(".accent-panel .surface-control")).map((node) => {
         const style = getComputedStyle(node);
         return {
@@ -1017,7 +1099,11 @@ test.describe("site shell", () => {
         swatchesCount: document.querySelectorAll(".accent-swatches").length
       };
     });
-    expect(compactSurfaceControls.labels.every((display) => display === "none")).toBe(true);
+    expect(
+      compactSurfaceControls.labels.every(
+        ({ display, opacity, pointerEvents }) => display !== "none" && opacity === 0 && pointerEvents === "none"
+      )
+    ).toBe(true);
     expect(compactSurfaceControls.swatchesCount).toBe(0);
     expect(compactSurfaceControls.controls).toEqual([
       { display: "grid", width: 34 },
@@ -1229,12 +1315,19 @@ test.describe("site shell", () => {
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
 
-    const labelDisplay = await nav
+    const labelState = await nav
       .locator('a[href="/articles/"]')
       .locator("span")
       .last()
-      .evaluate((node) => getComputedStyle(node).display);
-    expect(labelDisplay).toBe("none");
+      .evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          display: style.display,
+          opacity: Number.parseFloat(style.opacity),
+          pointerEvents: style.pointerEvents
+        };
+      });
+    expect(labelState).toEqual({ display: "block", opacity: 0, pointerEvents: "none" });
     const collapsedSpacing = await page.evaluate(() => {
       const number = (value: string) => Math.round(Number.parseFloat(value));
       const box = (selector: string) => {
@@ -1261,12 +1354,13 @@ test.describe("site shell", () => {
         itemWidth: box(".nav-item")
       };
     });
-    expect(collapsedSpacing).toEqual({
+    const { itemWidth, ...collapsedContainerSpacing } = collapsedSpacing;
+    expect(collapsedContainerSpacing).toEqual({
       panelPadding: 10,
       panelGap: 10,
       navGap: 6,
-      navOverflowX: "visible",
-      navOverflowY: "visible",
+      navOverflowX: "hidden",
+      navOverflowY: "auto",
       navPaddingLeft: 0,
       navPaddingRight: 0,
       groupPaddingTop: 0,
@@ -1274,9 +1368,10 @@ test.describe("site shell", () => {
       groupPaddingBottom: 0,
       groupPaddingLeft: 0,
       groupWidth: 34,
-      summaryWidth: 32,
-      itemWidth: 0
+      summaryWidth: 32
     });
+    expect(itemWidth).toBeGreaterThanOrEqual(31);
+    expect(itemWidth).toBeLessThanOrEqual(34);
     const glyphBox = await page.locator("[data-nav-group='Articles'] summary .pixel-glyph").boundingBox();
     expect(glyphBox?.width ?? 0).toBeGreaterThan(8);
 
@@ -1299,6 +1394,9 @@ test.describe("site shell", () => {
       const groupDeltas = Array.from(document.querySelectorAll(".nav-group__icon"))
         .filter(isVisible)
         .map((icon) => Math.abs(centerOf(icon) - panelCenter));
+      const itemDeltas = Array.from(document.querySelectorAll(".nav-item .sidebar-row__icon"))
+        .filter(isVisible)
+        .map((icon) => Math.abs(centerOf(icon) - panelCenter));
       const group = document.querySelector(".nav-group");
       const arrow = group?.querySelector(".group-toggle-icon");
       const glyph = group?.querySelector(".nav-group__icon .pixel-glyph");
@@ -1306,6 +1404,7 @@ test.describe("site shell", () => {
       const glyphStyle = glyph ? getComputedStyle(glyph) : null;
       return {
         maxGroupDelta: Math.max(...groupDeltas),
+        maxItemDelta: Math.max(...itemDeltas),
         arrowVisibility: arrowStyle?.visibility,
         arrowOpacity: Number.parseFloat(arrowStyle?.opacity ?? "1"),
         glyphVisibility: glyphStyle?.visibility,
@@ -1313,6 +1412,7 @@ test.describe("site shell", () => {
       };
     });
     expect(collapsedAlignment.maxGroupDelta).toBeLessThanOrEqual(1);
+    expect(collapsedAlignment.maxItemDelta).toBeLessThanOrEqual(1);
     expect(collapsedAlignment.arrowVisibility).toBe("hidden");
     expect(collapsedAlignment.arrowOpacity).toBeLessThan(0.2);
     expect(collapsedAlignment.glyphVisibility).toBe("visible");
