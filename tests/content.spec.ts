@@ -21,6 +21,7 @@ test.describe("project case studies", () => {
   });
 
   test("ProtoShape renders MDX facts, decisions, and public links", async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/work/proto-shape/");
 
     const pageHeader = page.locator(".page-header");
@@ -36,6 +37,15 @@ test.describe("project case studies", () => {
     });
     expect(titleLayout.statusLeft).toBeGreaterThan(titleLayout.titleRight);
     expect(titleLayout.statusTop).toBeLessThan(titleLayout.titleBottom);
+    const markdownHeadings = page.locator(".prose :is(h1, h2, h3, h4, h5, h6)[id]");
+    const headingCopyButtons = page.locator(".heading-reference");
+    await expect(markdownHeadings).toHaveCount(4);
+    await expect(headingCopyButtons).toHaveCount(4);
+    await expect(headingCopyButtons.first()).toHaveAttribute("data-heading-copy", "overview");
+    await expect(headingCopyButtons.first()).toHaveAttribute("data-copy-path", "/work/proto-shape/#overview");
+    await expect(headingCopyButtons.first()).toHaveCSS("position", "absolute");
+    await headingCopyButtons.first().click();
+    await expect(headingCopyButtons.first()).toHaveClass(/is-copied/);
     await expect(page.getByLabel("Project facts")).toContainText("Creator and maintainer");
     await expect(page.getByRole("heading", { name: "Editor tooling as a reusable system" })).toBeVisible();
     const projectLinks = page.getByRole("navigation", { name: "Project links" });

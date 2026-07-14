@@ -1358,6 +1358,45 @@ svg {
   letter-spacing: 0;
 }
 
+.prose :is(h1, h2, h3, h4, h5, h6)[id] {
+  position: relative;
+  scroll-margin-top: 24px;
+}
+
+.heading-reference {
+  position: absolute;
+  top: 50%;
+  left: -28px;
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  opacity: 0.7;
+  transform: translateY(-50%);
+  transition:
+    color 160ms var(--ease),
+    opacity 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+
+.heading-reference:hover,
+.heading-reference:focus-visible,
+.heading-reference.is-copied {
+  color: var(--accent-readable);
+  opacity: 1;
+  transform: translate(-2px, -50%);
+}
+
+.heading-reference svg {
+  width: 15px;
+  height: 15px;
+}
+
 .prose h2 {
   margin-top: 2.4em;
   padding-top: 0.8em;
@@ -1941,6 +1980,17 @@ svg {
 
   .page-header {
     margin-bottom: 24px;
+  }
+
+  .heading-reference {
+    left: -16px;
+    width: 14px;
+    height: 18px;
+  }
+
+  .heading-reference svg {
+    width: 13px;
+    height: 13px;
   }
 
   .home-hero__copy {
