@@ -318,7 +318,7 @@ test.describe("site shell", () => {
     const articlesGroup = page.locator("[data-nav-group='Articles']");
 
     await expect(articlesGroup.locator('a[href^="/articles/"]')).toHaveCount(4);
-    await expect(page.locator("[data-nav-group='Projects'] a[href^='/work/']")).toHaveCount(4);
+    await expect(page.locator("[data-nav-group='Projects'] a[href^='/work/']")).toHaveCount(3);
 
     if (isMobile) {
       await page.getByRole("button", { name: "Open navigation" }).click();
@@ -350,9 +350,16 @@ test.describe("site shell", () => {
     await projectsGroup.locator("summary").click();
     await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
     await projectsGroup.locator("summary").click();
-    await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    await expect
+      .poll(async () =>
+        projectsGroup.evaluate((node) => ({
+          open: (node as HTMLDetailsElement).open,
+          animating: node.classList.contains("is-expanding") || node.classList.contains("is-collapsing")
+        }))
+      )
+      .toEqual({ open: true, animating: false });
 
-    const projectLink = nav.getByRole("link", { name: "Proto Shape", exact: true });
+    const projectLink = nav.getByRole("link", { name: "ProtoShape", exact: true });
     await projectLink.click();
     await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
     await expect(projectLink).toHaveAttribute("aria-current", "page");
@@ -832,18 +839,19 @@ test.describe("site shell", () => {
     const projects = nav.getByRole("link", { name: "All projects", exact: true });
 
     await articles.click({ noWaitAfter: true });
-    await expect(articles).toHaveClass(/is-selection-entering/);
-    const selectionEffect = await articles.evaluate((node) => {
-      const layer = getComputedStyle(node, "::after");
-      return {
-        animationName: layer.animationName,
-        pointerEvents: layer.pointerEvents,
-        willChange: layer.willChange
-      };
-    });
-    expect(selectionEffect.animationName).toContain("nav-selection-sweep");
-    expect(selectionEffect.pointerEvents).toBe("none");
-    expect(selectionEffect.willChange).toContain("transform");
+    await expect
+      .poll(async () =>
+        articles.evaluate((node) => {
+          const layer = getComputedStyle(node, "::after");
+          return {
+            entering: node.classList.contains("is-selection-entering"),
+            sweeping: layer.animationName.includes("nav-selection-sweep"),
+            pointerEvents: layer.pointerEvents,
+            transforms: layer.willChange.includes("transform")
+          };
+        })
+      )
+      .toEqual({ entering: true, sweeping: true, pointerEvents: "none", transforms: true });
     await expect(page).toHaveURL(/\/articles\/$/);
     await expect(root).toHaveAttribute("data-astro-transition", /forward|back/);
 
@@ -1515,6 +1523,50 @@ test.describe("site shell", () => {
         visibility: "hidden",
         height: 0
       });
+  });
+
+  test("reverses an interrupted sidebar group collapse", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    if ((page.viewportSize()?.width ?? 0) <= 720) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+    }
+
+    const articlesGroup = page.locator("[data-nav-group='Articles']");
+    const articleItems = articlesGroup.locator(".nav-items");
+    const summary = articlesGroup.locator("summary");
+    const initialHeight = await articleItems.evaluate((node) => node.getBoundingClientRect().height);
+
+    await summary.click();
+    await expect
+      .poll(async () =>
+        articlesGroup.evaluate(
+          (node, expandedHeight) => {
+            const height = node.querySelector(".nav-items")!.getBoundingClientRect().height;
+            return node.classList.contains("is-collapsing") && height > 8 && height < expandedHeight - 8;
+          },
+          initialHeight
+        )
+      )
+      .toBe(true);
+
+    await summary.click();
+    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
+    await expect
+      .poll(async () =>
+        page.evaluate(() => JSON.parse(window.sessionStorage.getItem("hlcaptain-nav-groups") || "{}").Articles)
+      )
+      .toBe(true);
+    await expect
+      .poll(async () =>
+        articlesGroup.evaluate((node) => ({
+          open: (node as HTMLDetailsElement).open,
+          animating: node.classList.contains("is-expanding") || node.classList.contains("is-collapsing"),
+          height: Math.round(node.querySelector(".nav-items")!.getBoundingClientRect().height)
+        }))
+      )
+      .toEqual({ open: true, animating: false, height: Math.round(initialHeight) });
   });
 
   test("sidebar group item lists animate open and closed", async ({ page }) => {
