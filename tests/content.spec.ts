@@ -260,6 +260,23 @@ test.describe("project case studies", () => {
     await expect(page.getByRole("heading", { name: "Selected work" })).toBeVisible();
   });
 
+  test("project back control skips same-page fragment history", async ({ page }) => {
+    await page.goto("/work/");
+    await page.locator("#main-content").getByRole("link", { name: "Open ProtoShape" }).click();
+    await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
+
+    const toc = page.locator(page.viewportSize()!.width <= 720 ? "[data-toc-mobile]" : "[data-toc-desktop]");
+    if (page.viewportSize()!.width <= 720) await toc.locator("summary").click();
+
+    await toc.locator('a[href="#overview"]').click();
+    await expect(page).toHaveURL(/#overview$/);
+    await toc.locator('a[href="#what-it-solves"]').click();
+    await expect(page).toHaveURL(/#what-it-solves$/);
+
+    await page.getByRole("button", { name: "Back" }).click();
+    await expect(page).toHaveURL(/\/work\/$/);
+  });
+
   test("project back control falls back to overview without browser history", async ({ page, baseURL }) => {
     const origin = baseURL!;
     const detailUrl = new URL("/work/proto-shape/", origin).href;

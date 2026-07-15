@@ -1274,7 +1274,19 @@ function handleNavigationIntent(event) {
   const backButton = event.target.closest?.("[data-history-back]");
   if (backButton) {
     event.preventDefault();
-    if (window.history.length > 1) {
+    const currentPath = normalizePath(window.location.href);
+    const navigation = window.navigation;
+    const previousPageEntry = navigation?.currentEntry
+      ? navigation
+          .entries()
+          .slice(0, navigation.currentEntry.index)
+          .reverse()
+          .find((entry) => entry.url && normalizePath(entry.url) !== currentPath)
+      : null;
+
+    if (previousPageEntry) {
+      navigation.traverseTo(previousPageEntry.key);
+    } else if (window.history.length > 1) {
       window.history.back();
     } else {
       navigateWithTransition("/", backButton, { history: "replace" });
