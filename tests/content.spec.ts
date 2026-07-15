@@ -184,12 +184,33 @@ test.describe("project case studies", () => {
       });
       expect(mobileOrder.tocTop).toBeGreaterThanOrEqual(mobileOrder.leadBottom - 1);
       expect(mobileOrder.overviewTop).toBeGreaterThanOrEqual(mobileOrder.tocBottom - 1);
-      const disclosure = mobileToc.locator(".table-of-contents__disclosure");
-      const closedHeight = await disclosure.evaluate((node) => node.getBoundingClientRect().height);
-      expect(await disclosure.evaluate((node) => getComputedStyle(node).transitionDuration)).not.toBe("0s");
-      await mobileToc.locator("summary").click();
+      const toggleToc = async () => {
+        const samples = await mobileToc.evaluate(
+          (node) =>
+            new Promise<number[]>((resolve) => {
+              const height = () => Number.parseFloat(getComputedStyle(node, "::details-content").height);
+              const samples = [height()];
+              const startedAt = performance.now();
+              (node.querySelector("summary") as HTMLElement).click();
+              const sample = () => {
+                samples.push(height());
+                if (performance.now() - startedAt < 320) requestAnimationFrame(sample);
+                else resolve(samples);
+              };
+              requestAnimationFrame(sample);
+            })
+        );
+        const low = Math.min(samples[0], samples.at(-1)!);
+        const high = Math.max(samples[0], samples.at(-1)!);
+        expect(samples.slice(1, -1).some((height) => height > low + 1 && height < high - 1)).toBe(true);
+      };
+
+      await toggleToc();
       await expect(mobileToc).toHaveAttribute("open", "");
-      await expect.poll(() => disclosure.evaluate((node) => node.getBoundingClientRect().height)).toBeGreaterThan(closedHeight);
+      await toggleToc();
+      await expect(mobileToc).not.toHaveAttribute("open", "");
+      await toggleToc();
+      await expect(mobileToc).toHaveAttribute("open", "");
     } else {
       expect(
         await desktopToc.evaluate((node) => {

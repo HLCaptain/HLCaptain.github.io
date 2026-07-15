@@ -1401,6 +1401,7 @@ svg {
 
 .table-of-contents--mobile {
   display: none;
+  interpolate-size: allow-keywords;
 }
 
 .table-of-contents__list {
@@ -2163,13 +2164,25 @@ svg {
     margin: 0 0 8px;
   }
 
+  .table-of-contents--mobile::details-content {
+    height: 0;
+    overflow: clip;
+    transition:
+      height 260ms var(--ease),
+      content-visibility 260ms allow-discrete;
+  }
+
+  .table-of-contents--mobile[open]::details-content {
+    height: auto;
+  }
+
   .table-of-contents--mobile summary {
     display: flex;
     min-height: 44px;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 9px 12px;
+    padding: 8px;
     color: var(--ink);
     cursor: pointer;
     font-size: 0.72rem;
@@ -2198,20 +2211,16 @@ svg {
   }
 
   .table-of-contents__disclosure {
-    display: grid;
-    grid-template-rows: 0fr;
     visibility: hidden;
     opacity: 0;
     transform: translateY(-6px);
     transition:
-      grid-template-rows 260ms var(--ease),
       opacity 180ms var(--ease),
       transform 220ms var(--ease),
       visibility 0s linear 260ms;
   }
 
   .table-of-contents--mobile[open] .table-of-contents__disclosure {
-    grid-template-rows: 1fr;
     visibility: visible;
     opacity: 1;
     transform: translateY(0);
@@ -2225,7 +2234,7 @@ svg {
   }
 
   .table-of-contents__disclosure-inner > .table-of-contents__list {
-    padding: 10px;
+    padding: 8px;
   }
 
   .home-hero__copy {
@@ -2261,7 +2270,8 @@ svg {
 
   *,
   *::before,
-  *::after {
+  *::after,
+  .table-of-contents--mobile::details-content {
     scroll-behavior: auto !important;
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
