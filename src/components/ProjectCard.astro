@@ -17,6 +17,7 @@ const { project } = Astro.props;
   title={project.data.title}
   description={project.data.description}
   tags={project.data.tags}
+  thumbnail={project.data.thumbnail}
   meta={[
     { label: formatDate(project.data.publishedAt), datetime: project.data.publishedAt.toISOString() },
     { label: project.data.status }

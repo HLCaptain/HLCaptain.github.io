@@ -1,4 +1,6 @@
 ---
+import type { ImageMetadata } from "astro";
+import { Image } from "astro:assets";
 import ArrowIcon from "./ArrowIcon.astro";
 import PixelGlyph from "./PixelGlyph.astro";
 
@@ -15,15 +17,20 @@ type Props = {
   description: string;
   tags: string[];
   meta: MetaItem[];
+  thumbnail?: ImageMetadata;
   project?: boolean;
 };
 
-const { href, ariaLabel, glyph, title, description, tags, meta, project = false } = Astro.props;
+const { href, ariaLabel, glyph, title, description, tags, meta, thumbnail, project = false } = Astro.props;
 ---
 
 <article class:list={["entry-card", project && "entry-card--project"]}>
   <a href={href} class="entry-card__link" aria-label={ariaLabel}>
-    <span class="entry-card__glyph"><PixelGlyph name={glyph} /></span>
+    {thumbnail ? (
+      <Image class="entry-card__thumbnail" src={thumbnail} alt="" />
+    ) : (
+      <span class="entry-card__glyph"><PixelGlyph name={glyph} /></span>
+    )}
     <span class="entry-card__meta">
       {meta.map((item) =>
         item.datetime ? <time datetime={item.datetime}>{item.label}</time> : <span>{item.label}</span>

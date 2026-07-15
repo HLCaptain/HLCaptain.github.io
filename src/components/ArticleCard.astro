@@ -17,6 +17,7 @@ const { article } = Astro.props;
   title={article.data.title}
   description={article.data.description}
   tags={article.data.tags}
+  thumbnail={article.data.thumbnail}
   meta={[
     { label: formatDate(article.data.publishedAt), datetime: article.data.publishedAt.toISOString() },
     ...(article.data.readingTime ? [{ label: article.data.readingTime }] : [])

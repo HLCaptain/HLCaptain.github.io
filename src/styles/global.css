@@ -1052,6 +1052,16 @@ svg {
   color: var(--accent-readable);
 }
 
+.entry-card__thumbnail {
+  display: block;
+  width: calc(100% + 32px);
+  max-width: none;
+  aspect-ratio: 16 / 9;
+  margin: -16px -16px 0;
+  object-fit: cover;
+  border-bottom: 1px solid var(--line);
+}
+
 .entry-card__meta {
   display: flex;
   flex-wrap: wrap;

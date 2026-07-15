@@ -3,14 +3,16 @@ title: "Project name"
 description: "One sentence: what it does, who it helps, and what makes it distinct."
 publishedAt: YYYY-MM-DD
 tags: ["primary-platform", "core-technology", "problem-domain"]
+draft: true
 featured: false
+thumbnail: "./thumbnail.webp"
 status: "active"
 links:
   - label: "Public repository"
     href: "https://github.com/owner/repository"
 ---
 
-import ProjectFacts from "../../components/content/ProjectFacts.astro";
+import ProjectFacts from "@components/content/ProjectFacts.astro";
 
 <ProjectFacts
   items={[

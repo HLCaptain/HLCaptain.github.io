@@ -38,7 +38,7 @@ test.describe("project case studies", () => {
 
     const pageHeader = page.locator(".page-header");
     await expect(pageHeader.getByRole("heading", { name: "ProtoShape" })).toBeVisible();
-    await expect(pageHeader.getByRole("button", { name: "Projects" })).toHaveAttribute("data-history-back", "");
+    await expect(pageHeader.getByRole("button", { name: "Back" })).toHaveAttribute("data-history-back", "");
     await expect(pageHeader.locator("a.page-header__back")).toHaveCount(0);
     await expect(pageHeader.locator(".page-header__back-icon svg")).toHaveCount(1);
     await expect(pageHeader.locator(".page-header__title-row .eyebrow")).toHaveText("shipped");
@@ -155,7 +155,7 @@ test.describe("project case studies", () => {
     await page.locator("#main-content").getByRole("link", { name: "Open ProtoShape" }).click();
     await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
 
-    await page.getByRole("button", { name: "Projects" }).click();
+    await page.getByRole("button", { name: "Back" }).click();
     await expect(page).toHaveURL(/\/work\/$/);
     await expect(page.getByRole("heading", { name: "Selected work" })).toBeVisible();
   });

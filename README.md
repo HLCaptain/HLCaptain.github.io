@@ -19,12 +19,9 @@ Add `.md` or `.mdx` files to:
 - `src/content/articles/`
 - `src/content/projects/`
 
-Each file needs frontmatter matching `src/content.config.ts`. Published entries appear on the site and in `/rss.xml` unless `draft: true`.
+Each file needs frontmatter matching `src/content.config.ts`. Published entries appear on the site unless `draft: true`; published articles also appear in `/rss.xml`.
 
-Use Markdown for prose-only entries. Use MDX when an entry needs imported Astro components, interactive islands, or expressions alongside Markdown. Imports belong immediately after the frontmatter.
-
-For portfolio entries, follow the [project summary authoring guide](docs/project-summaries.md) and
-start from the [MDX project template](docs/project-summary-template.mdx).
+Follow the [content authoring guide](docs/content-authoring.md) for copy-ready article and project templates, colocated thumbnails, supported Markdown/MDX features, and the complete custom component list. For portfolio copy, also use the [project summary authoring guide](docs/project-summaries.md).
 
 ## GitHub Pages production
 
