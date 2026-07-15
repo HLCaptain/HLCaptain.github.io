@@ -33,6 +33,7 @@ test.describe("project case studies", () => {
 
   test("ProtoShape renders MDX facts, decisions, and public links", async ({ page }) => {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.addInitScript(() => window.localStorage.setItem("hlcaptain-sidebar", "collapsed"));
     await page.goto("/work/proto-shape/");
 
     const pageHeader = page.locator(".page-header");
@@ -113,7 +114,12 @@ test.describe("project case studies", () => {
     }
     await headingCopyButtons.first().click();
     await expect(headingCopyButtons.first()).toHaveClass(/is-copied/);
-    await expect(page.getByLabel("Project facts")).toContainText("Creator and maintainer");
+    const projectFacts = page.getByLabel("Project facts");
+    await expect(projectFacts).toContainText("Creator and maintainer");
+    if (page.viewportSize()!.width > 720 && page.viewportSize()!.width <= 1040) {
+      const factColumns = await projectFacts.evaluate((facts) => getComputedStyle(facts).gridTemplateColumns.split(" ").length);
+      expect(factColumns).toBe(2);
+    }
     await expect(page.getByRole("heading", { name: "Editor tooling as a reusable system" })).toBeVisible();
     const projectLinks = page.getByRole("navigation", { name: "Project links" });
     await expect(projectLinks).toBeVisible();
@@ -122,7 +128,10 @@ test.describe("project case studies", () => {
       "https://github.com/HLCaptain/proto-shape"
     );
     await expect(projectLinks.getByRole("link")).toHaveCount(3);
-    await expect(projectLinks.locator(".external-link-icon")).toHaveCount(3);
+    const projectLinkIcons = projectLinks.locator(".external-link-icon");
+    await expect(projectLinkIcons).toHaveCount(3);
+    await expect(projectLinkIcons.first()).toHaveCSS("width", "15px");
+    await expect(projectLinkIcons.first()).toHaveCSS("opacity", "1");
     const firstProjectLink = projectLinks.getByRole("link").first();
     await firstProjectLink.hover();
     await expect
@@ -137,6 +146,7 @@ test.describe("project case studies", () => {
       "src",
       "https://github.com/HLCaptain/proto-shape/assets/22623259/730a527c-d6ba-4eaa-93b6-dbcbbd8aba52"
     );
+    await expect(page.locator(".prose > .project-overview-video + h2#overview")).toHaveCount(1);
     await expectNoHorizontalOverflow(page);
   });
 

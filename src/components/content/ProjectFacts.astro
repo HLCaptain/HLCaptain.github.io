@@ -54,4 +54,10 @@ const { items } = Astro.props;
     font-size: 0.92rem;
     overflow-wrap: anywhere;
   }
+
+  @media (min-width: 721px) and (max-width: 1040px) {
+    .project-facts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
 </style>

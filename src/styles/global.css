@@ -1083,7 +1083,7 @@ svg {
 }
 
 :root.sidebar-collapsed:not(.sidebar-overlay-open) .sidebar-row__label,
-:root.sidebar-collapsed:not(.sidebar-overlay-open) .external-link-icon {
+:root.sidebar-collapsed:not(.sidebar-overlay-open) .site-sidebar .external-link-icon {
   opacity: 0;
   pointer-events: none;
   transform: translateX(-8px);
@@ -1093,7 +1093,7 @@ svg {
   white-space: nowrap;
 }
 
-:root.sidebar-collapsed:not(.sidebar-overlay-open) .external-link-icon {
+:root.sidebar-collapsed:not(.sidebar-overlay-open) .site-sidebar .external-link-icon {
   width: 0;
 }
 
