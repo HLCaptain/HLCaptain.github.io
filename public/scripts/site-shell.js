@@ -1271,9 +1271,14 @@ function handleTransitionPreparation(event) {
 }
 
 function handleNavigationIntent(event) {
-  if (event.target.closest?.("[data-history-back]")) {
+  const backButton = event.target.closest?.("[data-history-back]");
+  if (backButton) {
     event.preventDefault();
-    window.history.back();
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigateWithTransition("/", backButton, { history: "replace" });
+    }
     return;
   }
 
@@ -1309,11 +1314,15 @@ function navigateWithTransition(href, sourceElement, options = {}) {
   }
 
   if (typeof window.__hlNavigate === "function") {
-    window.__hlNavigate(href, { sourceElement });
+    window.__hlNavigate(href, { history: options.history, sourceElement });
     return;
   }
 
-  window.location.assign(href);
+  if (options.history === "replace") {
+    window.location.replace(href);
+  } else {
+    window.location.assign(href);
+  }
 }
 
 function initSignals() {

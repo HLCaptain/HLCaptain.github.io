@@ -160,6 +160,21 @@ test.describe("project case studies", () => {
     await expect(page.getByRole("heading", { name: "Selected work" })).toBeVisible();
   });
 
+  test("project back control falls back to overview without browser history", async ({ page, baseURL }) => {
+    const origin = baseURL!;
+    const detailUrl = new URL("/work/proto-shape/", origin).href;
+    await Promise.all([
+      page.waitForURL(detailUrl),
+      page.evaluate((url) => window.location.replace(url), detailUrl)
+    ]);
+    expect(await page.evaluate(() => window.history.length)).toBe(1);
+
+    await page.getByRole("button", { name: "Back" }).click();
+    await expect(page).toHaveURL(new URL("/", origin).href);
+    await expect(page.getByRole("heading", { name: "HLCaptain" })).toBeVisible();
+    expect(await page.evaluate(() => window.history.length)).toBe(1);
+  });
+
   test("SplitEasy clearly renders as a private active prototype", async ({ page }) => {
     await page.goto("/work/spliteasy/");
 
