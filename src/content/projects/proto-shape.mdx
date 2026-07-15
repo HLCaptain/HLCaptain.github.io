@@ -60,6 +60,8 @@ shape experimentation stays reversible.
 The harder problem was not generating a staircase. It was making 3D handles feel native without
 reimplementing camera projection and drag-plane math for every new shape.
 
+### Shared gizmo utilities
+
 The gizmo utilities centralize that math and let custom nodes expose focused editing handles with a
 small amount of project-specific code. Runtime shape logic is kept separate from editor-only gizmo
 classes, so exported games do not inherit an unnecessary dependency on Godot's editor APIs.

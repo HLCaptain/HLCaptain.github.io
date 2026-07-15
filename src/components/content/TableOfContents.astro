@@ -1,0 +1,45 @@
+---
+import type { MarkdownHeading } from "astro";
+import TableOfContentsList from "./TableOfContentsList.astro";
+
+type TableOfContentsItem = MarkdownHeading & {
+  children: TableOfContentsItem[];
+};
+
+type Props = {
+  headings: MarkdownHeading[];
+  variant: "desktop" | "mobile";
+};
+
+const { headings, variant } = Astro.props;
+const items: TableOfContentsItem[] = [];
+const stack: TableOfContentsItem[] = [];
+
+headings.forEach((heading) => {
+  while ((stack.at(-1)?.depth ?? -Infinity) >= heading.depth) stack.pop();
+  const item = { ...heading, children: [] };
+  (stack.at(-1)?.children ?? items).push(item);
+  stack.push(item);
+});
+---
+
+{variant === "desktop" ? (
+  <aside class="table-of-contents table-of-contents--desktop" data-toc-desktop>
+    <nav aria-label="Table of contents">
+      <p>On this page</p>
+      <TableOfContentsList items={items} />
+    </nav>
+  </aside>
+) : (
+  <details class="table-of-contents table-of-contents--mobile" data-toc-mobile>
+    <summary>
+      <span>On this page</span>
+      <span class="table-of-contents__chevron" aria-hidden="true"></span>
+    </summary>
+    <div class="table-of-contents__disclosure">
+      <nav class="table-of-contents__disclosure-inner" aria-label="Table of contents">
+        <TableOfContentsList items={items} />
+      </nav>
+    </div>
+  </details>
+)}

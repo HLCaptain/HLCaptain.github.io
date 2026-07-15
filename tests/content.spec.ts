@@ -52,8 +52,8 @@ test.describe("project case studies", () => {
     const markdownHeadings = page.locator(".prose :is(h1, h2, h3, h4, h5, h6)[id]");
     const headingCopyButtons = page.locator(".heading-reference");
     const [mutedColor, accentColor] = await Promise.all([resolvedColor(page, "--muted"), resolvedColor(page, "--accent-readable")]);
-    await expect(markdownHeadings).toHaveCount(4);
-    await expect(headingCopyButtons).toHaveCount(4);
+    await expect(markdownHeadings).toHaveCount(5);
+    await expect(headingCopyButtons).toHaveCount(5);
     await expect(headingCopyButtons.first()).toHaveAttribute("data-heading-copy", "overview");
     await expect(headingCopyButtons.first()).toHaveAttribute("data-copy-path", "/work/proto-shape/#overview");
     await expect(headingCopyButtons.first()).toHaveCSS("position", "absolute");
@@ -88,7 +88,7 @@ test.describe("project case studies", () => {
       range.selectNodeContents(heading);
       range.setEndBefore(button);
       const lines = Array.from(range.getClientRects()).filter(({ width, height }) => width && height);
-      const title = lines[window.innerWidth <= 720 ? lines.length - 1 : 0];
+      const title = lines[window.innerWidth <= 900 ? lines.length - 1 : 0];
       const icon = button.getBoundingClientRect();
       const headingRect = heading.getBoundingClientRect();
       return {
@@ -107,7 +107,7 @@ test.describe("project case studies", () => {
     expect(Math.abs(headingReferenceGeometry.iconCenterY - headingReferenceGeometry.titleCenterY)).toBeLessThanOrEqual(1);
     expect(headingReferenceGeometry.iconLeft).toBeGreaterThanOrEqual(0);
     expect(headingReferenceGeometry.iconRight).toBeLessThanOrEqual(headingReferenceGeometry.viewportWidth);
-    if (page.viewportSize()!.width <= 720) {
+    if (page.viewportSize()!.width <= 900) {
       expect(Math.abs(headingReferenceGeometry.iconLeft - headingReferenceGeometry.expectedMobileLeft)).toBeLessThanOrEqual(1);
     } else {
       expect(headingReferenceGeometry.iconRight).toBeLessThanOrEqual(headingReferenceGeometry.headingLeft);
@@ -147,6 +147,85 @@ test.describe("project case studies", () => {
       "https://github.com/HLCaptain/proto-shape/assets/22623259/730a527c-d6ba-4eaa-93b6-dbcbbd8aba52"
     );
     await expect(page.locator(".prose > .project-overview-video + h2#overview")).toHaveCount(1);
+    const railEdges = await Promise.all(
+      [pageHeader, projectLinks, projectFacts, page.locator(".project-overview-video"), markdownHeadings.first()].map(
+        (element) => element.evaluate((node) => {
+          const { left, right } = node.getBoundingClientRect();
+          return { left, right };
+        })
+      )
+    );
+    expect(Math.max(...railEdges.map(({ left }) => left)) - Math.min(...railEdges.map(({ left }) => left))).toBeLessThanOrEqual(1);
+    expect(Math.max(...railEdges.map(({ right }) => right)) - Math.min(...railEdges.map(({ right }) => right))).toBeLessThanOrEqual(1);
+
+    const mobileToc = page.locator("[data-toc-mobile]");
+    const desktopToc = page.locator("[data-toc-desktop]");
+    const toc = page.viewportSize()!.width <= 720 ? mobileToc : desktopToc;
+    await expect(toc).toBeVisible();
+    await expect(page.viewportSize()!.width <= 720 ? desktopToc : mobileToc).toBeHidden();
+    const tocLinks = toc.locator("a");
+    await expect(tocLinks).toHaveCount(5);
+    expect(await tocLinks.evaluateAll((links) => links.map((link) => link.getAttribute("href")))).toEqual(
+      await markdownHeadings.evaluateAll((headings) => headings.map((heading) => `#${heading.id}`))
+    );
+    expect(
+      await toc.locator('a[href="#shared-gizmo-utilities"]').evaluate((link) =>
+        link.closest("ol")?.parentElement?.querySelector(":scope > a")?.getAttribute("href")
+      )
+    ).toBe("#editor-tooling-as-a-reusable-system");
+
+    if (page.viewportSize()!.width <= 720) {
+      const mobileOrder = await page.evaluate(() => {
+        const facts = document.querySelector(".project-facts")!.getBoundingClientRect();
+        const video = document.querySelector(".project-overview-video")!.getBoundingClientRect();
+        const toc = document.querySelector("[data-toc-mobile]")!.getBoundingClientRect();
+        const overview = document.querySelector("#overview")!.getBoundingClientRect();
+        return { leadBottom: Math.max(facts.bottom, video.bottom), tocTop: toc.top, tocBottom: toc.bottom, overviewTop: overview.top };
+      });
+      expect(mobileOrder.tocTop).toBeGreaterThanOrEqual(mobileOrder.leadBottom - 1);
+      expect(mobileOrder.overviewTop).toBeGreaterThanOrEqual(mobileOrder.tocBottom - 1);
+      const disclosure = mobileToc.locator(".table-of-contents__disclosure");
+      const closedHeight = await disclosure.evaluate((node) => node.getBoundingClientRect().height);
+      expect(await disclosure.evaluate((node) => getComputedStyle(node).transitionDuration)).not.toBe("0s");
+      await mobileToc.locator("summary").click();
+      await expect(mobileToc).toHaveAttribute("open", "");
+      await expect.poll(() => disclosure.evaluate((node) => node.getBoundingClientRect().height)).toBeGreaterThan(closedHeight);
+    } else {
+      expect(
+        await desktopToc.evaluate((node) => {
+          const style = getComputedStyle(node);
+          return { position: style.position, overflowY: style.overflowY, rightOfContent: node.getBoundingClientRect().left > document.querySelector(".document-content")!.getBoundingClientRect().right };
+        })
+      ).toEqual({ position: "sticky", overflowY: "auto", rightOfContent: true });
+    }
+
+    await page.evaluate(() => {
+      document.documentElement.style.scrollBehavior = "auto";
+      window.scrollTo(0, 0);
+    });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await page.evaluate(() => {
+      document.documentElement.style.removeProperty("scroll-behavior");
+      const state = window as Window & { __tocScrollSamples?: number[] };
+      state.__tocScrollSamples = [];
+      window.addEventListener("scroll", () => state.__tocScrollSamples?.push(window.scrollY), { passive: true });
+    });
+    await toc.locator('a[href="#overview"]').click();
+    await expect(page.locator("html")).toHaveClass(/toc-scrolling/);
+    await expect(page).toHaveURL(/#overview$/);
+    await expect.poll(() => page.locator("#overview").evaluate((heading) => Math.abs(heading.getBoundingClientRect().top - 24))).toBeLessThanOrEqual(1);
+    expect(
+      await page.evaluate(() => new Set((window as Window & { __tocScrollSamples?: number[] }).__tocScrollSamples).size)
+    ).toBeGreaterThan(2);
+    await expect(page.locator("html")).not.toHaveClass(/toc-scrolling/);
+    if (page.viewportSize()!.width > 720 && page.viewportSize()!.width <= 900) {
+      await page.evaluate(() => window.localStorage.removeItem("hlcaptain-sidebar"));
+      await page.goto("/work/proto-shape/");
+      await markdownHeadings.first().hover({ position: { x: 2, y: 2 } });
+      await headingCopyButtons.first().hover();
+      await expect(headingCopyButtons.first()).toHaveCSS("color", accentColor);
+      await expect(desktopToc).toBeVisible();
+    }
     await expectNoHorizontalOverflow(page);
   });
 

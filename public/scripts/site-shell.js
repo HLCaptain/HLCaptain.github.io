@@ -1289,6 +1289,15 @@ function handleNavigationIntent(event) {
   if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   if (link.target && link.target !== "_self") return;
 
+  if (link.hasAttribute("data-toc-link")) {
+    document.documentElement.classList.add("toc-scrolling");
+    window.clearTimeout(window.__hlTocScrollTimer);
+    window.__hlTocScrollTimer = window.setTimeout(() => {
+      document.documentElement.classList.remove("toc-scrolling");
+    }, 1000);
+    return;
+  }
+
   const path = normalizePath(link.href);
   if (!path) return;
   const targetIndex = link.dataset.navIndex ? Number(link.dataset.navIndex) : navIndexForPath(path);
@@ -1416,7 +1425,7 @@ function initSignals() {
 }
 
 function positionHeadingReferences() {
-  const mobile = window.matchMedia("(max-width: 720px)").matches;
+  const compact = window.matchMedia("(max-width: 900px)").matches;
 
   document.querySelectorAll(".prose :is(h1, h2, h3, h4, h5, h6)[id]").forEach((heading) => {
     const button = heading.querySelector(":scope > [data-heading-copy]");
@@ -1426,11 +1435,11 @@ function positionHeadingReferences() {
     range.selectNodeContents(heading);
     range.setEndBefore(button);
     const lines = Array.from(range.getClientRects()).filter(({ width, height }) => width && height);
-    const line = lines[mobile ? lines.length - 1 : 0];
+    const line = lines[compact ? lines.length - 1 : 0];
     if (!line) return;
 
     const headingRect = heading.getBoundingClientRect();
-    const x = mobile
+    const x = compact
       ? Math.max(0, Math.min(line.right - headingRect.left + 6, headingRect.width - button.offsetWidth))
       : -button.offsetWidth - 8;
     const y = line.top - headingRect.top + line.height / 2;

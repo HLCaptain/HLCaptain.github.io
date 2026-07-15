@@ -12,7 +12,7 @@ export async function getStaticPaths() {
 }
 
 const { project } = Astro.props;
-const { Content } = await render(project);
+const { Content, headings } = await render(project);
 ---
 
 <MarkdownLayout
@@ -23,6 +23,7 @@ const { Content } = await render(project);
   publishedAt={project.data.publishedAt}
   updatedAt={project.data.updatedAt}
   tags={project.data.tags}
+  headings={headings}
 >
   <Fragment slot="subheader">
     {project.data.links.length > 0 && (

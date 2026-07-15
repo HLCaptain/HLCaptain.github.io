@@ -11,7 +11,7 @@ export async function getStaticPaths() {
 }
 
 const { article } = Astro.props;
-const { Content } = await render(article);
+const { Content, headings } = await render(article);
 ---
 
 <MarkdownLayout
@@ -22,6 +22,7 @@ const { Content } = await render(article);
   publishedAt={article.data.publishedAt}
   updatedAt={article.data.updatedAt}
   tags={article.data.tags}
+  headings={headings}
 >
   <Content />
 </MarkdownLayout>

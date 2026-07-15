@@ -1,0 +1,22 @@
+---
+import type { MarkdownHeading } from "astro";
+
+type TableOfContentsItem = MarkdownHeading & {
+  children: TableOfContentsItem[];
+};
+
+type Props = {
+  items: TableOfContentsItem[];
+};
+
+const { items } = Astro.props;
+---
+
+<ol class="table-of-contents__list">
+  {items.map((item) => (
+    <li>
+      <a href={`#${item.slug}`} data-toc-link>{item.text}</a>
+      {item.children.length > 0 && <Astro.self items={item.children} />}
+    </li>
+  ))}
+</ol>
