@@ -1,6 +1,7 @@
 ---
 import { ClientRouter } from "astro:transitions";
 import HeadingReferenceIcon from "@components/HeadingReferenceIcon.astro";
+import SemanticIcon from "@components/SemanticIcon.astro";
 import Sidebar from "@components/Sidebar.astro";
 import { siteConfig } from "../site.config";
 import "@styles/global.css";
@@ -171,7 +172,7 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
       </main>
     </div>
     <button class="debug-fab" type="button" data-debug-toggle aria-expanded="false" aria-controls="debug-panel">
-      <span class="pixel-glyph" aria-hidden="true"><i class="is-on"></i><i></i><i class="is-on"></i><i></i><i class="is-on"></i><i></i><i class="is-on"></i><i></i><i class="is-on"></i></span>
+      <SemanticIcon name="debug" />
       <span class="sr-only">Open debug menu</span>
     </button>
     <section id="debug-panel" class="debug-panel" data-debug-panel aria-label="Debug menu" hidden>
@@ -180,7 +181,7 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         <button type="button" data-debug-close aria-label="Close debug menu">Close</button>
       </header>
       <fieldset>
-        <legend>Arrow icon set</legend>
+        <legend>Icon set</legend>
         <button type="button" data-arrow-style="tabler">Tabler</button>
         <button type="button" data-arrow-style="lucide">Lucide</button>
         <button type="button" data-arrow-style="heroicons">Heroicons</button>

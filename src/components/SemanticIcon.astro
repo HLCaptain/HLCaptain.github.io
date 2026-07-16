@@ -1,0 +1,177 @@
+---
+import { Icon } from "astro-icon/components";
+
+const iconSources = {
+  tabler: {
+    home: "tabler:home",
+    person: "tabler:user",
+    archive: "tabler:archive",
+    writing: "tabler:article",
+    feed: "tabler:rss",
+    work: "tabler:briefcase",
+    link: "tabler:link",
+    mail: "tabler:mail",
+    debug: "tabler:adjustments-horizontal",
+    stairs: "tabler:stairs",
+    receipt: "tabler:receipt",
+    blocks: "tabler:blocks"
+  },
+  lucide: {
+    home: "lucide:house",
+    person: "lucide:user",
+    archive: "lucide:archive",
+    writing: "lucide:notebook-text",
+    feed: "lucide:rss",
+    work: "lucide:briefcase",
+    link: "lucide:link",
+    mail: "lucide:mail",
+    debug: "lucide:sliders-horizontal",
+    stairs: "lucide:chart-no-axes-column-increasing",
+    receipt: "lucide:receipt-text",
+    blocks: "lucide:blocks"
+  },
+  heroicons: {
+    home: "heroicons:home",
+    person: "heroicons:user",
+    archive: "heroicons:archive-box",
+    writing: "heroicons:pencil-square",
+    feed: "heroicons:rss",
+    work: "heroicons:briefcase",
+    link: "heroicons:link",
+    mail: "heroicons:envelope",
+    debug: "heroicons:adjustments-horizontal",
+    stairs: "heroicons:square-3-stack-3d",
+    receipt: "heroicons:receipt-percent",
+    blocks: "heroicons:squares-2x2"
+  },
+  phosphor: {
+    home: "ph:house",
+    person: "ph:user",
+    archive: "ph:archive",
+    writing: "ph:article",
+    feed: "ph:rss",
+    work: "ph:briefcase",
+    link: "ph:link",
+    mail: "ph:envelope",
+    debug: "ph:sliders-horizontal",
+    stairs: "ph:stairs",
+    receipt: "ph:receipt",
+    blocks: "ph:cube"
+  },
+  solar: {
+    home: "solar:home-linear",
+    person: "solar:user-linear",
+    archive: "solar:archive-linear",
+    writing: "solar:document-text-linear",
+    feed: "solar:feed-linear",
+    work: "solar:case-linear",
+    link: "solar:link-linear",
+    mail: "solar:letter-linear",
+    debug: "solar:tuning-2-linear",
+    stairs: "solar:layers-linear",
+    receipt: "solar:bill-list-linear",
+    blocks: "solar:widget-2-linear"
+  },
+  remix: {
+    home: "ri:home-line",
+    person: "ri:user-line",
+    archive: "ri:archive-line",
+    writing: "ri:article-line",
+    feed: "ri:rss-line",
+    work: "ri:briefcase-line",
+    link: "ri:link",
+    mail: "ri:mail-line",
+    debug: "ri:equalizer-2-line",
+    stairs: "ri:stairs-line",
+    receipt: "ri:receipt-line",
+    blocks: "ri:shapes-line"
+  },
+  material: {
+    home: "mdi:home-outline",
+    person: "mdi:account-outline",
+    archive: "mdi:archive-outline",
+    writing: "mdi:notebook-edit-outline",
+    feed: "mdi:rss",
+    work: "mdi:briefcase-outline",
+    link: "mdi:link",
+    mail: "mdi:email-outline",
+    debug: "mdi:tune-variant",
+    stairs: "mdi:stairs",
+    receipt: "mdi:receipt-text-outline",
+    blocks: "mdi:cube-outline"
+  },
+  carbon: {
+    home: "carbon:home",
+    person: "carbon:person",
+    archive: "carbon:archive",
+    writing: "carbon:notebook",
+    feed: "carbon:rss",
+    work: "carbon:portfolio",
+    link: "carbon:link",
+    mail: "carbon:email",
+    debug: "carbon:settings-adjust",
+    stairs: "carbon:chart-stepper",
+    receipt: "carbon:receipt",
+    blocks: "carbon:list-boxes"
+  },
+  fluent: {
+    home: "fluent:home-24-regular",
+    person: "fluent:person-24-regular",
+    archive: "fluent:archive-24-regular",
+    writing: "fluent:document-edit-24-regular",
+    feed: "fluent:rss-24-regular",
+    work: "fluent:briefcase-24-regular",
+    link: "fluent:link-24-regular",
+    mail: "fluent:mail-24-regular",
+    debug: "fluent:options-24-regular",
+    stairs: "fluent:step-24-regular",
+    receipt: "fluent:receipt-24-regular",
+    blocks: "fluent:cube-multiple-24-regular"
+  },
+  radix: {
+    home: "radix-icons:home",
+    person: "radix-icons:person",
+    archive: "radix-icons:archive",
+    writing: "radix-icons:reader",
+    feed: "radix-icons:activity-log",
+    work: "radix-icons:backpack",
+    link: "radix-icons:link-2",
+    mail: "radix-icons:envelope-closed",
+    debug: "radix-icons:mixer-horizontal",
+    stairs: "radix-icons:stack",
+    receipt: "radix-icons:file-text",
+    blocks: "radix-icons:cube"
+  },
+  pixelart: {
+    home: "pixelarticons:home",
+    person: "pixelarticons:user",
+    archive: "pixelarticons:archive",
+    writing: "pixelarticons:article",
+    feed: "pixelarticons:rss",
+    work: "pixelarticons:briefcase",
+    link: "pixelarticons:link",
+    mail: "pixelarticons:mail",
+    debug: "pixelarticons:settings-2",
+    stairs: "pixelarticons:shapes",
+    receipt: "pixelarticons:receipt",
+    blocks: "pixelarticons:blocks"
+  }
+} as const;
+
+type IconName = keyof (typeof iconSources)["tabler"];
+
+type Props = {
+  name: IconName | string;
+  class?: string;
+};
+
+const requestedName = Astro.props.name as IconName;
+const name = requestedName in iconSources.tabler ? requestedName : "link";
+const className = ["semantic-icon", Astro.props.class].filter(Boolean).join(" ");
+---
+
+<span class={className} data-icon-name={name} aria-hidden="true">
+  {Object.entries(iconSources).map(([style, icons]) => (
+    <Icon name={icons[name]} class="semantic-icon__svg" data-icon-style={style} />
+  ))}
+</span>

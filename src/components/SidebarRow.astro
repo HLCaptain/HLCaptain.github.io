@@ -1,7 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
 import ExternalLinkIcon from "./ExternalLinkIcon.astro";
-import PixelGlyph from "./PixelGlyph.astro";
+import SemanticIcon from "./SemanticIcon.astro";
 
 type Props = {
   type: "group" | "link";
@@ -22,7 +22,7 @@ const labelClass = ["sidebar-row__label", type === "group" ? "nav-group__label" 
   <summary class="sidebar-row sidebar-row--group">
     <span class={iconClass}>
       <Icon name="lucide:chevron-right" class="group-toggle-icon" aria-hidden="true" />
-      <PixelGlyph name={glyph} />
+      <SemanticIcon name={glyph} />
     </span>
     <span class={labelClass}>{label}</span>
   </summary>
@@ -37,7 +37,7 @@ const labelClass = ["sidebar-row__label", type === "group" ? "nav-group__label" 
     data-nav-index={external ? undefined : navIndex}
   >
     <span class={iconClass}>
-      <PixelGlyph name={glyph} />
+      <SemanticIcon name={glyph} />
     </span>
     <span class={labelClass}>{label}</span>
     {external && <ExternalLinkIcon />}

@@ -13,7 +13,8 @@ const { article } = Astro.props;
 <EntryCard
   href={`/articles/${article.id}/`}
   ariaLabel={`Read ${article.data.title}`}
-  glyph="writing"
+  kind="article"
+  visualKey={article.id}
   title={article.data.title}
   description={article.data.description}
   tags={article.data.tags}

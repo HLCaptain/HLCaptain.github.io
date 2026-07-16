@@ -1,0 +1,202 @@
+---
+import SemanticIcon from "./SemanticIcon.astro";
+
+type Props = {
+  kind: "article" | "project";
+  visualKey: string;
+};
+
+const { kind, visualKey } = Astro.props;
+const visual = visualKey === "proto-shape" || visualKey === "spliteasy" ? visualKey : kind;
+const icon = visual === "proto-shape" ? "stairs" : visual === "spliteasy" ? "receipt" : visual === "article" ? "writing" : "blocks";
+---
+
+<span class="entry-card__visual" data-card-visual={visual} aria-hidden="true">
+  <span class="entry-card__visual-static">
+    <SemanticIcon name={icon} />
+  </span>
+  <svg
+    class="entry-card__visual-motion"
+    viewBox="0 0 48 36"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    focusable="false"
+  >
+    {visual === "proto-shape" && (
+      <>
+        <g class="card-scene__part" style="--part: 0">
+          <path d="M4 25l8-4 8 4-8 4-8-4Z" fill="currentColor" fill-opacity=".08" />
+          <path d="M4 25v5l8 4 8-4v-5M12 29v5" />
+        </g>
+        <g class="card-scene__part" style="--part: 1">
+          <path d="m13 19 8-4 8 4-8 4-8-4Z" fill="currentColor" fill-opacity=".08" />
+          <path d="M13 19v8l8 4 8-4v-8M21 23v8" />
+        </g>
+        <g class="card-scene__part" style="--part: 2">
+          <path d="m22 13 8-4 8 4-8 4-8-4Z" fill="currentColor" fill-opacity=".08" />
+          <path d="M22 13v12l8 4 8-4V13M30 17v12" />
+        </g>
+      </>
+    )}
+    {visual === "spliteasy" && (
+      <>
+        <path class="card-scene__draw" style="--part: 0" d="M13 5h22v26l-3-2-3 2-3-2-3 2-3-2-3 2V5Z" />
+        <path class="card-scene__draw" style="--part: 1" d="M24 10v15" />
+        <g class="card-scene__part card-scene__split-left" style="--part: 2">
+          <path d="M17 11h4M17 15h4M17 21h4" />
+        </g>
+        <g class="card-scene__part card-scene__split-right" style="--part: 2">
+          <path d="M27 11h4M27 15h4m-4 7 2 2 3-5" />
+        </g>
+      </>
+    )}
+    {visual === "article" && (
+      <>
+        <path class="card-scene__draw" style="--part: 0" d="M6 7h36v23H6V7Z" />
+        <path class="card-scene__draw card-scene__typed" style="--part: 1" d="M11 13h17" />
+        <path class="card-scene__draw card-scene__typed" style="--part: 2" d="M11 18h25" />
+        <path class="card-scene__draw card-scene__typed" style="--part: 3" d="M11 23h13" />
+        <path class="card-scene__part" style="--part: 4" d="M28 22v3" />
+      </>
+    )}
+    {visual === "project" && (
+      <>
+        <g class="card-scene__part" style="--part: 0">
+          <path d="m7 20 7-4 7 4-7 4-7-4Z" fill="currentColor" fill-opacity=".08" />
+          <path d="M7 20v7l7 4 7-4v-7M14 24v7" />
+        </g>
+        <g class="card-scene__part" style="--part: 1">
+          <path d="m20 13 7-4 7 4-7 4-7-4Z" fill="currentColor" fill-opacity=".08" />
+          <path d="M20 13v7l7 4 7-4v-7M27 17v7" />
+        </g>
+        <g class="card-scene__part" style="--part: 2">
+          <path d="m30 23 6-3 6 3-6 3-6-3Z" fill="currentColor" fill-opacity=".08" />
+          <path d="M30 23v5l6 3 6-3v-5M36 26v5" />
+        </g>
+      </>
+    )}
+  </svg>
+</span>
+
+<style>
+  .entry-card__visual {
+    --semantic-icon-size: 26px;
+    display: inline-grid;
+    width: 48px;
+    height: 36px;
+    place-items: center;
+    color: currentColor;
+  }
+
+  .entry-card__visual-static,
+  .entry-card__visual-motion {
+    grid-area: 1 / 1;
+    width: 100%;
+    height: 100%;
+    transition:
+      opacity 140ms var(--ease),
+      transform 180ms var(--ease);
+  }
+
+  .entry-card__visual-static {
+    display: grid;
+    place-items: center;
+  }
+
+  .entry-card__visual-motion {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  .card-scene__part {
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .card-scene__draw {
+    stroke-dasharray: 96;
+    stroke-dashoffset: 96;
+  }
+
+  :global(.entry-card__link:focus-visible) .entry-card__visual-static {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+
+  :global(.entry-card__link:focus-visible) .entry-card__visual-motion {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  :global(.entry-card__link:focus-visible) .card-scene__part {
+    animation: card-scene-part-in 620ms var(--ease) calc(var(--part) * 70ms) both;
+  }
+
+  :global(.entry-card__link:focus-visible) .card-scene__draw {
+    animation: card-scene-draw 520ms var(--ease) calc(var(--part) * 70ms) both;
+  }
+
+  @media (hover: hover) {
+    :global(.entry-card__link:hover) .entry-card__visual-static {
+      opacity: 0;
+      transform: scale(0.82);
+    }
+
+    :global(.entry-card__link:hover) .entry-card__visual-motion {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    :global(.entry-card__link:hover) .card-scene__part {
+      animation: card-scene-part-in 620ms var(--ease) calc(var(--part) * 70ms) both;
+    }
+
+    :global(.entry-card__link:hover) .card-scene__draw {
+      animation: card-scene-draw 520ms var(--ease) calc(var(--part) * 70ms) both;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .entry-card__visual-static {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+
+    .entry-card__visual-motion {
+      opacity: 0 !important;
+      transform: none !important;
+    }
+
+    .entry-card__visual-motion * {
+      animation: none !important;
+    }
+  }
+
+  @keyframes card-scene-part-in {
+    0% {
+      opacity: 0;
+      transform: translateY(7px) scale(0.92);
+    }
+    72% {
+      opacity: 1;
+      transform: translateY(-1px) scale(1);
+    }
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes card-scene-draw {
+    from {
+      stroke-dashoffset: 96;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+</style>
