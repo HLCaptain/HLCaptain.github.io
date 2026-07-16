@@ -1494,12 +1494,24 @@ svg {
 }
 
 .heading-reference:hover,
+.heading-reference:focus-visible {
+  opacity: 1;
+}
+
+.heading-reference:hover,
 .heading-reference:focus-visible,
 .heading-reference.is-copied {
   color: var(--accent-readable);
-  opacity: 1;
   border-color: var(--accent-readable);
   background: color-mix(in srgb, var(--accent-readable) 12%, var(--surface-soft));
+}
+
+.heading-reference__icon,
+.heading-reference::after {
+  grid-area: 1 / 1;
+  transition:
+    opacity 120ms var(--ease),
+    transform 180ms var(--ease);
 }
 
 .heading-reference__icon {
@@ -1507,6 +1519,27 @@ svg {
   width: 20px;
   height: 20px;
   place-items: center;
+}
+
+.heading-reference::after {
+  content: "";
+  width: 7px;
+  height: 12px;
+  place-self: center;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  opacity: 0;
+  transform: rotate(45deg) scale(0.5);
+}
+
+.heading-reference.is-copied .heading-reference__icon {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.heading-reference.is-copied::after {
+  opacity: 1;
+  transform: rotate(45deg) scale(1);
 }
 
 .heading-reference__svg {

@@ -114,6 +114,27 @@ test.describe("project case studies", () => {
     }
     await headingCopyButtons.first().click();
     await expect(headingCopyButtons.first()).toHaveClass(/is-copied/);
+    await expect(headingCopyButtons.first()).toHaveAttribute("aria-label", "Copied link to Overview");
+    await expect
+      .poll(() =>
+        headingCopyButtons.first().evaluate((button) => ({
+          checkOpacity: getComputedStyle(button, "::after").opacity,
+          iconOpacity: getComputedStyle(button.querySelector(".heading-reference__icon")!).opacity
+        }))
+      )
+      .toEqual({ checkOpacity: "1", iconOpacity: "0" });
+    expect(
+      await headingCopyButtons.first().evaluate((button) => getComputedStyle(button, "::after").transitionDuration)
+    ).not.toBe("0s");
+    await page.mouse.move(viewport.width - 2, viewport.height - 2);
+    await expect
+      .poll(() =>
+        headingCopyButtons.first().evaluate((button) => ({
+          copied: button.classList.contains("is-copied"),
+          opacity: getComputedStyle(button).opacity
+        }))
+      )
+      .toEqual({ copied: true, opacity: "0" });
     const projectFacts = page.getByLabel("Project facts");
     await expect(projectFacts).toContainText("Creator and maintainer");
     if (page.viewportSize()!.width > 720 && page.viewportSize()!.width <= 1040) {
