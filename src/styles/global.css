@@ -928,6 +928,7 @@ svg {
 
 .button-link {
   display: inline-flex;
+  gap: 8px;
   min-height: 42px;
   align-items: center;
   justify-content: center;

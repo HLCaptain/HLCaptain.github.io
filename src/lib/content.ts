@@ -23,6 +23,13 @@ export function formatDate(date: Date) {
   }).format(date);
 }
 
+export function getEntryIcon(kind: "article" | "project", id: string) {
+  if (kind === "article") return "writing";
+  if (id === "proto-shape") return "cube";
+  if (id === "spliteasy") return "receipt";
+  return "blocks";
+}
+
 export function stripTrailingSlash(path: string) {
   if (path === "/") return path;
   return path.replace(/\/$/, "");

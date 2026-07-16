@@ -21,7 +21,7 @@ export const siteConfig = {
   navigation: [
     {
       label: "Index",
-      glyph: "home",
+      glyph: "index",
       open: true,
       items: [
         { label: "Overview", href: "/", glyph: "home" },
@@ -45,10 +45,10 @@ export const siteConfig = {
     },
     {
       label: "Network",
-      glyph: "link",
+      glyph: "network",
       open: true,
       items: [
-        { label: "GitHub", href: "https://github.com/HLCaptain", glyph: "link", external: true },
+        { label: "GitHub", href: "https://github.com/HLCaptain", glyph: "github", external: true },
         { label: "Email", href: "mailto:pkblazsak@gmail.com", glyph: "mail", external: true }
       ]
     }

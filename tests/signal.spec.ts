@@ -255,11 +255,11 @@ test.describe("Signal", () => {
     const summary = second.locator("[data-signal-trigger]");
     const copy = second.locator(".signal__copy");
     await expect(action).toHaveAttribute("aria-label", /Open profile: About HLCaptain/);
-    const [arrowColor, viewWorkColor] = await Promise.all([
+    const [arrowColor, viewProjectsColor] = await Promise.all([
       action.locator(".arrow-icon").evaluate((node) => getComputedStyle(node).color),
-      page.getByRole("link", { name: "View work" }).evaluate((node) => getComputedStyle(node).color)
+      page.getByRole("link", { name: "View projects" }).evaluate((node) => getComputedStyle(node).color)
     ]);
-    expect(arrowColor).toBe(viewWorkColor);
+    expect(arrowColor).toBe(viewProjectsColor);
     const canHover = await page.evaluate(() => matchMedia("(hover: hover)").matches);
     if (canHover) {
       await page.mouse.move(0, 0);
@@ -729,7 +729,7 @@ test.describe("Signal", () => {
     await page.getByRole("button", { name: "Circuit", exact: true }).click();
     await closeDebugPanel(page);
 
-    await page.getByRole("link", { name: "View work" }).click();
+    await page.getByRole("link", { name: "View projects" }).click();
     await expect(page).toHaveURL(/\/work\/$/);
     const root = page.locator("html");
     await expect(root).toHaveAttribute("data-signal-layout", "stack");
@@ -768,7 +768,7 @@ test.describe("Signal", () => {
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    await navigateAndSettle(page.getByRole("link", { name: "View work" }));
+    await navigateAndSettle(page.getByRole("link", { name: "View projects" }));
     await expect(page).toHaveURL(/\/work\/$/);
     await navigateAndSettle(page.getByRole("link", { name: "Overview" }));
     await expect(page).toHaveURL(/\/$/);

@@ -1,5 +1,6 @@
 ---
 import SemanticIcon from "./SemanticIcon.astro";
+import { getEntryIcon } from "@lib/content";
 
 type Props = {
   kind: "article" | "project";
@@ -8,7 +9,7 @@ type Props = {
 
 const { kind, visualKey } = Astro.props;
 const visual = visualKey === "proto-shape" || visualKey === "spliteasy" ? visualKey : kind;
-const icon = visual === "proto-shape" ? "stairs" : visual === "spliteasy" ? "receipt" : visual === "article" ? "writing" : "blocks";
+const icon = getEntryIcon(kind, visualKey);
 ---
 
 <span class="entry-card__visual" data-card-visual={visual} aria-hidden="true">
@@ -26,30 +27,31 @@ const icon = visual === "proto-shape" ? "stairs" : visual === "spliteasy" ? "rec
     focusable="false"
   >
     {visual === "proto-shape" && (
-      <>
-        <g class="card-scene__part" style="--part: 0">
-          <path d="M4 25l8-4 8 4-8 4-8-4Z" fill="currentColor" fill-opacity=".08" />
-          <path d="M4 25v5l8 4 8-4v-5M12 29v5" />
-        </g>
-        <g class="card-scene__part" style="--part: 1">
-          <path d="m13 19 8-4 8 4-8 4-8-4Z" fill="currentColor" fill-opacity=".08" />
-          <path d="M13 19v8l8 4 8-4v-8M21 23v8" />
-        </g>
-        <g class="card-scene__part" style="--part: 2">
-          <path d="m22 13 8-4 8 4-8 4-8-4Z" fill="currentColor" fill-opacity=".08" />
-          <path d="M22 13v12l8 4 8-4V13M30 17v12" />
-        </g>
-      </>
+      <g class="card-scene__cube">
+        <path class="card-scene__cube-face card-scene__cube-face--left" d="m24 5v14l-12-7 12-7Z" fill="currentColor" fill-opacity=".14" />
+        <path class="card-scene__cube-face card-scene__cube-face--right" d="m24 5 12 7-12 7V5Z" fill="currentColor" fill-opacity=".14" />
+        <path class="card-scene__cube-face card-scene__cube-face--left" d="m12 12 12 7v12l-12-7V12Z" fill="currentColor" fill-opacity=".05" />
+        <path class="card-scene__cube-face card-scene__cube-face--right" d="m24 19 12-7v12l-12 7V19Z" fill="currentColor" fill-opacity=".09" />
+      </g>
     )}
     {visual === "spliteasy" && (
       <>
-        <path class="card-scene__draw" style="--part: 0" d="M13 5h22v26l-3-2-3 2-3-2-3 2-3-2-3 2V5Z" />
-        <path class="card-scene__draw" style="--part: 1" d="M24 10v15" />
-        <g class="card-scene__part card-scene__split-left" style="--part: 2">
-          <path d="M17 11h4M17 15h4M17 21h4" />
+        <g class="card-scene__part" style="--part: 0">
+          <circle cx="24" cy="9" r="5" fill="currentColor" fill-opacity=".1" />
+          <path d="M21.5 7.5h5m-5 3h5" />
         </g>
-        <g class="card-scene__part card-scene__split-right" style="--part: 2">
-          <path d="M27 11h4M27 15h4m-4 7 2 2 3-5" />
+        <path class="card-scene__draw" style="--part: 1" d="M24 14v10M24 19H12v5M24 19h12v5" />
+        <g class="card-scene__part card-scene__share" style="--part: 2; --part-x: 12px; --part-y: -19px">
+          <circle cx="12" cy="28" r="4" fill="currentColor" fill-opacity=".08" />
+          <path d="M10.5 28h3" />
+        </g>
+        <g class="card-scene__part card-scene__share" style="--part: 2; --part-x: 0px; --part-y: -19px">
+          <circle cx="24" cy="28" r="4" fill="currentColor" fill-opacity=".08" />
+          <path d="M22.5 28h3" />
+        </g>
+        <g class="card-scene__part card-scene__share" style="--part: 2; --part-x: -12px; --part-y: -19px">
+          <circle cx="36" cy="28" r="4" fill="currentColor" fill-opacity=".08" />
+          <path d="M34.5 28h3" />
         </g>
       </>
     )}
@@ -117,6 +119,24 @@ const icon = visual === "proto-shape" ? "stairs" : visual === "spliteasy" ? "rec
     transform-origin: center;
   }
 
+  .card-scene__cube {
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .card-scene__cube-face {
+    transform-box: fill-box;
+  }
+
+  .card-scene__cube-face--left {
+    transform-origin: right center;
+  }
+
+  .card-scene__cube-face--right {
+    transform-origin: left center;
+  }
+
   .card-scene__draw {
     stroke-dasharray: 96;
     stroke-dashoffset: 96;
@@ -140,6 +160,18 @@ const icon = visual === "proto-shape" ? "stairs" : visual === "spliteasy" ? "rec
     animation: card-scene-draw 520ms var(--ease) calc(var(--part) * 70ms) both;
   }
 
+  :global(.entry-card__link:focus-visible) .card-scene__cube {
+    animation: card-scene-cube-reveal 700ms var(--ease) both;
+  }
+
+  :global(.entry-card__link:focus-visible) .card-scene__cube-face--left {
+    animation: card-scene-cube-face-turn 700ms var(--ease) both;
+  }
+
+  :global(.entry-card__link:focus-visible) .card-scene__cube-face--right {
+    animation: card-scene-cube-face-turn 700ms var(--ease) reverse both;
+  }
+
   @media (hover: hover) {
     :global(.entry-card__link:hover) .entry-card__visual-static {
       opacity: 0;
@@ -157,6 +189,18 @@ const icon = visual === "proto-shape" ? "stairs" : visual === "spliteasy" ? "rec
 
     :global(.entry-card__link:hover) .card-scene__draw {
       animation: card-scene-draw 520ms var(--ease) calc(var(--part) * 70ms) both;
+    }
+
+    :global(.entry-card__link:hover) .card-scene__cube {
+      animation: card-scene-cube-reveal 700ms var(--ease) both;
+    }
+
+    :global(.entry-card__link:hover) .card-scene__cube-face--left {
+      animation: card-scene-cube-face-turn 700ms var(--ease) both;
+    }
+
+    :global(.entry-card__link:hover) .card-scene__cube-face--right {
+      animation: card-scene-cube-face-turn 700ms var(--ease) reverse both;
     }
   }
 
@@ -179,7 +223,7 @@ const icon = visual === "proto-shape" ? "stairs" : visual === "spliteasy" ? "rec
   @keyframes card-scene-part-in {
     0% {
       opacity: 0;
-      transform: translateY(7px) scale(0.92);
+      transform: translate(var(--part-x, 0), var(--part-y, 7px)) scale(0.92);
     }
     72% {
       opacity: 1;
@@ -197,6 +241,32 @@ const icon = visual === "proto-shape" ? "stairs" : visual === "spliteasy" ? "rec
     }
     to {
       stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes card-scene-cube-reveal {
+    0% {
+      opacity: 0;
+      transform: scale(0.76);
+    }
+    20%,
+    100% {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes card-scene-cube-face-turn {
+    0%,
+    50%,
+    100% {
+      transform: scaleX(1);
+    }
+    25% {
+      transform: scaleX(0.08);
+    }
+    75% {
+      transform: scaleX(1.92);
     }
   }
 </style>

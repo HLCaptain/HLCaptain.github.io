@@ -1,6 +1,7 @@
 ---
 import ArticleCard from "@components/ArticleCard.astro";
 import ProjectCard from "@components/ProjectCard.astro";
+import SemanticIcon from "@components/SemanticIcon.astro";
 import Signal from "@components/Signal.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { formatDate, getPublishedArticles, getPublishedProjects } from "@lib/content";
@@ -73,7 +74,10 @@ const previewItems = [
       </p>
       <div class="hero-actions">
         {hasArticles && <a href="/articles/" class="button-link">Read articles</a>}
-        <a href="/work/" class="button-link button-link--ghost">View work</a>
+        <a href="/work/" class="button-link button-link--ghost">
+          <SemanticIcon name="work" />
+          View projects
+        </a>
       </div>
     </div>
 

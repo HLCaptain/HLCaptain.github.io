@@ -1,6 +1,6 @@
 ---
 import { siteConfig } from "../site.config";
-import { getPublishedArticles, getPublishedProjects, stripTrailingSlash } from "@lib/content";
+import { getEntryIcon, getPublishedArticles, getPublishedProjects, stripTrailingSlash } from "@lib/content";
 import { Icon } from "astro-icon/components";
 import SidebarRow from "./SidebarRow.astro";
 
@@ -29,12 +29,12 @@ const [articles, projects] = await Promise.all([getPublishedArticles(), getPubli
 const articleItems = articles.map((article) => ({
   label: article.data.title,
   href: `/articles/${article.id}/`,
-  glyph: "writing"
+  glyph: getEntryIcon("article", article.id)
 }));
 const projectItems = projects.map((project) => ({
   label: project.data.title,
   href: `/work/${project.id}/`,
-  glyph: "work"
+  glyph: getEntryIcon("project", project.id)
 }));
 
 let navIndex = 0;

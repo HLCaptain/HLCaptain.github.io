@@ -1869,6 +1869,30 @@ test.describe("site shell", () => {
       .toBeGreaterThan(0.7);
   });
 
+  test("GitHub icon stays drawn across overview and detail pages", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("hlcaptain-sidebar", "collapsed"));
+
+    for (const path of ["/", "/work/proto-shape/"]) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      if ((page.viewportSize()?.width ?? 0) < 721) {
+        await page.getByRole("button", { name: "Open navigation" }).click();
+      }
+
+      const githubIcon = page
+        .getByRole("navigation", { name: "Primary navigation" })
+        .getByRole("link", { name: "GitHub", exact: true })
+        .locator('.sidebar-row__icon .semantic-icon[data-icon-name="github"]');
+      await expect(githubIcon).toBeVisible();
+      const box = await githubIcon.locator('.semantic-icon__svg[data-icon-style="tabler"]').evaluate((node) => {
+        const bounds = (node as SVGGraphicsElement).getBBox();
+        return { width: bounds.width, height: bounds.height };
+      });
+      expect(box.width).toBeGreaterThan(0);
+      expect(box.height).toBeGreaterThan(0);
+    }
+  });
+
   test("debug icon choices drive semantic icons and card motion accessibly", async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only semantic icon and card motion check");
 
@@ -1876,6 +1900,7 @@ test.describe("site shell", () => {
     await page.waitForLoadState("networkidle");
 
     const root = page.locator("html");
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
     const card = page.getByRole("link", { name: "Open ProtoShape", exact: true });
     const visual = card.locator('.entry-card__visual[data-card-visual="proto-shape"]');
     const staticLayer = visual.locator(".entry-card__visual-static");
@@ -1884,9 +1909,28 @@ test.describe("site shell", () => {
     const splitVisual = splitCard.locator('.entry-card__visual[data-card-visual="spliteasy"]');
     const splitStaticLayer = splitVisual.locator(".entry-card__visual-static");
     const splitMotionLayer = splitVisual.locator(".entry-card__visual-motion");
+    const protoSidebarIcon = nav
+      .getByRole("link", { name: "ProtoShape", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const splitSidebarIcon = nav
+      .getByRole("link", { name: "SplitEasy AI", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const indexIcon = page.locator('[data-nav-group="Index"] > summary .semantic-icon');
+    const networkIcon = page.locator('[data-nav-group="Network"] > summary .semantic-icon');
+    const githubIcon = nav
+      .getByRole("link", { name: "GitHub", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const projectsLink = page.getByRole("link", { name: "View projects", exact: true });
+    const projectsLinkIcon = projectsLink.locator(".semantic-icon");
     const semanticIcons = [
       page.getByRole("link", { name: "About", exact: true }).locator(".semantic-icon"),
       page.getByRole("button", { name: "Open debug menu" }).locator(".semantic-icon"),
+      indexIcon,
+      networkIcon,
+      githubIcon,
+      protoSidebarIcon,
+      splitSidebarIcon,
+      projectsLinkIcon,
       staticLayer.locator(".semantic-icon"),
       splitStaticLayer.locator(".semantic-icon")
     ];
@@ -1894,7 +1938,13 @@ test.describe("site shell", () => {
     for (const icon of semanticIcons) {
       await expect(icon.locator(".semantic-icon__svg[data-icon-style]")).toHaveCount(11);
     }
-    await expect(staticLayer.locator('.semantic-icon[data-icon-name="stairs"]')).toBeVisible();
+    await expect(indexIcon).toHaveAttribute("data-icon-name", "index");
+    await expect(networkIcon).toHaveAttribute("data-icon-name", "network");
+    await expect(githubIcon).toHaveAttribute("data-icon-name", "github");
+    await expect(projectsLinkIcon).toHaveAttribute("data-icon-name", "work");
+    await expect(protoSidebarIcon).toHaveAttribute("data-icon-name", "cube");
+    await expect(splitSidebarIcon).toHaveAttribute("data-icon-name", "receipt");
+    await expect(staticLayer.locator('.semantic-icon[data-icon-name="cube"]')).toBeVisible();
     await expect(splitStaticLayer.locator('.semantic-icon[data-icon-name="receipt"]')).toBeVisible();
     await expect(staticLayer).toHaveCSS("opacity", "1");
     await expect(motionLayer).toHaveCSS("opacity", "0");
@@ -1920,6 +1970,12 @@ test.describe("site shell", () => {
       for (const icon of semanticIcons) {
         await expect(icon.locator(`.semantic-icon__svg[data-icon-style="${style}"]`)).toBeVisible();
       }
+      const githubBox = await githubIcon.locator(`.semantic-icon__svg[data-icon-style="${style}"]`).evaluate((node) => {
+        const bounds = (node as SVGGraphicsElement).getBBox();
+        return { width: bounds.width, height: bounds.height };
+      });
+      expect(githubBox.width).toBeGreaterThan(0);
+      expect(githubBox.height).toBeGreaterThan(0);
     }
     await page.getByRole("button", { name: "Close debug menu" }).click();
 
@@ -1931,6 +1987,17 @@ test.describe("site shell", () => {
     await expect
       .poll(async () => motionLayer.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
       .toBeGreaterThan(0.8);
+    const cube = motionLayer.locator(".card-scene__cube");
+    await expect(cube).toHaveCSS("animation-name", "card-scene-cube-reveal");
+    const cubeFaces = cube.locator(".card-scene__cube-face");
+    await expect(cubeFaces).toHaveCount(4);
+    const cubeTransforms = await cubeFaces.first().evaluate((node) =>
+      node.getAnimations().flatMap((animation) =>
+        ((animation.effect as KeyframeEffect)?.getKeyframes() ?? []).map((frame) => String(frame.transform))
+      )
+    );
+    expect(cubeTransforms.some((transform) => transform.includes("scaleX"))).toBe(true);
+    await expect(cube.locator(".card-scene__cube-face--right").first()).toHaveCSS("animation-direction", "reverse");
     const afterHover = await visual.boundingBox();
     expect(Math.abs((afterHover?.width ?? 0) - (beforeHover?.width ?? 0))).toBeLessThanOrEqual(0.5);
     expect(Math.abs((afterHover?.height ?? 0) - (beforeHover?.height ?? 0))).toBeLessThanOrEqual(0.5);
@@ -1942,6 +2009,11 @@ test.describe("site shell", () => {
     await expect
       .poll(async () => splitMotionLayer.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
       .toBeGreaterThan(0.8);
+    const splitShares = splitMotionLayer.locator(".card-scene__share");
+    await expect(splitShares).toHaveCount(3);
+    await expect
+      .poll(async () => splitShares.evaluateAll((nodes) => nodes.every((node) => Number.parseFloat(getComputedStyle(node).opacity) > 0.8)))
+      .toBe(true);
 
     await page.mouse.move(8, 8);
     await page.keyboard.press("Tab");
@@ -1958,14 +2030,18 @@ test.describe("site shell", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await expect(staticLayer).toHaveCSS("opacity", "1");
     await expect(motionLayer).toHaveCSS("opacity", "0");
+    await expect(splitStaticLayer).toHaveCSS("opacity", "1");
+    await expect(splitMotionLayer).toHaveCSS("opacity", "0");
     await expect(staticLayer.locator('.semantic-icon__svg[data-icon-style="pixelart"]')).toBeVisible();
-    const runningAnimations = await motionLayer.evaluate((node) =>
-      [node, ...node.querySelectorAll("*")]
-        .flatMap((element) => getComputedStyle(element).animationName.split(","))
-        .map((name) => name.trim())
-        .filter((name) => name !== "none")
-    );
-    expect(runningAnimations).toEqual([]);
+    for (const layer of [motionLayer, splitMotionLayer]) {
+      const runningAnimations = await layer.evaluate((node) =>
+        [node, ...node.querySelectorAll("*")]
+          .flatMap((element) => getComputedStyle(element).animationName.split(","))
+          .map((name) => name.trim())
+          .filter((name) => name !== "none")
+      );
+      expect(runningAnimations).toEqual([]);
+    }
   });
 
   test("stored theme and accent survive navigation without default-scheme reset", async ({ page }) => {
@@ -1981,7 +2057,7 @@ test.describe("site shell", () => {
     const beforeNav = await page.locator("html").evaluate((node) => getComputedStyle(node).getPropertyValue("--accent"));
     expect(beforeNav.trim()).not.toBe("#050505");
 
-    await page.getByRole("link", { name: "View work" }).click();
+    await page.getByRole("link", { name: "View projects" }).click();
     await expect(page).toHaveURL(/\/work\/$/);
     await expect(page.locator("html")).toHaveAttribute("data-theme-mode", "black");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "black");
