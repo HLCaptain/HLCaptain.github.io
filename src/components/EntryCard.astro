@@ -1,8 +1,9 @@
 ---
 import type { ImageMetadata } from "astro";
 import { Image } from "astro:assets";
+import { getEntryIcon } from "@lib/content";
 import ArrowIcon from "./ArrowIcon.astro";
-import CardVisual from "./CardVisual.astro";
+import SemanticIcon from "./SemanticIcon.astro";
 
 type MetaItem = {
   label: string;
@@ -22,6 +23,7 @@ type Props = {
 };
 
 const { href, ariaLabel, kind, visualKey, title, description, tags, meta, thumbnail } = Astro.props;
+const icon = getEntryIcon(kind, visualKey);
 ---
 
 <article class:list={["entry-card", kind === "project" && "entry-card--project"]}>
@@ -29,7 +31,7 @@ const { href, ariaLabel, kind, visualKey, title, description, tags, meta, thumbn
     {thumbnail ? (
       <Image class="entry-card__thumbnail" src={thumbnail} alt="" />
     ) : (
-      <span class="entry-card__glyph"><CardVisual kind={kind} visualKey={visualKey} /></span>
+      <span class="entry-card__glyph"><SemanticIcon name={icon} /></span>
     )}
     <span class="entry-card__meta">
       {meta.map((item) =>

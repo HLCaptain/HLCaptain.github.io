@@ -1803,7 +1803,7 @@ test.describe("site shell", () => {
       .not.toBe(afterAccent);
     const contrastResult = await page.locator(".entry-card__link").first().evaluate((node) => {
       const cardStyle = getComputedStyle(node);
-      const icon = node.querySelector(".entry-card__visual");
+      const icon = node.querySelector(".entry-card__glyph .semantic-icon");
       if (!icon) return null;
       const iconStyle = getComputedStyle(icon);
       return { icon: iconStyle.color, card: cardStyle.backgroundColor, body: getComputedStyle(document.body).backgroundColor };
@@ -1893,22 +1893,19 @@ test.describe("site shell", () => {
     }
   });
 
-  test("debug icon choices drive semantic icons and card motion accessibly", async ({ page }) => {
-    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only semantic icon and card motion check");
+  test("debug icon choices drive semantic card and sidebar icons", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only semantic icon check");
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    const card = page.getByRole("link", { name: "Open ProtoShape", exact: true });
-    const visual = card.locator('.entry-card__visual[data-card-visual="proto-shape"]');
-    const staticLayer = visual.locator(".entry-card__visual-static");
-    const motionLayer = visual.locator(".entry-card__visual-motion");
-    const splitCard = page.getByRole("link", { name: "Open SplitEasy AI", exact: true });
-    const splitVisual = splitCard.locator('.entry-card__visual[data-card-visual="spliteasy"]');
-    const splitStaticLayer = splitVisual.locator(".entry-card__visual-static");
-    const splitMotionLayer = splitVisual.locator(".entry-card__visual-motion");
+    const protoCard = page.getByRole("link", { name: "Open ProtoShape", exact: true });
+    const protoCardIcon = protoCard.locator(".entry-card__glyph .semantic-icon");
+    const splitCardIcon = page
+      .getByRole("link", { name: "Open SplitEasy AI", exact: true })
+      .locator(".entry-card__glyph .semantic-icon");
     const protoSidebarIcon = nav
       .getByRole("link", { name: "ProtoShape", exact: true })
       .locator(".sidebar-row__icon .semantic-icon");
@@ -1931,8 +1928,8 @@ test.describe("site shell", () => {
       protoSidebarIcon,
       splitSidebarIcon,
       projectsLinkIcon,
-      staticLayer.locator(".semantic-icon"),
-      splitStaticLayer.locator(".semantic-icon")
+      protoCardIcon,
+      splitCardIcon
     ];
 
     for (const icon of semanticIcons) {
@@ -1944,10 +1941,8 @@ test.describe("site shell", () => {
     await expect(projectsLinkIcon).toHaveAttribute("data-icon-name", "work");
     await expect(protoSidebarIcon).toHaveAttribute("data-icon-name", "cube");
     await expect(splitSidebarIcon).toHaveAttribute("data-icon-name", "receipt");
-    await expect(staticLayer.locator('.semantic-icon[data-icon-name="cube"]')).toBeVisible();
-    await expect(splitStaticLayer.locator('.semantic-icon[data-icon-name="receipt"]')).toBeVisible();
-    await expect(staticLayer).toHaveCSS("opacity", "1");
-    await expect(motionLayer).toHaveCSS("opacity", "0");
+    await expect(protoCardIcon).toHaveAttribute("data-icon-name", "cube");
+    await expect(splitCardIcon).toHaveAttribute("data-icon-name", "receipt");
 
     await page.getByRole("button", { name: "Open debug menu" }).click();
     for (const [label, style] of [
@@ -1979,69 +1974,9 @@ test.describe("site shell", () => {
     }
     await page.getByRole("button", { name: "Close debug menu" }).click();
 
-    const beforeHover = await visual.boundingBox();
-    await card.hover();
-    await expect
-      .poll(async () => staticLayer.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
-      .toBeLessThan(0.2);
-    await expect
-      .poll(async () => motionLayer.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
-      .toBeGreaterThan(0.8);
-    const cube = motionLayer.locator(".card-scene__cube");
-    await expect(cube).toHaveCSS("animation-name", "card-scene-cube-reveal");
-    const cubeFaces = cube.locator(".card-scene__cube-face");
-    await expect(cubeFaces).toHaveCount(4);
-    const cubeTransforms = await cubeFaces.first().evaluate((node) =>
-      node.getAnimations().flatMap((animation) =>
-        ((animation.effect as KeyframeEffect)?.getKeyframes() ?? []).map((frame) => String(frame.transform))
-      )
-    );
-    expect(cubeTransforms.some((transform) => transform.includes("scaleX"))).toBe(true);
-    await expect(cube.locator(".card-scene__cube-face--right").first()).toHaveCSS("animation-direction", "reverse");
-    const afterHover = await visual.boundingBox();
-    expect(Math.abs((afterHover?.width ?? 0) - (beforeHover?.width ?? 0))).toBeLessThanOrEqual(0.5);
-    expect(Math.abs((afterHover?.height ?? 0) - (beforeHover?.height ?? 0))).toBeLessThanOrEqual(0.5);
-
-    await splitCard.hover();
-    await expect
-      .poll(async () => splitStaticLayer.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
-      .toBeLessThan(0.2);
-    await expect
-      .poll(async () => splitMotionLayer.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
-      .toBeGreaterThan(0.8);
-    const splitShares = splitMotionLayer.locator(".card-scene__share");
-    await expect(splitShares).toHaveCount(3);
-    await expect
-      .poll(async () => splitShares.evaluateAll((nodes) => nodes.every((node) => Number.parseFloat(getComputedStyle(node).opacity) > 0.8)))
-      .toBe(true);
-
-    await page.mouse.move(8, 8);
-    await page.keyboard.press("Tab");
-    await card.focus();
-    await expect(card).toBeFocused();
-    await expect.poll(async () => card.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
-    await expect
-      .poll(async () => staticLayer.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
-      .toBeLessThan(0.2);
-    await expect
-      .poll(async () => motionLayer.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
-      .toBeGreaterThan(0.8);
-
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await expect(staticLayer).toHaveCSS("opacity", "1");
-    await expect(motionLayer).toHaveCSS("opacity", "0");
-    await expect(splitStaticLayer).toHaveCSS("opacity", "1");
-    await expect(splitMotionLayer).toHaveCSS("opacity", "0");
-    await expect(staticLayer.locator('.semantic-icon__svg[data-icon-style="pixelart"]')).toBeVisible();
-    for (const layer of [motionLayer, splitMotionLayer]) {
-      const runningAnimations = await layer.evaluate((node) =>
-        [node, ...node.querySelectorAll("*")]
-          .flatMap((element) => getComputedStyle(element).animationName.split(","))
-          .map((name) => name.trim())
-          .filter((name) => name !== "none")
-      );
-      expect(runningAnimations).toEqual([]);
-    }
+    await protoCard.hover();
+    await expect(protoCardIcon).toBeVisible();
+    await expect(protoCardIcon.locator('.semantic-icon__svg[data-icon-style="pixelart"]')).toBeVisible();
   });
 
   test("stored theme and accent survive navigation without default-scheme reset", async ({ page }) => {

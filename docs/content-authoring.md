@@ -15,7 +15,7 @@ src/content/projects/my-project/
 
 The folder name becomes the URL: the examples above build to `/articles/my-article/` and
 `/work/my-project/`. Use `.md` for standard Markdown and `.mdx` only when the body imports a
-component. A thumbnail is optional. Without one, cards use their semantic icon and hover animation.
+component. A thumbnail is optional. Without one, cards use their semantic icon.
 Prefer a 16:9 WebP, JPEG, PNG, AVIF, GIF, TIFF, or SVG because card thumbnails are cropped to 16:9.
 
 ## Article template
