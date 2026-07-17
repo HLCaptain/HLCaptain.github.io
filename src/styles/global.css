@@ -327,6 +327,7 @@ svg {
 
 .nav-group {
   position: relative;
+  border-color: transparent;
   border-block-start: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   transition:
     background-color 180ms var(--ease),

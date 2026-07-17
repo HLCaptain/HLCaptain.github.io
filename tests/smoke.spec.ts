@@ -932,6 +932,13 @@ test.describe("site shell", () => {
     );
     expect(expandedMetrics.groupPaddingLeft).toBe(expandedMetrics.itemPaddingLeft);
     expect(expandedMetrics.selectedArrowInsideGroup).toBe(false);
+    const dormantGroupBorderColors = await page.locator(".nav-group").evaluateAll((groups) =>
+      groups.flatMap((group) => {
+        const style = getComputedStyle(group);
+        return [style.borderRightColor, style.borderBottomColor];
+      })
+    );
+    expect(dormantGroupBorderColors.every((color) => parseColor(color).a === 0)).toBe(true);
     const expandedActive = await nav.getByRole("link", { name: "All projects", exact: true }).evaluate((node) => {
       const style = getComputedStyle(node);
       return {
