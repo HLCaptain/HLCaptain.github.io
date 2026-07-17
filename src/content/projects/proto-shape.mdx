@@ -17,24 +17,34 @@ links:
 import ProjectFacts from "../../components/content/ProjectFacts.astro";
 
 export const release = await (async () => {
-  const [githubResponse, godotResponse] = await Promise.all([
-    fetch("https://api.github.com/repos/HLCaptain/proto-shape/releases/latest"),
-    fetch("https://godotengine.org/asset-library/api/asset/2237")
-  ]);
+  const cachedRelease = { version: "1.1.6", godotVersion: "4.5" };
 
-  if (!githubResponse.ok || !godotResponse.ok) {
-    throw new Error("Could not resolve the latest ProtoShape release metadata");
+  try {
+    const request = { signal: AbortSignal.timeout(15_000) };
+    const [githubResponse, godotResponse] = await Promise.all([
+      fetch("https://api.github.com/repos/HLCaptain/proto-shape/releases/latest", request),
+      fetch("https://godotengine.org/asset-library/api/asset/2237", request)
+    ]);
+
+    if (!githubResponse.ok || !godotResponse.ok) {
+      throw new Error("Could not resolve the latest ProtoShape release metadata");
+    }
+
+    const [github, godot] = await Promise.all([githubResponse.json(), godotResponse.json()]);
+    const version = typeof github?.tag_name === "string" ? github.tag_name.trim().replace(/^v/, "") : "";
+    const assetVersion =
+      typeof godot?.version_string === "string" ? godot.version_string.trim().replace(/^v/, "") : "";
+    const godotVersion = typeof godot?.godot_version === "string" ? godot.godot_version.trim() : "";
+
+    if (!version || version !== assetVersion || !godotVersion) {
+      throw new Error("GitHub and Godot do not describe the same ProtoShape release");
+    }
+
+    return { version, godotVersion };
+  } catch {
+    console.warn("Using cached ProtoShape release metadata because the live sources are unavailable");
+    return cachedRelease;
   }
-
-  const [github, godot] = await Promise.all([githubResponse.json(), godotResponse.json()]);
-  const version = String(github?.tag_name ?? "").replace(/^v/, "");
-  const godotVersion = String(godot?.godot_version ?? "");
-
-  if (!version || version !== String(godot?.version_string ?? "").replace(/^v/, "") || !godotVersion) {
-    throw new Error("GitHub and Godot do not describe the same ProtoShape release");
-  }
-
-  return { version, godotVersion };
 })();
 
 <ProjectFacts
