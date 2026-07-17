@@ -885,7 +885,7 @@ test.describe("site shell", () => {
     const toggleBox = await page.getByRole("button", { name: "Collapse sidebar" }).boundingBox();
     await expect(page.locator(".brand-mark")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "HLCaptain home" })).toHaveCount(0);
-    await expect(page.locator(".sidebar-toggle .menu-icon svg")).toHaveCount(1);
+    await expect(page.locator(".sidebar-toggle .menu-icon .semantic-icon__svg")).toHaveCount(6);
     await expect(page.locator(".sidebar-toggle .arrow-icon")).toHaveCount(0);
 
     const aboutLink = nav.getByRole("link", { name: "About", exact: true });
@@ -921,7 +921,7 @@ test.describe("site shell", () => {
         panelBackground: panelStyle.backgroundColor,
         groupPaddingLeft: groupStyle.paddingLeft,
         itemPaddingLeft: itemStyle.paddingLeft,
-        selectedArrowInsideGroup: Boolean(group.querySelector(".arrow-icon__svg"))
+        selectedArrowInsideGroup: Boolean(group.querySelector(".arrow-icon"))
       };
     });
     expect(expandedMetrics.groupIconWidth).toBe(expandedMetrics.itemIconWidth);
@@ -1295,7 +1295,7 @@ test.describe("site shell", () => {
     });
     expect(itemWidth).toBeGreaterThanOrEqual(31);
     expect(itemWidth).toBeLessThanOrEqual(34);
-    const glyphBox = await page.locator("[data-nav-group='Projects'] summary .semantic-icon").boundingBox();
+    const glyphBox = await page.locator("[data-nav-group='Projects'] summary .semantic-icon:not(.group-toggle-icon)").boundingBox();
     expect(glyphBox?.width ?? 0).toBeGreaterThan(8);
 
     const collapsedAlignment = await page.evaluate(() => {
@@ -1856,7 +1856,7 @@ test.describe("site shell", () => {
 
     const card = page.locator(".entry-card__link").first();
     const arrow = card.locator(".entry-card__arrow");
-    await expect(arrow.locator(".arrow-icon__svg[data-icon-style]")).toHaveCount(11);
+    await expect(arrow.locator(".semantic-icon__svg[data-icon-style]")).toHaveCount(6);
     await expect
       .poll(async () => arrow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
       .toBeLessThan(0.2);
@@ -1893,9 +1893,10 @@ test.describe("site shell", () => {
     }
   });
 
-  test("debug icon choices drive semantic card and sidebar icons", async ({ page }) => {
-    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only semantic icon check");
+  test("debug icon choices drive semantic icons site-wide", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only site-wide semantic icon check");
 
+    await page.addInitScript(() => localStorage.setItem("hlcaptain-arrow-style", "heroicons"));
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
@@ -1912,13 +1913,16 @@ test.describe("site shell", () => {
     const splitSidebarIcon = nav
       .getByRole("link", { name: "SplitEasy AI", exact: true })
       .locator(".sidebar-row__icon .semantic-icon");
-    const indexIcon = page.locator('[data-nav-group="Index"] > summary .semantic-icon');
-    const networkIcon = page.locator('[data-nav-group="Network"] > summary .semantic-icon');
+    const indexIcon = page.locator('[data-nav-group="Index"] > summary .semantic-icon:not(.group-toggle-icon)');
+    const networkIcon = page.locator('[data-nav-group="Network"] > summary .semantic-icon:not(.group-toggle-icon)');
     const githubIcon = nav
       .getByRole("link", { name: "GitHub", exact: true })
       .locator(".sidebar-row__icon .semantic-icon");
     const projectsLink = page.getByRole("link", { name: "View projects", exact: true });
     const projectsLinkIcon = projectsLink.locator(".semantic-icon");
+    const githubExternalIcon = nav
+      .getByRole("link", { name: "GitHub", exact: true })
+      .locator(".external-link-icon");
     const semanticIcons = [
       page.getByRole("link", { name: "About", exact: true }).locator(".semantic-icon"),
       page.getByRole("button", { name: "Open debug menu" }).locator(".semantic-icon"),
@@ -1929,11 +1933,17 @@ test.describe("site shell", () => {
       splitSidebarIcon,
       projectsLinkIcon,
       protoCardIcon,
-      splitCardIcon
+      splitCardIcon,
+      page.locator(".sidebar-toggle .menu-icon"),
+      page.locator(".surface-control__icon--light"),
+      page.locator(".surface-control--reset .semantic-icon"),
+      githubExternalIcon
     ];
 
+    await expect(root).toHaveAttribute("data-arrow-style", "tabler");
+    await expect(page.locator('[data-icon-style="heroicons"], [data-icon-style="solar"], [data-icon-style="material"], [data-icon-style="carbon"], [data-icon-style="radix"]')).toHaveCount(0);
     for (const icon of semanticIcons) {
-      await expect(icon.locator(".semantic-icon__svg[data-icon-style]")).toHaveCount(11);
+      await expect(icon.locator(".semantic-icon__svg[data-icon-style]")).toHaveCount(6);
     }
     await expect(indexIcon).toHaveAttribute("data-icon-name", "index");
     await expect(networkIcon).toHaveAttribute("data-icon-name", "network");
@@ -1946,17 +1956,14 @@ test.describe("site shell", () => {
     expect(await protoCard.locator(".entry-card__glyph").evaluate((node) => node.clientWidth === node.clientHeight)).toBe(true);
 
     await page.getByRole("button", { name: "Open debug menu" }).click();
+    await expect(page.locator("button[data-arrow-style]")).toHaveCount(6);
+    await expect(page.getByRole("button", { name: "Tabler", exact: true })).toHaveAttribute("aria-pressed", "true");
     for (const [label, style] of [
       ["Tabler", "tabler"],
       ["Lucide", "lucide"],
-      ["Heroicons", "heroicons"],
       ["Phosphor", "phosphor"],
-      ["Solar", "solar"],
       ["Remix", "remix"],
-      ["Material", "material"],
-      ["Carbon", "carbon"],
       ["Fluent", "fluent"],
-      ["Radix", "radix"],
       ["Pixelart", "pixelart"]
     ] as const) {
       const button = page.getByRole("button", { name: label, exact: true });

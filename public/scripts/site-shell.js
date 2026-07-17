@@ -16,14 +16,9 @@ const themeModes = new Map([
 const arrowStyles = new Set([
   "tabler",
   "lucide",
-  "heroicons",
   "phosphor",
-  "solar",
   "remix",
-  "material",
-  "carbon",
   "fluent",
-  "radix",
   "pixelart"
 ]);
 const gridPatterns = new Map([

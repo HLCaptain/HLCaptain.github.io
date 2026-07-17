@@ -40,7 +40,7 @@ test.describe("project case studies", () => {
     await expect(pageHeader.getByRole("heading", { name: "ProtoShape" })).toBeVisible();
     await expect(pageHeader.getByRole("button", { name: "Back" })).toHaveAttribute("data-history-back", "");
     await expect(pageHeader.locator("a.page-header__back")).toHaveCount(0);
-    await expect(pageHeader.locator(".page-header__back-icon svg")).toHaveCount(1);
+    await expect(pageHeader.locator(".page-header__back-icon .semantic-icon__svg")).toHaveCount(6);
     await expect(pageHeader.locator(".page-header__title-row .eyebrow")).toHaveText("shipped");
     const titleLayout = await pageHeader.locator(".page-header__title-row").evaluate((node) => {
       const title = node.querySelector("h1")!.getBoundingClientRect();
@@ -58,7 +58,7 @@ test.describe("project case studies", () => {
     await expect(headingCopyButtons.first()).toHaveAttribute("data-copy-path", "/work/proto-shape/#overview");
     await expect(headingCopyButtons.first()).toHaveCSS("position", "absolute");
     await expect(headingCopyButtons.first()).toHaveCSS("width", "36px");
-    await expect(headingCopyButtons.first().locator(".heading-reference__svg")).toHaveCount(11);
+    await expect(headingCopyButtons.first().locator(".heading-reference__icon .semantic-icon__svg")).toHaveCount(6);
     await expect(headingCopyButtons.first()).toHaveCSS("opacity", "0");
     await markdownHeadings.first().hover({ position: { x: 2, y: 2 } });
     await expect(headingCopyButtons.first()).toHaveCSS("opacity", "1");
@@ -70,13 +70,14 @@ test.describe("project case studies", () => {
     await page.mouse.move(viewport.width - 2, viewport.height - 2);
     await page.mouse.up();
     await expect(headingCopyButtons.first()).toHaveCSS("opacity", "0");
-    const iconStyle = await headingCopyButtons.first().locator(".heading-reference__svg").evaluateAll((icons) =>
+    const iconStyle = await headingCopyButtons.first().locator(".heading-reference__icon .semantic-icon__svg").evaluateAll((icons) =>
       icons.filter((icon) => getComputedStyle(icon).display !== "none").map((icon) => icon.getAttribute("data-icon-style"))
     );
     expect(iconStyle).toEqual(["tabler"]);
     await page.getByRole("button", { name: "Open debug menu" }).click();
     await page.getByRole("button", { name: "Phosphor", exact: true }).click();
-    await expect(headingCopyButtons.first().locator('[data-icon-style="phosphor"]')).toBeVisible();
+    await expect(headingCopyButtons.first().locator('.heading-reference__icon [data-icon-style="phosphor"]')).toBeVisible();
+    await expect(pageHeader.locator('.page-header__back-icon [data-icon-style="phosphor"]')).toBeVisible();
     await page.getByRole("button", { name: "Close debug menu" }).click();
     await markdownHeadings.nth(2).evaluate((heading) => {
       (heading as HTMLElement).style.maxWidth = "260px";
@@ -118,13 +119,16 @@ test.describe("project case studies", () => {
     await expect
       .poll(() =>
         headingCopyButtons.first().evaluate((button) => ({
-          checkOpacity: getComputedStyle(button, "::after").opacity,
+          checkOpacity: getComputedStyle(button.querySelector(".heading-reference__check")!).opacity,
           iconOpacity: getComputedStyle(button.querySelector(".heading-reference__icon")!).opacity
         }))
       )
       .toEqual({ checkOpacity: "1", iconOpacity: "0" });
+    await expect(headingCopyButtons.first().locator('.heading-reference__check [data-icon-style="phosphor"]')).toBeVisible();
     expect(
-      await headingCopyButtons.first().evaluate((button) => getComputedStyle(button, "::after").transitionDuration)
+      await headingCopyButtons.first().evaluate((button) =>
+        getComputedStyle(button.querySelector(".heading-reference__check")!).transitionDuration
+      )
     ).not.toBe("0s");
     await page.mouse.move(viewport.width - 2, viewport.height - 2);
     await expect
@@ -182,6 +186,7 @@ test.describe("project case studies", () => {
     const mobileToc = page.locator("[data-toc-mobile]");
     const desktopToc = page.locator("[data-toc-desktop]");
     const toc = page.viewportSize()!.width <= 720 ? mobileToc : desktopToc;
+    await expect(mobileToc.locator(".table-of-contents__chevron .semantic-icon__svg")).toHaveCount(6);
     await expect(toc).toBeVisible();
     await expect(page.viewportSize()!.width <= 720 ? desktopToc : mobileToc).toBeHidden();
     const tocLinks = toc.locator("a");

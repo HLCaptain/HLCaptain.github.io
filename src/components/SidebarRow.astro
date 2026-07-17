@@ -1,5 +1,4 @@
 ---
-import { Icon } from "astro-icon/components";
 import ExternalLinkIcon from "./ExternalLinkIcon.astro";
 import SemanticIcon from "./SemanticIcon.astro";
 
@@ -21,8 +20,8 @@ const labelClass = ["sidebar-row__label", type === "group" ? "nav-group__label" 
 {type === "group" ? (
   <summary class="sidebar-row sidebar-row--group">
     <span class={iconClass}>
-      <Icon name="lucide:chevron-right" class="group-toggle-icon" aria-hidden="true" />
       <SemanticIcon name={glyph} />
+      <SemanticIcon name="chevron" class="group-toggle-icon" />
     </span>
     <span class={labelClass}>{label}</span>
   </summary>

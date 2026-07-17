@@ -1,5 +1,6 @@
 ---
 import type { MarkdownHeading } from "astro";
+import SemanticIcon from "../SemanticIcon.astro";
 import TableOfContentsList from "./TableOfContentsList.astro";
 
 type TableOfContentsItem = MarkdownHeading & {
@@ -34,7 +35,7 @@ headings.forEach((heading) => {
   <details class="table-of-contents table-of-contents--mobile" data-toc-mobile>
     <summary>
       <span>On this page</span>
-      <span class="table-of-contents__chevron" aria-hidden="true"></span>
+      <SemanticIcon name="chevron" class="table-of-contents__chevron" />
     </summary>
     <div class="table-of-contents__disclosure">
       <nav class="table-of-contents__disclosure-inner" aria-label="Table of contents">

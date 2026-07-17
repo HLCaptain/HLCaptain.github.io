@@ -1,7 +1,7 @@
 ---
 import { siteConfig } from "../site.config";
 import { getEntryIcon, getPublishedArticles, getPublishedProjects, stripTrailingSlash } from "@lib/content";
-import { Icon } from "astro-icon/components";
+import SemanticIcon from "./SemanticIcon.astro";
 import SidebarRow from "./SidebarRow.astro";
 
 type Props = {
@@ -62,12 +62,8 @@ const navigation = siteConfig.navigation
   aria-expanded="false"
   aria-label="Open navigation"
 >
-  <span class="menu-icon mobile-menu-button__icon mobile-menu-button__icon--open" aria-hidden="true">
-    <Icon name="lucide:menu" />
-  </span>
-  <span class="menu-icon mobile-menu-button__icon mobile-menu-button__icon--close" aria-hidden="true">
-    <Icon name="lucide:x" />
-  </span>
+  <SemanticIcon name="menu" class="menu-icon mobile-menu-button__icon mobile-menu-button__icon--open" />
+  <SemanticIcon name="close" class="menu-icon mobile-menu-button__icon mobile-menu-button__icon--close" />
   <span class="sr-only" data-sidebar-toggle-label>Open navigation</span>
 </button>
 
@@ -77,9 +73,7 @@ const navigation = siteConfig.navigation
   <div class="sidebar-panel">
     <header class="sidebar-header">
       <button class="sidebar-toggle sidebar-action-button" type="button" data-sidebar-collapse aria-label="Collapse sidebar" aria-pressed="false">
-        <span class="menu-icon" aria-hidden="true">
-          <Icon name="lucide:menu" />
-        </span>
+        <SemanticIcon name="menu" class="menu-icon" />
       </button>
     </header>
 
@@ -107,15 +101,9 @@ const navigation = siteConfig.navigation
     <section class="accent-panel" aria-label="Appearance controls">
       <div class="surface-controls">
         <button class="surface-control surface-control--theme" type="button" data-theme-toggle aria-label="Switch to dark theme" aria-pressed="false">
-          <span class="surface-control__icon surface-control__icon--light" aria-hidden="true">
-            <Icon name="lucide:sun" />
-          </span>
-          <span class="surface-control__icon surface-control__icon--dark" aria-hidden="true">
-            <Icon name="lucide:moon" />
-          </span>
-          <span class="surface-control__icon surface-control__icon--system" aria-hidden="true">
-            <Icon name="lucide:monitor" />
-          </span>
+          <SemanticIcon name="sun" class="surface-control__icon surface-control__icon--light" />
+          <SemanticIcon name="moon" class="surface-control__icon surface-control__icon--dark" />
+          <SemanticIcon name="system" class="surface-control__icon surface-control__icon--system" />
           <span class="surface-control__label" data-theme-label>Light</span>
         </button>
 
@@ -126,7 +114,7 @@ const navigation = siteConfig.navigation
         </label>
 
         <button class="surface-control surface-control--reset" type="button" data-accent-reset aria-label="Reset accent to auto" title="Reset accent to auto">
-          <Icon name="lucide:rotate-ccw" aria-hidden="true" />
+          <SemanticIcon name="reset" />
         </button>
       </div>
 

@@ -1,6 +1,5 @@
 ---
 import { ClientRouter } from "astro:transitions";
-import HeadingReferenceIcon from "@components/HeadingReferenceIcon.astro";
 import SemanticIcon from "@components/SemanticIcon.astro";
 import Sidebar from "@components/Sidebar.astro";
 import { siteConfig } from "../site.config";
@@ -124,7 +123,7 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
           const signalRatio = localStorage.getItem(signalRatioKey);
           root.dataset.theme = theme;
           root.dataset.themeMode = themeMode;
-          root.dataset.arrowStyle = ["tabler", "lucide", "heroicons", "phosphor", "solar", "remix", "material", "carbon", "fluent", "radix", "pixelart"].includes(arrow) ? arrow : "tabler";
+          root.dataset.arrowStyle = ["tabler", "lucide", "phosphor", "remix", "fluent", "pixelart"].includes(arrow) ? arrow : "tabler";
           root.dataset.gridPattern = ["grid", "dots", "plus", "crosshatch", "diagonal", "circuit", "scanlines"].includes(gridPattern) ? gridPattern : "plus";
           root.dataset.signalLayout = ["split", "stack", "compact"].includes(signalLayout) ? signalLayout : "compact";
           root.dataset.signalRatio = ["square", "landscape", "wide", "portrait"].includes(signalRatio) ? signalRatio : "square";
@@ -163,7 +162,10 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
   </head>
   <body>
     <div class="background-grid" aria-hidden="true"></div>
-    <template data-heading-reference-icon><HeadingReferenceIcon /></template>
+    <template data-heading-reference-icon>
+      <SemanticIcon name="link" class="heading-reference__icon" inline />
+      <SemanticIcon name="check" class="heading-reference__check" inline />
+    </template>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <div class="site-frame">
       <Sidebar currentPath={Astro.url.pathname} transition:persist />
@@ -184,14 +186,9 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         <legend>Icon set</legend>
         <button type="button" data-arrow-style="tabler">Tabler</button>
         <button type="button" data-arrow-style="lucide">Lucide</button>
-        <button type="button" data-arrow-style="heroicons">Heroicons</button>
         <button type="button" data-arrow-style="phosphor">Phosphor</button>
-        <button type="button" data-arrow-style="solar">Solar</button>
         <button type="button" data-arrow-style="remix">Remix</button>
-        <button type="button" data-arrow-style="material">Material</button>
-        <button type="button" data-arrow-style="carbon">Carbon</button>
         <button type="button" data-arrow-style="fluent">Fluent</button>
-        <button type="button" data-arrow-style="radix">Radix</button>
         <button type="button" data-arrow-style="pixelart">Pixelart</button>
       </fieldset>
       <fieldset>

@@ -1,5 +1,5 @@
 ---
-import { Icon } from "astro-icon/components";
+import SemanticIcon from "./SemanticIcon.astro";
 
 type Props = {
   eyebrow: string;
@@ -14,7 +14,7 @@ const { eyebrow, title, description, backLabel } = Astro.props;
 <header class="page-header">
   {backLabel && (
     <button class="page-header__back" type="button" data-history-back>
-      <span class="page-header__back-icon" aria-hidden="true"><Icon name="lucide:arrow-left" /></span>
+      <SemanticIcon name="arrowLeft" class="page-header__back-icon" />
       <span>{backLabel}</span>
     </button>
   )}
