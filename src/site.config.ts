@@ -1,3 +1,12 @@
+const author = {
+  name: "HLCaptain",
+  role: "Software engineer",
+  location: "Europe/Budapest",
+  email: "pkblazsak@gmail.com",
+  linkedin: "https://www.linkedin.com/in/balazs-puspok-kiss/",
+  x: "https://x.com/hlcaptain"
+} as const;
+
 export const siteConfig = {
   name: "HLCaptain",
   title: "HLCaptain - Portfolio and Field Notes",
@@ -5,12 +14,7 @@ export const siteConfig = {
     "A compact portfolio for interface work, systems thinking, and software projects.",
   url: import.meta.env.SITE_URL ?? "https://hlcaptain.github.io",
   locale: "en_US",
-  author: {
-    name: "HLCaptain",
-    role: "Software engineer",
-    location: "Europe/Budapest",
-    email: "pkblazsak@gmail.com"
-  },
+  author,
   accentPresets: [
     { label: "Amber", value: "#b9843b" },
     { label: "Cyan", value: "#2f8f9d" },
@@ -49,7 +53,9 @@ export const siteConfig = {
       open: true,
       items: [
         { label: "GitHub", href: "https://github.com/HLCaptain", glyph: "github", external: true },
-        { label: "Email", href: "mailto:pkblazsak@gmail.com", glyph: "mail", external: true }
+        { label: "LinkedIn", href: author.linkedin, glyph: "linkedin", external: true },
+        { label: "X", href: author.x, glyph: "x", external: true },
+        { label: "Email", href: `mailto:${author.email}`, glyph: "mail", external: true }
       ]
     }
   ]

@@ -378,6 +378,28 @@ test.describe("site shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("publishes LinkedIn and X profile links", async ({ page }) => {
+    await page.goto("/about/");
+
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const profileLinks = [
+      { label: "LinkedIn", href: "https://www.linkedin.com/in/balazs-puspok-kiss/", icon: "linkedin" },
+      { label: "X", href: "https://x.com/hlcaptain", icon: "x" }
+    ];
+
+    for (const { label, href, icon } of profileLinks) {
+      const link = nav.getByRole("link", { name: label, exact: true });
+      await expect(link).toHaveAttribute("href", href);
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noreferrer");
+      await expect(link.locator(`.semantic-icon[data-icon-name="${icon}"] .semantic-icon__svg`)).toHaveCount(6);
+    }
+
+    const facts = page.locator(".fact-panel");
+    await expect(facts.getByRole("link", { name: "balazs-puspok-kiss" })).toHaveAttribute("href", profileLinks[0].href);
+    await expect(facts.getByRole("link", { name: "@hlcaptain" })).toHaveAttribute("href", profileLinks[1].href);
+  });
+
   test("active project leaf reopens a remembered closed group", async ({ page }) => {
     await page.goto("/");
     await page.evaluate(() =>
@@ -1876,7 +1898,7 @@ test.describe("site shell", () => {
       .toBeGreaterThan(0.7);
   });
 
-  test("GitHub icon stays drawn across overview and detail pages", async ({ page }) => {
+  test("network profile icons stay drawn across overview and detail pages", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("hlcaptain-sidebar", "collapsed"));
 
     for (const path of ["/", "/work/proto-shape/"]) {
@@ -1886,17 +1908,19 @@ test.describe("site shell", () => {
         await page.getByRole("button", { name: "Open navigation" }).click();
       }
 
-      const githubIcon = page
-        .getByRole("navigation", { name: "Primary navigation" })
-        .getByRole("link", { name: "GitHub", exact: true })
-        .locator('.sidebar-row__icon .semantic-icon[data-icon-name="github"]');
-      await expect(githubIcon).toBeVisible();
-      const box = await githubIcon.locator('.semantic-icon__svg[data-icon-style="tabler"]').evaluate((node) => {
-        const bounds = (node as SVGGraphicsElement).getBBox();
-        return { width: bounds.width, height: bounds.height };
-      });
-      expect(box.width).toBeGreaterThan(0);
-      expect(box.height).toBeGreaterThan(0);
+      const nav = page.getByRole("navigation", { name: "Primary navigation" });
+      for (const [label, icon] of [["GitHub", "github"], ["LinkedIn", "linkedin"], ["X", "x"]] as const) {
+        const networkIcon = nav
+          .getByRole("link", { name: label, exact: true })
+          .locator(`.sidebar-row__icon .semantic-icon[data-icon-name="${icon}"]`);
+        await expect(networkIcon).toBeVisible();
+        const box = await networkIcon.locator('.semantic-icon__svg[data-icon-style="tabler"]').evaluate((node) => {
+          const bounds = (node as SVGGraphicsElement).getBBox();
+          return { width: bounds.width, height: bounds.height };
+        });
+        expect(box.width).toBeGreaterThan(0);
+        expect(box.height).toBeGreaterThan(0);
+      }
     }
   });
 
@@ -1925,6 +1949,12 @@ test.describe("site shell", () => {
     const githubIcon = nav
       .getByRole("link", { name: "GitHub", exact: true })
       .locator(".sidebar-row__icon .semantic-icon");
+    const linkedinIcon = nav
+      .getByRole("link", { name: "LinkedIn", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const xIcon = nav
+      .getByRole("link", { name: "X", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
     const projectsLink = page.getByRole("link", { name: "View projects", exact: true });
     const projectsLinkIcon = projectsLink.locator(".semantic-icon");
     const githubExternalIcon = nav
@@ -1936,6 +1966,8 @@ test.describe("site shell", () => {
       indexIcon,
       networkIcon,
       githubIcon,
+      linkedinIcon,
+      xIcon,
       protoSidebarIcon,
       splitSidebarIcon,
       projectsLinkIcon,
@@ -1955,6 +1987,8 @@ test.describe("site shell", () => {
     await expect(indexIcon).toHaveAttribute("data-icon-name", "index");
     await expect(networkIcon).toHaveAttribute("data-icon-name", "network");
     await expect(githubIcon).toHaveAttribute("data-icon-name", "github");
+    await expect(linkedinIcon).toHaveAttribute("data-icon-name", "linkedin");
+    await expect(xIcon).toHaveAttribute("data-icon-name", "x");
     await expect(projectsLinkIcon).toHaveAttribute("data-icon-name", "work");
     await expect(protoSidebarIcon).toHaveAttribute("data-icon-name", "cube");
     await expect(splitSidebarIcon).toHaveAttribute("data-icon-name", "receipt");
