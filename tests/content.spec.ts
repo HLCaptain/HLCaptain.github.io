@@ -141,6 +141,9 @@ test.describe("project case studies", () => {
       .toEqual({ copied: true, opacity: "0" });
     const projectFacts = page.getByLabel("Project facts");
     await expect(projectFacts).toContainText("Creator and maintainer");
+    await expect(projectFacts).toContainText(/Open source · v\d+\.\d+\.\d+/);
+    await expect(projectFacts).toContainText(/Godot \d+\.\d+ · GDScript · CSG/);
+    await expect(page.getByText(/The current version targets Godot \d+\.\d+/)).toBeVisible();
     if (page.viewportSize()!.width > 720 && page.viewportSize()!.width <= 1040) {
       const factColumns = await projectFacts.evaluate((facts) => getComputedStyle(facts).gridTemplateColumns.split(" ").length);
       expect(factColumns).toBe(2);

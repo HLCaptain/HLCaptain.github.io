@@ -1,6 +1,6 @@
 ---
 title: "ProtoShape"
-description: "An open-source Godot 4 editor plugin for rapid 3D blockouts, combining dynamic CSG shapes with reusable custom-gizmo tooling."
+description: "An open-source Godot editor plugin for rapid 3D blockouts, combining dynamic CSG shapes with reusable custom-gizmo tooling."
 publishedAt: 2026-07-13
 tags: ["godot", "gdscript", "editor-tools", "3d"]
 featured: true
@@ -16,11 +16,42 @@ links:
 
 import ProjectFacts from "../../components/content/ProjectFacts.astro";
 
+export const release = await (async () => {
+  const cachedRelease = { version: "1.1.6", godotVersion: "4.5" };
+
+  try {
+    const request = { signal: AbortSignal.timeout(15_000) };
+    const [githubResponse, godotResponse] = await Promise.all([
+      fetch("https://api.github.com/repos/HLCaptain/proto-shape/releases/latest", request),
+      fetch("https://godotengine.org/asset-library/api/asset/2237", request)
+    ]);
+
+    if (!githubResponse.ok || !godotResponse.ok) {
+      throw new Error("Could not resolve the latest ProtoShape release metadata");
+    }
+
+    const [github, godot] = await Promise.all([githubResponse.json(), godotResponse.json()]);
+    const version = typeof github?.tag_name === "string" ? github.tag_name.trim().replace(/^v/, "") : "";
+    const assetVersion =
+      typeof godot?.version_string === "string" ? godot.version_string.trim().replace(/^v/, "") : "";
+    const godotVersion = typeof godot?.godot_version === "string" ? godot.godot_version.trim() : "";
+
+    if (!version || version !== assetVersion || !godotVersion) {
+      throw new Error("GitHub and Godot do not describe the same ProtoShape release");
+    }
+
+    return { version, godotVersion };
+  } catch {
+    console.warn("Using cached ProtoShape release metadata because the live sources are unavailable");
+    return cachedRelease;
+  }
+})();
+
 <ProjectFacts
   items={[
     { label: "Role", value: "Creator and maintainer" },
-    { label: "Release", value: "Open source · v1.1.6" },
-    { label: "Stack", value: "Godot 4.5 · GDScript · CSG" },
+    { label: "Release", value: `Open source · v${release.version}` },
+    { label: "Stack", value: `Godot ${release.godotVersion} · GDScript · CSG` },
     { label: "Distribution", value: "Godot AssetLib and GitHub Releases" }
   ]}
 />
@@ -69,5 +100,5 @@ classes, so exported games do not inherit an unnecessary dependency on Godot's e
 ## Current state
 
 ProtoShape is released under the MIT license and installable from Godot's Asset Library or GitHub
-Releases. The current version targets Godot 4.5 and provides a reusable base for adding more dynamic
-blockout shapes without duplicating the editor-integration work.
+Releases. The current version targets Godot {release.godotVersion} and provides a reusable base for
+adding more dynamic blockout shapes without duplicating the editor-integration work.
