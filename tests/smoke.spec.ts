@@ -269,7 +269,19 @@ test.describe("site shell", () => {
     expect(renderedBackgrounds.size).toBe(patterns.length);
   });
 
-  test("navigation reaches articles and marks the active route", async ({ page, isMobile }) => {
+  test("hides empty article navigation and overview content", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    await expect(page.locator("[data-nav-group='Articles']")).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "All articles", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Read articles", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Latest articles" })).toHaveCount(0);
+    await expect(page.locator("[data-signal]").getByText("Article", { exact: true })).toHaveCount(0);
+  });
+
+  test("navigation reaches projects and marks the active route", async ({ page, isMobile }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
@@ -278,9 +290,9 @@ test.describe("site shell", () => {
       await page.getByRole("button", { name: "Open navigation" }).click();
     }
 
-    await nav.getByRole("link", { name: "All articles", exact: true }).click();
-    await expect(page).toHaveURL(/\/articles\/$/);
-    await expect(page.getByRole("heading", { name: "Articles" })).toBeVisible();
+    await nav.getByRole("link", { name: "All projects", exact: true }).click();
+    await expect(page).toHaveURL(/\/work\/$/);
+    await expect(page.getByRole("heading", { name: "Selected work" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-page-direction", "down");
     const transitionRules = await page.evaluate(() =>
       Array.from(document.styleSheets)
@@ -302,22 +314,19 @@ test.describe("site shell", () => {
       )
     ).toBe(true);
     await expect(page.locator("#main-content")).not.toHaveClass(/is-page-/);
-    await expect(nav.getByRole("link", { name: "All articles", exact: true })).toHaveAttribute(
+    await expect(nav.getByRole("link", { name: "All projects", exact: true })).toHaveAttribute(
       "aria-current",
       "page"
     );
     await expectNoHorizontalOverflow(page);
   });
 
-  test("sidebar selects individual articles and projects in every layout", async ({ page, isMobile }) => {
+  test("sidebar selects individual projects in every layout", async ({ page, isMobile }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    const articlesGroup = page.locator("[data-nav-group='Articles']");
-
-    await expect(articlesGroup.locator('a[href^="/articles/"]')).toHaveCount(4);
     await expect(page.locator("[data-nav-group='Projects'] a[href^='/work/']")).toHaveCount(3);
 
     if (isMobile) {
@@ -326,20 +335,7 @@ test.describe("site shell", () => {
       await page.getByRole("button", { name: "Collapse sidebar" }).click();
       await page.mouse.move(1000, 520);
       await expect(root).not.toHaveClass(/sidebar-overlay-open/);
-      await expect(articlesGroup.locator(".nav-items")).toHaveCSS("display", "grid");
-      await articlesGroup.locator("summary").focus();
-      await expect(root).toHaveClass(/sidebar-overlay-open/);
     }
-
-    const articleLink = nav.getByRole("link", {
-      name: "Interface motion that preserves orientation",
-      exact: true
-    });
-    await articleLink.click();
-    await expect(page).toHaveURL(/\/articles\/interface-motion\/$/);
-    await expect(articleLink).toHaveAttribute("aria-current", "page");
-    await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
-    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
 
     const projectsGroup = page.locator("[data-nav-group='Projects']");
     if ((page.viewportSize()?.width ?? 0) >= 1200) {
@@ -382,48 +378,70 @@ test.describe("site shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("active sidebar leaf reopens a remembered closed group", async ({ page }) => {
+  test("publishes LinkedIn and X profile links", async ({ page }) => {
+    await page.goto("/about/");
+
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const profileLinks = [
+      { label: "LinkedIn", href: "https://www.linkedin.com/in/balazs-puspok-kiss/", icon: "linkedin" },
+      { label: "X", href: "https://x.com/hlcaptain", icon: "x" }
+    ];
+
+    for (const { label, href, icon } of profileLinks) {
+      const link = nav.getByRole("link", { name: label, exact: true });
+      await expect(link).toHaveAttribute("href", href);
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noreferrer");
+      await expect(link.locator(`.semantic-icon[data-icon-name="${icon}"] .semantic-icon__svg`)).toHaveCount(6);
+    }
+
+    const facts = page.locator(".fact-panel");
+    await expect(facts.getByRole("link", { name: "balazs-puspok-kiss" })).toHaveAttribute("href", profileLinks[0].href);
+    await expect(facts.getByRole("link", { name: "@hlcaptain" })).toHaveAttribute("href", profileLinks[1].href);
+  });
+
+  test("active project leaf reopens a remembered closed group", async ({ page }) => {
     await page.goto("/");
     await page.evaluate(() =>
       window.sessionStorage.setItem(
         "hlcaptain-nav-groups",
-        JSON.stringify({ Index: true, Articles: false, Projects: false, Network: true })
+        JSON.stringify({ Index: true, Projects: false, Network: true })
       )
     );
 
-    await page.goto("/articles/accent-color-systems/");
+    await page.goto("/work/proto-shape/");
     await page.waitForLoadState("networkidle");
 
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    const articlesGroup = page.locator("[data-nav-group='Articles']");
-    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
-    await expect(nav.getByRole("link", { name: "Accent color as a local preference" })).toHaveAttribute(
+    const projectsGroup = page.locator("[data-nav-group='Projects']");
+    await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    await expect(nav.getByRole("link", { name: "ProtoShape" })).toHaveAttribute(
       "aria-current",
       "page"
     );
     await expect(nav.locator("[aria-current='page']")).toHaveCount(1);
   });
 
-  test("article card navigation enters with a vertical page direction", async ({ page }) => {
-    await page.goto("/articles/");
+  test("project card navigation enters with a vertical page direction", async ({ page }) => {
+    await page.goto("/work/");
     await page.waitForLoadState("networkidle");
 
     const root = page.locator("html");
-    await page.getByRole("link", { name: /^Read / }).first().click();
+    await page.getByRole("link", { name: "Open ProtoShape" }).click();
 
-    await expect(page).toHaveURL(/\/articles\/[^/]+\/$/);
+    await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
     const pageEnterY = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--page-enter-y").trim());
     expect(pageEnterY).not.toBe("0px");
   });
 
-  test("all articles navigation keeps transition geometry stable from scrolled overview", async ({ page }) => {
+  test("all projects navigation keeps transition geometry stable from scrolled overview", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    const allArticles = page.locator("#main-content").getByRole("link", { name: "All articles" });
-    await allArticles.scrollIntoViewIfNeeded();
-    const overviewTargetScrollY = await allArticles.evaluate((node) => {
+    const allProjects = page.locator("#main-content").getByRole("link", { name: "All projects" });
+    await allProjects.scrollIntoViewIfNeeded();
+    const overviewTargetScrollY = await allProjects.evaluate((node) => {
       const rect = node.getBoundingClientRect();
       const documentY = rect.top + window.scrollY;
       const preferredViewportY = Math.min(window.innerHeight * 0.45, 360);
@@ -433,9 +451,9 @@ test.describe("site shell", () => {
     await page.evaluate((scrollY) => window.scrollTo(0, scrollY), overviewTargetScrollY);
     const overviewScrollY = await page.evaluate(() => window.scrollY);
     expect(overviewScrollY).toBeGreaterThan(100);
-    await expect(allArticles).toBeVisible();
+    await expect(allProjects).toBeVisible();
 
-    await allArticles.click({ noWaitAfter: true });
+    await allProjects.click({ noWaitAfter: true });
     await expect(page.locator("html")).toHaveAttribute("data-astro-transition", /forward|back/);
     await expect
       .poll(async () =>
@@ -452,7 +470,7 @@ test.describe("site shell", () => {
         }, Math.round(overviewScrollY))
       )
       .toBe(true);
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(page).toHaveURL(/\/work\/$/);
     await expect.poll(async () => page.evaluate(() => window.scrollY)).toBe(0);
 
     const pageContentGroupStyle = await page.evaluate(() =>
@@ -633,6 +651,11 @@ test.describe("site shell", () => {
     await expect(root).not.toHaveClass(/sidebar-open/);
     await expect(toggle).toHaveAccessibleName("Open navigation");
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect
+      .poll(async () =>
+        toggle.evaluate((button) => getComputedStyle(button).backgroundColor !== "rgba(0, 0, 0, 0)")
+      )
+      .toBe(true);
     await expect(backdrop).toHaveCSS("pointer-events", "none");
     await expect.poll(async () => (await sidebar.boundingBox())?.x ?? 0).toBeLessThan(0);
 
@@ -730,9 +753,9 @@ test.describe("site shell", () => {
         })
     );
 
-    await nav.getByRole("link", { name: "All articles", exact: true }).click({ noWaitAfter: true });
+    await nav.getByRole("link", { name: "All projects", exact: true }).click({ noWaitAfter: true });
     const transitionSamples = await toggleTransitionSamples;
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(page).toHaveURL(/\/work\/$/);
     await expect(root).toHaveClass(/sidebar-open/);
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(toggle).toHaveAccessibleName("Close navigation");
@@ -772,17 +795,17 @@ test.describe("site shell", () => {
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
 
-    await nav.getByRole("link", { name: "All articles", exact: true }).click();
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await nav.getByRole("link", { name: "All projects", exact: true }).click();
+    await expect(page).toHaveURL(/\/work\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
 
     await nav.getByRole("link", { name: "About", exact: true }).click();
     await expect(page).toHaveURL(/\/about\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "up");
 
-    await nav.getByRole("link", { name: "All articles", exact: true }).click({ noWaitAfter: true });
-    await nav.getByRole("link", { name: "All projects", exact: true }).click();
-    await expect(page).toHaveURL(/\/work\/$/);
+    await nav.getByRole("link", { name: "All projects", exact: true }).click({ noWaitAfter: true });
+    await nav.getByRole("link", { name: "ProtoShape", exact: true }).click();
+    await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
     expect(pageErrors.filter((message) => message.includes("interceptedSidebarNavigationClick"))).toEqual([]);
   });
@@ -796,8 +819,8 @@ test.describe("site shell", () => {
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
 
-    await nav.getByRole("link", { name: "All articles", exact: true }).click();
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await nav.getByRole("link", { name: "All projects", exact: true }).click();
+    await expect(page).toHaveURL(/\/work\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
 
     await nav.getByRole("link", { name: "About", exact: true }).click();
@@ -805,7 +828,7 @@ test.describe("site shell", () => {
     await expect(root).toHaveAttribute("data-page-direction", "up");
 
     await page.goBack();
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(page).toHaveURL(/\/work\/$/);
     await expect(root).toHaveAttribute("data-page-direction", "down");
 
     await page.goForward();
@@ -821,10 +844,10 @@ test.describe("site shell", () => {
 
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
 
-    await nav.getByRole("link", { name: "All articles", exact: true }).click({ noWaitAfter: true });
     await nav.getByRole("link", { name: "All projects", exact: true }).click({ noWaitAfter: true });
-    await expect(page).toHaveURL(/\/work\/$/);
-    await expect(page.getByRole("heading", { name: "Selected work", level: 1 })).toBeVisible();
+    await nav.getByRole("link", { name: "ProtoShape", exact: true }).click({ noWaitAfter: true });
+    await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
+    await expect(page.getByRole("heading", { name: "ProtoShape", level: 1 })).toBeVisible();
   });
 
   test("sidebar selection responds during the visible page transition", async ({ page }) => {
@@ -835,10 +858,10 @@ test.describe("site shell", () => {
 
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    const articles = nav.getByRole("link", { name: "All articles", exact: true });
-    const projects = nav.getByRole("link", { name: "All projects", exact: true });
+    const allProjects = nav.getByRole("link", { name: "All projects", exact: true });
+    const projects = nav.getByRole("link", { name: "ProtoShape", exact: true });
 
-    const selectionState = await articles.evaluate((node) => {
+    const selectionState = await allProjects.evaluate((node) => {
       (node as HTMLElement).click();
       const layer = getComputedStyle(node, "::after");
       return {
@@ -849,7 +872,7 @@ test.describe("site shell", () => {
       };
     });
     expect(selectionState).toEqual({ entering: true, sweeping: true, pointerEvents: "none", transforms: true });
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await expect(page).toHaveURL(/\/work\/$/);
     await expect(root).toHaveAttribute("data-astro-transition", /forward|back/);
 
     const box = await projects.boundingBox();
@@ -858,8 +881,8 @@ test.describe("site shell", () => {
 
     await expect(projects).toHaveAttribute("aria-current", "page");
     await expect(projects).toHaveClass(/is-active/);
-    await expect(page).toHaveURL(/\/work\/$/);
-    await expect(page.getByRole("heading", { name: "Selected work", level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(/\/work\/proto-shape\/$/);
+    await expect(page.getByRole("heading", { name: "ProtoShape", level: 1 })).toBeVisible();
   });
 
   test("rss endpoint returns XML", async ({ request }) => {
@@ -870,99 +893,10 @@ test.describe("site shell", () => {
     expect(body).toContain("HLCaptain");
   });
 
-  test("collapsed rail reuses leaf elements while the overlay opens and closes", async ({ page }) => {
-    const viewport = page.viewportSize();
-    test.skip((viewport?.width ?? 0) <= 720, "Collapsed rail overlay check");
-
-    await page.goto("/articles/");
-    await page.waitForLoadState("networkidle");
-
-    const root = page.locator("html");
-    const panel = page.locator(".sidebar-panel");
-    const longArticleLink = page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", {
-      name: "Interface motion that preserves orientation",
-      exact: true
-    });
-    const longArticleHandle = await longArticleLink.elementHandle();
-    expect(longArticleHandle).not.toBeNull();
-    if (!longArticleHandle) return;
-    const expandedLabelLayout = await longArticleHandle.evaluate((node) => {
-      const label = node.querySelector(".sidebar-row__label")!;
-      const range = document.createRange();
-      range.selectNodeContents(label);
-      return {
-        width: Math.round(label.getBoundingClientRect().width),
-        lines: new Set(Array.from(range.getClientRects(), (rect) => Math.round(rect.top))).size
-      };
-    });
-    expect(expandedLabelLayout.lines).toBeGreaterThan(1);
-    const moveOutside = () => page.mouse.move((viewport?.width ?? 1440) - 24, (viewport?.height ?? 960) / 2);
-
-    await page.getByRole("button", { name: "Collapse sidebar" }).click();
-    await moveOutside();
-    await expect(root).not.toHaveClass(/sidebar-overlay-open/);
-    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
-
-    const closedState = await longArticleHandle.evaluate((node) => {
-      return {
-        connected: node.isConnected,
-        display: getComputedStyle(node).display,
-        width: Math.round(node.getBoundingClientRect().width),
-        labelWidth: Math.round(node.querySelector(".sidebar-row__label")!.getBoundingClientRect().width),
-        navItemsDisplay: Array.from(document.querySelectorAll(".nav-items")).map(
-          (items) => getComputedStyle(items).display
-        ),
-        leafWidths: Array.from(document.querySelectorAll(".nav-item")).map((item) =>
-          Math.round(item.getBoundingClientRect().width)
-        )
-      };
-    });
-    expect(closedState.connected).toBe(true);
-    expect(closedState.display).toBe("grid");
-    expect(closedState.width).toBeGreaterThan(30);
-    expect(closedState.labelWidth).toBe(expandedLabelLayout.width);
-    expect(closedState.navItemsDisplay.every((display) => display === "grid")).toBe(true);
-    expect(closedState.leafWidths.length).toBeGreaterThan(0);
-    expect(closedState.leafWidths.every((width) => width > 30)).toBe(true);
-
-    const isSharedMidTransition = () =>
-      longArticleHandle.evaluate((node, expectedLabelWidth) => {
-        const panelWidth = document.querySelector(".sidebar-panel")!.getBoundingClientRect().width;
-        const label = node.querySelector(".sidebar-row__label")!;
-        const labelOpacity = Number.parseFloat(getComputedStyle(label).opacity);
-        return (
-          node.isConnected &&
-          getComputedStyle(node).display === "grid" &&
-          panelWidth > 56 &&
-          panelWidth < 264 &&
-          Math.abs(label.getBoundingClientRect().width - expectedLabelWidth) <= 1 &&
-          labelOpacity > 0 &&
-          labelOpacity < 1
-        );
-      }, expandedLabelLayout.width);
-    const motionPoll = { timeout: 1000, intervals: Array.from({ length: 40 }, () => 16) };
-
-    const closedBox = await longArticleLink.boundingBox();
-    expect(closedBox).not.toBeNull();
-    await page.mouse.move(
-      (closedBox?.x ?? 0) + (closedBox?.width ?? 0) / 2,
-      (closedBox?.y ?? 0) + (closedBox?.height ?? 0) / 2
-    );
-    await expect.poll(isSharedMidTransition, motionPoll).toBe(true);
-    await expect(root).toHaveClass(/sidebar-overlay-open/);
-    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(264);
-
-    await moveOutside();
-    await expect.poll(isSharedMidTransition, motionPoll).toBe(true);
-    await expect(root).not.toHaveClass(/sidebar-overlay-open/);
-    await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
-    await expect.poll(async () => longArticleHandle.evaluate((node) => node.isConnected)).toBe(true);
-  });
-
   test("desktop sidebar collapses to icons and expands again", async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only sidebar state check");
 
-    await page.goto("/articles/");
+    await page.goto("/");
     await page.waitForLoadState("networkidle");
 
     const root = page.locator("html");
@@ -973,7 +907,7 @@ test.describe("site shell", () => {
     const toggleBox = await page.getByRole("button", { name: "Collapse sidebar" }).boundingBox();
     await expect(page.locator(".brand-mark")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "HLCaptain home" })).toHaveCount(0);
-    await expect(page.locator(".sidebar-toggle .menu-icon svg")).toHaveCount(1);
+    await expect(page.locator(".sidebar-toggle .menu-icon .semantic-icon__svg")).toHaveCount(6);
     await expect(page.locator(".sidebar-toggle .arrow-icon")).toHaveCount(0);
 
     const aboutLink = nav.getByRole("link", { name: "About", exact: true });
@@ -990,11 +924,11 @@ test.describe("site shell", () => {
     const expandedMetrics = await page.locator(".nav-group").nth(1).evaluate((group) => {
       const groupRow = group.querySelector(".sidebar-row--group")!;
       const groupIcon = group.querySelector(".sidebar-row__icon")!;
-      const groupGlyph = group.querySelector(".pixel-glyph")!;
+      const groupGlyph = group.querySelector(".semantic-icon")!;
       const groupToggle = group.querySelector(".group-toggle-icon")!;
       const itemRow = document.querySelector(".nav-item")!;
       const itemIcon = itemRow.querySelector(".sidebar-row__icon")!;
-      const itemGlyph = itemRow.querySelector(".pixel-glyph")!;
+      const itemGlyph = itemRow.querySelector(".semantic-icon")!;
       const groupStyle = getComputedStyle(groupRow);
       const itemStyle = getComputedStyle(itemRow);
       const panelStyle = getComputedStyle(document.querySelector(".sidebar-panel")!);
@@ -1009,7 +943,7 @@ test.describe("site shell", () => {
         panelBackground: panelStyle.backgroundColor,
         groupPaddingLeft: groupStyle.paddingLeft,
         itemPaddingLeft: itemStyle.paddingLeft,
-        selectedArrowInsideGroup: Boolean(group.querySelector(".arrow-icon__svg"))
+        selectedArrowInsideGroup: Boolean(group.querySelector(".arrow-icon"))
       };
     });
     expect(expandedMetrics.groupIconWidth).toBe(expandedMetrics.itemIconWidth);
@@ -1020,7 +954,14 @@ test.describe("site shell", () => {
     );
     expect(expandedMetrics.groupPaddingLeft).toBe(expandedMetrics.itemPaddingLeft);
     expect(expandedMetrics.selectedArrowInsideGroup).toBe(false);
-    const expandedActive = await nav.getByRole("link", { name: "All articles", exact: true }).evaluate((node) => {
+    const dormantGroupBorderColors = await page.locator(".nav-group").evaluateAll((groups) =>
+      groups.flatMap((group) => {
+        const style = getComputedStyle(group);
+        return [style.borderRightColor, style.borderBottomColor];
+      })
+    );
+    expect(dormantGroupBorderColors.every((color) => parseColor(color).a === 0)).toBe(true);
+    const expandedActive = await nav.getByRole("link", { name: "All projects", exact: true }).evaluate((node) => {
       const style = getComputedStyle(node);
       return {
         border: style.borderColor,
@@ -1137,7 +1078,7 @@ test.describe("site shell", () => {
     await expect
       .poll(async () =>
         nav
-          .getByRole("link", { name: "All articles", exact: true })
+          .getByRole("link", { name: "All projects", exact: true })
           .locator("span")
           .last()
           .evaluate((node) => getComputedStyle(node).display)
@@ -1175,11 +1116,11 @@ test.describe("site shell", () => {
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
 
-    const collapsedArticlesBox = await page.locator("[data-nav-group='Articles'] summary").boundingBox();
-    expect(collapsedArticlesBox).not.toBeNull();
+    const collapsedProjectsBox = await page.locator("[data-nav-group='Projects'] summary").boundingBox();
+    expect(collapsedProjectsBox).not.toBeNull();
     await page.mouse.move(
-      (collapsedArticlesBox?.x ?? 0) + (collapsedArticlesBox?.width ?? 0) / 2,
-      (collapsedArticlesBox?.y ?? 0) + (collapsedArticlesBox?.height ?? 0) / 2
+      (collapsedProjectsBox?.x ?? 0) + (collapsedProjectsBox?.width ?? 0) / 2,
+      (collapsedProjectsBox?.y ?? 0) + (collapsedProjectsBox?.height ?? 0) / 2
     );
     await expect(root).toHaveClass(/sidebar-overlay-open/);
     await page.waitForTimeout(160);
@@ -1287,7 +1228,7 @@ test.describe("site shell", () => {
     await expect
       .poll(async () =>
         nav
-          .getByRole("link", { name: "All articles", exact: true })
+          .getByRole("link", { name: "All projects", exact: true })
           .locator("span")
           .last()
           .evaluate((node) => getComputedStyle(node).display)
@@ -1327,7 +1268,7 @@ test.describe("site shell", () => {
     await expect.poll(async () => panel.evaluate((node) => Math.round(node.getBoundingClientRect().width))).toBe(56);
 
     const labelState = await nav
-      .locator('a[href="/articles/"]')
+      .locator('a[href="/work/"]')
       .locator("span")
       .last()
       .evaluate((node) => {
@@ -1383,7 +1324,7 @@ test.describe("site shell", () => {
     });
     expect(itemWidth).toBeGreaterThanOrEqual(31);
     expect(itemWidth).toBeLessThanOrEqual(34);
-    const glyphBox = await page.locator("[data-nav-group='Articles'] summary .pixel-glyph").boundingBox();
+    const glyphBox = await page.locator("[data-nav-group='Projects'] summary .semantic-icon:not(.group-toggle-icon)").boundingBox();
     expect(glyphBox?.width ?? 0).toBeGreaterThan(8);
 
     const collapsedAlignment = await page.evaluate(() => {
@@ -1410,7 +1351,7 @@ test.describe("site shell", () => {
         .map((icon) => Math.abs(centerOf(icon) - panelCenter));
       const group = document.querySelector(".nav-group");
       const arrow = group?.querySelector(".group-toggle-icon");
-      const glyph = group?.querySelector(".nav-group__icon .pixel-glyph");
+      const glyph = group?.querySelector(".nav-group__icon .semantic-icon");
       const arrowStyle = arrow ? getComputedStyle(arrow) : null;
       const glyphStyle = glyph ? getComputedStyle(glyph) : null;
       return {
@@ -1463,7 +1404,7 @@ test.describe("site shell", () => {
       .toBeGreaterThan(0.7);
     const hoverIconState = await activeSummary.evaluate((summary) => {
       const arrow = summary.querySelector(".group-toggle-icon");
-      const glyph = summary.querySelector(".nav-group__icon .pixel-glyph");
+      const glyph = summary.querySelector(".nav-group__icon .semantic-icon");
       return {
         arrowVisibility: arrow ? getComputedStyle(arrow).visibility : "",
         glyphVisibility: glyph ? getComputedStyle(glyph).visibility : ""
@@ -1582,10 +1523,10 @@ test.describe("site shell", () => {
     await page.mouse.move(1000, 520);
     await expect.poll(async () => root.evaluate((node) => node.classList.contains("sidebar-overlay-open"))).toBe(false);
 
-    const allArticles = page.locator("#main-content").getByRole("link", { name: "All articles" });
-    await allArticles.scrollIntoViewIfNeeded();
-    await allArticles.click();
-    await expect(page).toHaveURL(/\/articles\/$/);
+    const allProjects = page.locator("#main-content").getByRole("link", { name: "All projects" });
+    await allProjects.scrollIntoViewIfNeeded();
+    await allProjects.click();
+    await expect(page).toHaveURL(/\/work\/$/);
     await expect(root).toHaveClass(/sidebar-collapsed/);
 
     const collapsedSidebarBox = await sidebar.boundingBox();
@@ -1609,17 +1550,17 @@ test.describe("site shell", () => {
     }
 
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    const articlesGroup = page.locator("[data-nav-group='Articles']");
-    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    const projectsGroup = page.locator("[data-nav-group='Projects']");
+    await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
 
-    await articlesGroup.locator("summary").click();
-    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
+    await projectsGroup.locator("summary").click();
+    await expect.poll(async () => projectsGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
     await nav.getByRole("link", { name: "About", exact: true }).click();
 
     await expect(page).toHaveURL(/\/about\/$/);
     await expect
       .poll(async () =>
-        page.locator("[data-nav-group='Articles']").evaluate((node) => ({
+        page.locator("[data-nav-group='Projects']").evaluate((node) => ({
           open: (node as HTMLDetailsElement).open,
           collapsing: node.classList.contains("is-collapsing"),
           expanding: node.classList.contains("is-expanding"),
@@ -1644,15 +1585,15 @@ test.describe("site shell", () => {
       await page.getByRole("button", { name: "Open navigation" }).click();
     }
 
-    const articlesGroup = page.locator("[data-nav-group='Articles']");
-    const articleItems = articlesGroup.locator(".nav-items");
-    const summary = articlesGroup.locator("summary");
-    const initialHeight = await articleItems.evaluate((node) => node.getBoundingClientRect().height);
+    const projectsGroup = page.locator("[data-nav-group='Projects']");
+    const projectItems = projectsGroup.locator(".nav-items");
+    const summary = projectsGroup.locator("summary");
+    const initialHeight = await projectItems.evaluate((node) => node.getBoundingClientRect().height);
 
     await summary.click();
     await expect
       .poll(async () =>
-        articlesGroup.evaluate(
+        projectsGroup.evaluate(
           (node, expandedHeight) => {
             const height = node.querySelector(".nav-items")!.getBoundingClientRect().height;
             return node.classList.contains("is-collapsing") && height > 8 && height < expandedHeight - 8;
@@ -1663,15 +1604,15 @@ test.describe("site shell", () => {
       .toBe(true);
 
     await summary.click();
-    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
+    await expect.poll(async () => projectsGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
     await expect
       .poll(async () =>
-        page.evaluate(() => JSON.parse(window.sessionStorage.getItem("hlcaptain-nav-groups") || "{}").Articles)
+        page.evaluate(() => JSON.parse(window.sessionStorage.getItem("hlcaptain-nav-groups") || "{}").Projects)
       )
       .toBe(true);
     await expect
       .poll(async () =>
-        articlesGroup.evaluate((node) => ({
+        projectsGroup.evaluate((node) => ({
           open: (node as HTMLDetailsElement).open,
           animating: node.classList.contains("is-expanding") || node.classList.contains("is-collapsing"),
           height: Math.round(node.querySelector(".nav-items")!.getBoundingClientRect().height)
@@ -1688,12 +1629,12 @@ test.describe("site shell", () => {
       await page.getByRole("button", { name: "Open navigation" }).click();
     }
 
-    const articlesGroup = page.locator("[data-nav-group='Articles']");
-    const articleItems = articlesGroup.locator(".nav-items");
-    const initialHeight = await articleItems.evaluate((node) => node.getBoundingClientRect().height);
+    const projectsGroup = page.locator("[data-nav-group='Projects']");
+    const projectItems = projectsGroup.locator(".nav-items");
+    const initialHeight = await projectItems.evaluate((node) => node.getBoundingClientRect().height);
     expect(initialHeight).toBeGreaterThan(40);
 
-    const collapseCleanupPromise = articlesGroup.evaluate(
+    const collapseCleanupPromise = projectsGroup.evaluate(
       (node) =>
         new Promise<{
           before: { height: number; paddingTop: number; paddingBottom: number; collapsing: boolean };
@@ -1750,11 +1691,11 @@ test.describe("site shell", () => {
         )
     );
 
-    await articlesGroup.locator("summary").click();
-    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
+    await projectsGroup.locator("summary").click();
+    await expect.poll(async () => projectsGroup.evaluate((node) => node.classList.contains("is-collapsing"))).toBe(true);
     await expect
       .poll(async () =>
-        articlesGroup.evaluate((node) => {
+        projectsGroup.evaluate((node) => {
           const arrow = node.querySelector(".group-toggle-icon")!;
           const transform = getComputedStyle(arrow).transform;
           const matrix = transform === "none" ? new DOMMatrixReadOnly() : new DOMMatrixReadOnly(transform);
@@ -1764,10 +1705,10 @@ test.describe("site shell", () => {
       )
       .toBe(true);
     await expect
-      .poll(async () => articleItems.evaluate((node) => node.getBoundingClientRect().height))
+      .poll(async () => projectItems.evaluate((node) => node.getBoundingClientRect().height))
       .toBeLessThan(initialHeight);
-    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
-    const closedState = await articleItems.evaluate((node) => ({
+    await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);
+    const closedState = await projectItems.evaluate((node) => ({
       display: getComputedStyle(node).display,
       visibility: getComputedStyle(node).visibility,
       height: node.getBoundingClientRect().height
@@ -1782,7 +1723,7 @@ test.describe("site shell", () => {
     expect(Math.abs(collapseCleanup.after.paddingTop - collapseCleanup.before.paddingTop)).toBeLessThanOrEqual(1);
     expect(Math.abs(collapseCleanup.after.paddingBottom - collapseCleanup.before.paddingBottom)).toBeLessThanOrEqual(1);
 
-    const expandSamples = articlesGroup.evaluate(
+    const expandSamples = projectsGroup.evaluate(
       (node) =>
         new Promise<Array<{ height: number; expanding: boolean }>>((resolve) => {
           const items = node.querySelector(".nav-items")!;
@@ -1806,11 +1747,11 @@ test.describe("site shell", () => {
         })
     );
 
-    await articlesGroup.locator("summary").click();
-    await expect.poll(async () => articlesGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
-    await expect.poll(async () => articlesGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
+    await projectsGroup.locator("summary").click();
+    await expect.poll(async () => projectsGroup.evaluate((node) => node.classList.contains("is-expanding"))).toBe(true);
+    await expect.poll(async () => projectsGroup.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(true);
     await expect
-      .poll(async () => articleItems.evaluate((node) => node.getBoundingClientRect().height))
+      .poll(async () => projectItems.evaluate((node) => node.getBoundingClientRect().height))
       .toBeGreaterThan(40);
     const samples = await expandSamples;
     const cleanupIndex = samples.findIndex((sample, index) => index > 0 && samples[index - 1].expanding && !sample.expanding);
@@ -1818,7 +1759,7 @@ test.describe("site shell", () => {
     expect(Math.abs(samples[cleanupIndex].height - samples[cleanupIndex - 1].height)).toBeLessThanOrEqual(4);
     await expect
       .poll(async () =>
-        articlesGroup.evaluate((node) => ({
+        projectsGroup.evaluate((node) => ({
           open: (node as HTMLDetailsElement).open,
           animating: node.classList.contains("is-expanding") || node.classList.contains("is-collapsing"),
           display: getComputedStyle(node.querySelector(".nav-items")!).display,
@@ -1891,7 +1832,7 @@ test.describe("site shell", () => {
       .not.toBe(afterAccent);
     const contrastResult = await page.locator(".entry-card__link").first().evaluate((node) => {
       const cardStyle = getComputedStyle(node);
-      const icon = node.querySelector(".entry-card__glyph");
+      const icon = node.querySelector(".entry-card__glyph .semantic-icon");
       if (!icon) return null;
       const iconStyle = getComputedStyle(icon);
       return { icon: iconStyle.color, card: cardStyle.backgroundColor, body: getComputedStyle(document.body).backgroundColor };
@@ -1944,7 +1885,7 @@ test.describe("site shell", () => {
 
     const card = page.locator(".entry-card__link").first();
     const arrow = card.locator(".entry-card__arrow");
-    await expect(arrow.locator(".arrow-icon__svg[data-icon-style]")).toHaveCount(11);
+    await expect(arrow.locator(".semantic-icon__svg[data-icon-style]")).toHaveCount(6);
     await expect
       .poll(async () => arrow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity)))
       .toBeLessThan(0.2);
@@ -1955,6 +1896,136 @@ test.describe("site shell", () => {
         arrow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))
       )
       .toBeGreaterThan(0.7);
+  });
+
+  test("network profile icons stay drawn across overview and detail pages", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("hlcaptain-sidebar", "collapsed"));
+
+    for (const path of ["/", "/work/proto-shape/"]) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      if ((page.viewportSize()?.width ?? 0) < 721) {
+        await page.getByRole("button", { name: "Open navigation" }).click();
+      }
+
+      const nav = page.getByRole("navigation", { name: "Primary navigation" });
+      for (const [label, icon] of [["GitHub", "github"], ["LinkedIn", "linkedin"], ["X", "x"]] as const) {
+        const networkIcon = nav
+          .getByRole("link", { name: label, exact: true })
+          .locator(`.sidebar-row__icon .semantic-icon[data-icon-name="${icon}"]`);
+        await expect(networkIcon).toBeVisible();
+        const box = await networkIcon.locator('.semantic-icon__svg[data-icon-style="tabler"]').evaluate((node) => {
+          const bounds = (node as SVGGraphicsElement).getBBox();
+          return { width: bounds.width, height: bounds.height };
+        });
+        expect(box.width).toBeGreaterThan(0);
+        expect(box.height).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("debug icon choices drive semantic icons site-wide", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only site-wide semantic icon check");
+
+    await page.addInitScript(() => localStorage.setItem("hlcaptain-arrow-style", "heroicons"));
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    const root = page.locator("html");
+    const nav = page.getByRole("navigation", { name: "Primary navigation" });
+    const protoCard = page.getByRole("link", { name: "Open ProtoShape", exact: true });
+    const protoCardIcon = protoCard.locator(".entry-card__glyph .semantic-icon");
+    const splitCardIcon = page
+      .getByRole("link", { name: "Open SplitEasy AI", exact: true })
+      .locator(".entry-card__glyph .semantic-icon");
+    const protoSidebarIcon = nav
+      .getByRole("link", { name: "ProtoShape", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const splitSidebarIcon = nav
+      .getByRole("link", { name: "SplitEasy AI", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const indexIcon = page.locator('[data-nav-group="Index"] > summary .semantic-icon:not(.group-toggle-icon)');
+    const networkIcon = page.locator('[data-nav-group="Network"] > summary .semantic-icon:not(.group-toggle-icon)');
+    const githubIcon = nav
+      .getByRole("link", { name: "GitHub", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const linkedinIcon = nav
+      .getByRole("link", { name: "LinkedIn", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const xIcon = nav
+      .getByRole("link", { name: "X", exact: true })
+      .locator(".sidebar-row__icon .semantic-icon");
+    const projectsLink = page.getByRole("link", { name: "View projects", exact: true });
+    const projectsLinkIcon = projectsLink.locator(".semantic-icon");
+    const githubExternalIcon = nav
+      .getByRole("link", { name: "GitHub", exact: true })
+      .locator(".external-link-icon");
+    const semanticIcons = [
+      page.getByRole("link", { name: "About", exact: true }).locator(".semantic-icon"),
+      page.getByRole("button", { name: "Open debug menu" }).locator(".semantic-icon"),
+      indexIcon,
+      networkIcon,
+      githubIcon,
+      linkedinIcon,
+      xIcon,
+      protoSidebarIcon,
+      splitSidebarIcon,
+      projectsLinkIcon,
+      protoCardIcon,
+      splitCardIcon,
+      page.locator(".sidebar-toggle .menu-icon"),
+      page.locator(".surface-control__icon--light"),
+      page.locator(".surface-control--reset .semantic-icon"),
+      githubExternalIcon
+    ];
+
+    await expect(root).toHaveAttribute("data-arrow-style", "tabler");
+    await expect(page.locator('[data-icon-style="heroicons"], [data-icon-style="solar"], [data-icon-style="material"], [data-icon-style="carbon"], [data-icon-style="radix"]')).toHaveCount(0);
+    for (const icon of semanticIcons) {
+      await expect(icon.locator(".semantic-icon__svg[data-icon-style]")).toHaveCount(6);
+    }
+    await expect(indexIcon).toHaveAttribute("data-icon-name", "index");
+    await expect(networkIcon).toHaveAttribute("data-icon-name", "network");
+    await expect(githubIcon).toHaveAttribute("data-icon-name", "github");
+    await expect(linkedinIcon).toHaveAttribute("data-icon-name", "linkedin");
+    await expect(xIcon).toHaveAttribute("data-icon-name", "x");
+    await expect(projectsLinkIcon).toHaveAttribute("data-icon-name", "work");
+    await expect(protoSidebarIcon).toHaveAttribute("data-icon-name", "cube");
+    await expect(splitSidebarIcon).toHaveAttribute("data-icon-name", "receipt");
+    await expect(protoCardIcon).toHaveAttribute("data-icon-name", "cube");
+    await expect(splitCardIcon).toHaveAttribute("data-icon-name", "receipt");
+    expect(await protoCard.locator(".entry-card__glyph").evaluate((node) => node.clientWidth === node.clientHeight)).toBe(true);
+
+    await page.getByRole("button", { name: "Open debug menu" }).click();
+    await expect(page.locator("button[data-arrow-style]")).toHaveCount(6);
+    await expect(page.getByRole("button", { name: "Tabler", exact: true })).toHaveAttribute("aria-pressed", "true");
+    for (const [label, style] of [
+      ["Tabler", "tabler"],
+      ["Lucide", "lucide"],
+      ["Phosphor", "phosphor"],
+      ["Remix", "remix"],
+      ["Fluent", "fluent"],
+      ["Pixelart", "pixelart"]
+    ] as const) {
+      const button = page.getByRole("button", { name: label, exact: true });
+      await button.click();
+      await expect(root).toHaveAttribute("data-arrow-style", style);
+      await expect(button).toHaveAttribute("aria-pressed", "true");
+      for (const icon of semanticIcons) {
+        await expect(icon.locator(`.semantic-icon__svg[data-icon-style="${style}"]`)).toBeVisible();
+      }
+      const githubBox = await githubIcon.locator(`.semantic-icon__svg[data-icon-style="${style}"]`).evaluate((node) => {
+        const bounds = (node as SVGGraphicsElement).getBBox();
+        return { width: bounds.width, height: bounds.height };
+      });
+      expect(githubBox.width).toBeGreaterThan(0);
+      expect(githubBox.height).toBeGreaterThan(0);
+    }
+    await page.getByRole("button", { name: "Close debug menu" }).click();
+
+    await protoCard.hover();
+    await expect(protoCardIcon).toBeVisible();
+    await expect(protoCardIcon.locator('.semantic-icon__svg[data-icon-style="pixelart"]')).toBeVisible();
   });
 
   test("stored theme and accent survive navigation without default-scheme reset", async ({ page }) => {
@@ -1970,8 +2041,8 @@ test.describe("site shell", () => {
     const beforeNav = await page.locator("html").evaluate((node) => getComputedStyle(node).getPropertyValue("--accent"));
     expect(beforeNav.trim()).not.toBe("#050505");
 
-    await page.getByRole("link", { name: "Read articles" }).click();
-    await expect(page).toHaveURL(/\/articles\/$/);
+    await page.getByRole("link", { name: "View projects" }).click();
+    await expect(page).toHaveURL(/\/work\/$/);
     await expect(page.locator("html")).toHaveAttribute("data-theme-mode", "black");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "black");
     const afterNav = await page.locator("html").evaluate((node) => getComputedStyle(node).getPropertyValue("--accent"));

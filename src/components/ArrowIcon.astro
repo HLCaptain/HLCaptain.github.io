@@ -1,5 +1,5 @@
 ---
-import { Icon } from "astro-icon/components";
+import SemanticIcon from "./SemanticIcon.astro";
 
 type Props = {
   class?: string;
@@ -8,23 +8,8 @@ type Props = {
 
 const { role } = Astro.props;
 const className = ["arrow-icon", Astro.props.class].filter(Boolean).join(" ");
-const iconSources = [
-  ["tabler", "tabler:arrow-right"],
-  ["lucide", "lucide:arrow-right"],
-  ["heroicons", "heroicons:arrow-right"],
-  ["phosphor", "ph:arrow-right"],
-  ["solar", "solar:arrow-right-linear"],
-  ["remix", "ri:arrow-right-line"],
-  ["material", "mdi:arrow-right"],
-  ["carbon", "carbon:arrow-right"],
-  ["fluent", "fluent:arrow-right-24-regular"],
-  ["radix", "radix-icons:arrow-right"],
-  ["pixelart", "pixelarticons:arrow-right"]
-];
 ---
 
 <span class={className} data-arrow-role={role} aria-hidden="true">
-  {iconSources.map(([style, name]) => (
-    <Icon name={name} class="arrow-icon__svg" data-icon-style={style} />
-  ))}
+  <SemanticIcon name="arrowRight" />
 </span>

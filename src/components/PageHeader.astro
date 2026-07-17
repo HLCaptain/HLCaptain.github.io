@@ -1,15 +1,26 @@
 ---
+import SemanticIcon from "./SemanticIcon.astro";
+
 type Props = {
   eyebrow: string;
   title: string;
   description: string;
+  backLabel?: string;
 };
 
-const { eyebrow, title, description } = Astro.props;
+const { eyebrow, title, description, backLabel } = Astro.props;
 ---
 
 <header class="page-header">
-  <p class="eyebrow">{eyebrow}</p>
-  <h1>{title}</h1>
+  {backLabel && (
+    <button class="page-header__back" type="button" data-history-back>
+      <SemanticIcon name="arrowLeft" class="page-header__back-icon" />
+      <span>{backLabel}</span>
+    </button>
+  )}
+  <div class="page-header__title-row">
+    <h1>{title}</h1>
+    <p class="eyebrow">{eyebrow}</p>
+  </div>
   <p>{description}</p>
 </header>

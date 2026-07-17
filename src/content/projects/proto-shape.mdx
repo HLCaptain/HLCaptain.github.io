@@ -25,6 +25,15 @@ import ProjectFacts from "../../components/content/ProjectFacts.astro";
   ]}
 />
 
+<video
+  class="project-overview-video"
+  controls
+  playsinline
+  preload="metadata"
+  aria-label="ProtoShape overview video"
+  src="https://github.com/HLCaptain/proto-shape/assets/22623259/730a527c-d6ba-4eaa-93b6-dbcbbd8aba52"
+/>
+
 ## Overview
 
 ProtoShape shortens the distance between a rough 3D idea and a playable Godot scene. Instead of
@@ -50,6 +59,8 @@ shape experimentation stays reversible.
 
 The harder problem was not generating a staircase. It was making 3D handles feel native without
 reimplementing camera projection and drag-plane math for every new shape.
+
+### Shared gizmo utilities
 
 The gizmo utilities centralize that math and let custom nodes expose focused editing handles with a
 small amount of project-specific code. Runtime shape logic is kept separate from editor-only gizmo

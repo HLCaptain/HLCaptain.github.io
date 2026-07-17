@@ -1,6 +1,9 @@
 ---
+import type { ImageMetadata } from "astro";
+import { Image } from "astro:assets";
+import { getEntryIcon } from "@lib/content";
 import ArrowIcon from "./ArrowIcon.astro";
-import PixelGlyph from "./PixelGlyph.astro";
+import SemanticIcon from "./SemanticIcon.astro";
 
 type MetaItem = {
   label: string;
@@ -10,20 +13,26 @@ type MetaItem = {
 type Props = {
   href: string;
   ariaLabel: string;
-  glyph: string;
+  kind: "article" | "project";
+  visualKey: string;
   title: string;
   description: string;
   tags: string[];
   meta: MetaItem[];
-  project?: boolean;
+  thumbnail?: ImageMetadata;
 };
 
-const { href, ariaLabel, glyph, title, description, tags, meta, project = false } = Astro.props;
+const { href, ariaLabel, kind, visualKey, title, description, tags, meta, thumbnail } = Astro.props;
+const icon = getEntryIcon(kind, visualKey);
 ---
 
-<article class:list={["entry-card", project && "entry-card--project"]}>
+<article class:list={["entry-card", kind === "project" && "entry-card--project"]}>
   <a href={href} class="entry-card__link" aria-label={ariaLabel}>
-    <span class="entry-card__glyph"><PixelGlyph name={glyph} /></span>
+    {thumbnail ? (
+      <Image class="entry-card__thumbnail" src={thumbnail} alt="" />
+    ) : (
+      <span class="entry-card__glyph"><SemanticIcon name={icon} /></span>
+    )}
     <span class="entry-card__meta">
       {meta.map((item) =>
         item.datetime ? <time datetime={item.datetime}>{item.label}</time> : <span>{item.label}</span>

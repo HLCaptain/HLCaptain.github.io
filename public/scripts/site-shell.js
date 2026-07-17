@@ -16,14 +16,9 @@ const themeModes = new Map([
 const arrowStyles = new Set([
   "tabler",
   "lucide",
-  "heroicons",
   "phosphor",
-  "solar",
   "remix",
-  "material",
-  "carbon",
   "fluent",
-  "radix",
   "pixelart"
 ]);
 const gridPatterns = new Map([
@@ -1271,12 +1266,44 @@ function handleTransitionPreparation(event) {
 }
 
 function handleNavigationIntent(event) {
+  const backButton = event.target.closest?.("[data-history-back]");
+  if (backButton) {
+    event.preventDefault();
+    const currentPath = normalizePath(window.location.href);
+    const navigation = window.navigation;
+    const previousPageEntry = navigation?.currentEntry
+      ? navigation
+          .entries()
+          .slice(0, navigation.currentEntry.index)
+          .reverse()
+          .find((entry) => entry.url && normalizePath(entry.url) !== currentPath)
+      : null;
+
+    if (previousPageEntry) {
+      navigation.traverseTo(previousPageEntry.key);
+    } else if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigateWithTransition("/", backButton, { history: "replace" });
+    }
+    return;
+  }
+
   if (shouldConsumeInterceptedClick(event)) return;
 
   const link = event.target.closest?.("a[href]");
   if (!link) return;
   if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   if (link.target && link.target !== "_self") return;
+
+  if (link.hasAttribute("data-toc-link")) {
+    document.documentElement.classList.add("toc-scrolling");
+    window.clearTimeout(window.__hlTocScrollTimer);
+    window.__hlTocScrollTimer = window.setTimeout(() => {
+      document.documentElement.classList.remove("toc-scrolling");
+    }, 1000);
+    return;
+  }
 
   const path = normalizePath(link.href);
   if (!path) return;
@@ -1303,11 +1330,15 @@ function navigateWithTransition(href, sourceElement, options = {}) {
   }
 
   if (typeof window.__hlNavigate === "function") {
-    window.__hlNavigate(href, { sourceElement });
+    window.__hlNavigate(href, { history: options.history, sourceElement });
     return;
   }
 
-  window.location.assign(href);
+  if (options.history === "replace") {
+    window.location.replace(href);
+  } else {
+    window.location.assign(href);
+  }
 }
 
 function initSignals() {
@@ -1400,6 +1431,71 @@ function initSignals() {
   });
 }
 
+function positionHeadingReferences() {
+  const compact = window.matchMedia("(max-width: 900px)").matches;
+
+  document.querySelectorAll(".prose :is(h1, h2, h3, h4, h5, h6)[id]").forEach((heading) => {
+    const button = heading.querySelector(":scope > [data-heading-copy]");
+    if (!(button instanceof HTMLElement)) return;
+
+    const range = document.createRange();
+    range.selectNodeContents(heading);
+    range.setEndBefore(button);
+    const lines = Array.from(range.getClientRects()).filter(({ width, height }) => width && height);
+    const line = lines[compact ? lines.length - 1 : 0];
+    if (!line) return;
+
+    const headingRect = heading.getBoundingClientRect();
+    const x = compact
+      ? Math.max(0, Math.min(line.right - headingRect.left + 6, headingRect.width - button.offsetWidth))
+      : -button.offsetWidth - 8;
+    const y = line.top - headingRect.top + line.height / 2;
+    heading.style.setProperty("--heading-reference-x", `${x}px`);
+    heading.style.setProperty("--heading-reference-y", `${y}px`);
+  });
+}
+
+function initHeadingReferences() {
+  const headings = document.querySelectorAll(".prose :is(h1, h2, h3, h4, h5, h6)[id]");
+  const iconTemplate = document.querySelector("template[data-heading-reference-icon]");
+  if (!(iconTemplate instanceof HTMLTemplateElement)) return;
+
+  headings.forEach((heading) => {
+    if (heading.querySelector(":scope > [data-heading-copy]")) return;
+
+    const label = heading.textContent.trim();
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "heading-reference";
+    button.dataset.headingCopy = heading.id;
+    button.dataset.copyPath = `${window.location.pathname}${window.location.search}#${heading.id}`;
+    button.setAttribute("aria-label", `Copy link to ${label}`);
+    button.title = "Copy link";
+    button.append(iconTemplate.content.cloneNode(true));
+    button.addEventListener("click", async () => {
+      const url = new URL(window.location.href);
+      url.hash = heading.id;
+
+      try {
+        await navigator.clipboard.writeText(url.href);
+        button.classList.add("is-copied");
+        button.setAttribute("aria-label", `Copied link to ${label}`);
+        window.setTimeout(() => {
+          button.classList.remove("is-copied");
+          button.setAttribute("aria-label", `Copy link to ${label}`);
+        }, 1400);
+      } catch {}
+    });
+    heading.append(button);
+  });
+
+  window.requestAnimationFrame(positionHeadingReferences);
+  if (!window.__hlHeadingReferenceResizeBound) {
+    window.__hlHeadingReferenceResizeBound = true;
+    window.addEventListener("resize", positionHeadingReferences, { passive: true });
+  }
+}
+
 function getSignal(element, key) {
   if (!element[`_${key}Controller`]) {
     element[`_${key}Controller`] = new AbortController();
@@ -1413,6 +1509,7 @@ function init() {
   initSidebar();
   initNavGroups();
   initDebugMenu();
+  initHeadingReferences();
   initSignals();
   releaseSidebarOverlayTransitionState();
 }

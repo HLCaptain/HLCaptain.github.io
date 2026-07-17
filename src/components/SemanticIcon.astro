@@ -1,0 +1,209 @@
+---
+import { Icon } from "astro-icon/components";
+
+const iconSources = {
+  tabler: {
+    home: "tabler:home",
+    person: "tabler:user",
+    archive: "tabler:archive",
+    writing: "tabler:article",
+    feed: "tabler:rss",
+    work: "tabler:briefcase",
+    link: "tabler:link",
+    mail: "tabler:mail",
+    debug: "tabler:adjustments-horizontal",
+    index: "tabler:list",
+    network: "tabler:network",
+    github: "tabler:brand-github",
+    linkedin: "tabler:brand-linkedin",
+    x: "tabler:brand-x",
+    cube: "tabler:cube",
+    receipt: "tabler:receipt",
+    blocks: "tabler:blocks",
+    arrowRight: "tabler:arrow-right",
+    arrowLeft: "tabler:arrow-left",
+    menu: "tabler:menu-2",
+    close: "tabler:x",
+    chevron: "tabler:chevron-right",
+    sun: "tabler:sun",
+    moon: "tabler:moon",
+    system: "tabler:device-desktop",
+    reset: "tabler:refresh",
+    external: "tabler:external-link",
+    check: "tabler:check"
+  },
+  lucide: {
+    home: "lucide:house",
+    person: "lucide:user",
+    archive: "lucide:archive",
+    writing: "lucide:notebook-text",
+    feed: "lucide:rss",
+    work: "lucide:briefcase",
+    link: "lucide:link",
+    mail: "lucide:mail",
+    debug: "lucide:sliders-horizontal",
+    index: "lucide:list",
+    network: "lucide:network",
+    github: "lucide:github",
+    linkedin: "lucide:linkedin",
+    x: "lucide:twitter",
+    cube: "lucide:box",
+    receipt: "lucide:receipt-text",
+    blocks: "lucide:blocks",
+    arrowRight: "lucide:arrow-right",
+    arrowLeft: "lucide:arrow-left",
+    menu: "lucide:menu",
+    close: "lucide:x",
+    chevron: "lucide:chevron-right",
+    sun: "lucide:sun",
+    moon: "lucide:moon",
+    system: "lucide:monitor",
+    reset: "lucide:rotate-ccw",
+    external: "lucide:external-link",
+    check: "lucide:check"
+  },
+  phosphor: {
+    home: "ph:house",
+    person: "ph:user",
+    archive: "ph:archive",
+    writing: "ph:article",
+    feed: "ph:rss",
+    work: "ph:briefcase",
+    link: "ph:link",
+    mail: "ph:envelope",
+    debug: "ph:sliders-horizontal",
+    index: "ph:list",
+    network: "ph:network",
+    github: "ph:github-logo",
+    linkedin: "ph:linkedin-logo",
+    x: "ph:x-logo",
+    cube: "ph:cube",
+    receipt: "ph:receipt",
+    blocks: "ph:cube",
+    arrowRight: "ph:arrow-right",
+    arrowLeft: "ph:arrow-left",
+    menu: "ph:list",
+    close: "ph:x",
+    chevron: "ph:caret-right",
+    sun: "ph:sun",
+    moon: "ph:moon",
+    system: "ph:monitor",
+    reset: "ph:arrow-counter-clockwise",
+    external: "ph:arrow-square-out",
+    check: "ph:check"
+  },
+  remix: {
+    home: "ri:home-line",
+    person: "ri:user-line",
+    archive: "ri:archive-line",
+    writing: "ri:article-line",
+    feed: "ri:rss-line",
+    work: "ri:briefcase-line",
+    link: "ri:link",
+    mail: "ri:mail-line",
+    debug: "ri:equalizer-2-line",
+    index: "ri:list-unordered",
+    network: "ri:node-tree",
+    github: "ri:github-line",
+    linkedin: "ri:linkedin-line",
+    x: "ri:twitter-x-line",
+    cube: "ri:box-3-line",
+    receipt: "ri:receipt-line",
+    blocks: "ri:shapes-line",
+    arrowRight: "ri:arrow-right-line",
+    arrowLeft: "ri:arrow-left-line",
+    menu: "ri:menu-line",
+    close: "ri:close-line",
+    chevron: "ri:arrow-right-s-line",
+    sun: "ri:sun-line",
+    moon: "ri:moon-line",
+    system: "ri:computer-line",
+    reset: "ri:restart-line",
+    external: "ri:external-link-line",
+    check: "ri:check-line"
+  },
+  fluent: {
+    home: "fluent:home-24-regular",
+    person: "fluent:person-24-regular",
+    archive: "fluent:archive-24-regular",
+    writing: "fluent:document-edit-24-regular",
+    feed: "fluent:rss-24-regular",
+    work: "fluent:briefcase-24-regular",
+    link: "fluent:link-24-regular",
+    mail: "fluent:mail-24-regular",
+    debug: "fluent:options-24-regular",
+    index: "fluent:list-24-regular",
+    network: "fluent:share-android-24-regular",
+    github: "fluent:code-24-regular",
+    linkedin: "fluent:people-community-24-regular",
+    x: "fluent:chat-24-regular",
+    cube: "fluent:cube-24-regular",
+    receipt: "fluent:receipt-24-regular",
+    blocks: "fluent:cube-multiple-24-regular",
+    arrowRight: "fluent:arrow-right-24-regular",
+    arrowLeft: "fluent:arrow-left-24-regular",
+    menu: "fluent:navigation-24-regular",
+    close: "fluent:dismiss-24-regular",
+    chevron: "fluent:chevron-right-24-regular",
+    sun: "fluent:weather-sunny-24-regular",
+    moon: "fluent:weather-moon-24-regular",
+    system: "fluent:desktop-24-regular",
+    reset: "fluent:arrow-counterclockwise-24-regular",
+    external: "fluent:open-24-regular",
+    check: "fluent:checkmark-24-regular"
+  },
+  pixelart: {
+    home: "pixelarticons:home",
+    person: "pixelarticons:user",
+    archive: "pixelarticons:archive",
+    writing: "pixelarticons:article",
+    feed: "pixelarticons:rss",
+    work: "pixelarticons:briefcase",
+    link: "pixelarticons:link",
+    mail: "pixelarticons:mail",
+    debug: "pixelarticons:settings-2",
+    index: "pixelarticons:list",
+    network: "pixelarticons:share",
+    github: "pixelarticons:github",
+    linkedin: "pixelarticons:users",
+    x: "pixelarticons:message",
+    cube: "pixelarticons:box",
+    receipt: "pixelarticons:receipt",
+    blocks: "pixelarticons:blocks",
+    arrowRight: "pixelarticons:arrow-right",
+    arrowLeft: "pixelarticons:arrow-left",
+    menu: "pixelarticons:menu",
+    close: "pixelarticons:close",
+    chevron: "pixelarticons:chevron-right",
+    sun: "pixelarticons:sun",
+    moon: "pixelarticons:moon",
+    system: "pixelarticons:monitor",
+    reset: "pixelarticons:reload",
+    external: "pixelarticons:external-link",
+    check: "pixelarticons:check"
+  }
+} as const;
+
+type IconName = keyof (typeof iconSources)["tabler"];
+
+type Props = {
+  name: IconName | string;
+  class?: string;
+  inline?: boolean;
+};
+
+const requestedName = Astro.props.name as IconName;
+const name = requestedName in iconSources.tabler ? requestedName : "link";
+const className = ["semantic-icon", Astro.props.class].filter(Boolean).join(" ");
+const { inline = false } = Astro.props;
+---
+
+<span class={className} data-icon-name={name} aria-hidden="true">
+  {Object.entries(iconSources).map(([style, icons]) => (
+    inline ? (
+      <Icon name={icons[name]} class="semantic-icon__svg" data-icon-style={style} is:inline />
+    ) : (
+      <Icon name={icons[name]} class="semantic-icon__svg" data-icon-style={style} />
+    )
+  ))}
+</span>

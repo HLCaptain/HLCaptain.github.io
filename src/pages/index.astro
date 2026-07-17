@@ -1,12 +1,14 @@
 ---
 import ArticleCard from "@components/ArticleCard.astro";
 import ProjectCard from "@components/ProjectCard.astro";
+import SemanticIcon from "@components/SemanticIcon.astro";
 import Signal from "@components/Signal.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { formatDate, getPublishedArticles, getPublishedProjects } from "@lib/content";
 
 const articles = await getPublishedArticles();
 const projects = await getPublishedProjects();
+const hasArticles = articles.length > 0;
 const featuredArticles = articles.filter((entry) => entry.data.featured).slice(0, 3);
 const featuredProjects = projects.filter((entry) => entry.data.featured).slice(0, 3);
 const signalThumbnailSets = {
@@ -64,31 +66,36 @@ const previewItems = [
 <BaseLayout>
   <section class="home-hero" aria-labelledby="home-title">
     <div class="home-hero__copy">
-      <p class="eyebrow">Portfolio / writing archive</p>
+      <p class="eyebrow">Portfolio / project archive</p>
       <h1 id="home-title">HLCaptain</h1>
       <p>
         A compact personal site for interface craft, software projects, and field notes on building
         fast, legible systems.
       </p>
       <div class="hero-actions">
-        <a href="/articles/" class="button-link">Read articles</a>
-        <a href="/work/" class="button-link button-link--ghost">View work</a>
+        {hasArticles && <a href="/articles/" class="button-link">Read articles</a>}
+        <a href="/work/" class="button-link button-link--ghost">
+          <SemanticIcon name="work" />
+          View projects
+        </a>
       </div>
     </div>
 
     <Signal items={previewItems} />
   </section>
 
-  <section class="content-band" aria-labelledby="latest-articles">
-    <div class="section-heading">
-      <p class="eyebrow">Writing</p>
-      <h2 id="latest-articles">Latest articles</h2>
-      <a href="/articles/">All articles</a>
-    </div>
-    <div class="entry-grid">
-      {featuredArticles.map((article) => <ArticleCard article={article} />)}
-    </div>
-  </section>
+  {featuredArticles.length > 0 && (
+    <section class="content-band" aria-labelledby="latest-articles">
+      <div class="section-heading">
+        <p class="eyebrow">Writing</p>
+        <h2 id="latest-articles">Latest articles</h2>
+        <a href="/articles/">All articles</a>
+      </div>
+      <div class="entry-grid">
+        {featuredArticles.map((article) => <ArticleCard article={article} />)}
+      </div>
+    </section>
+  )}
 
   <section class="content-band" aria-labelledby="selected-work">
     <div class="section-heading">
