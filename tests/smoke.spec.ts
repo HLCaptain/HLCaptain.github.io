@@ -1943,6 +1943,7 @@ test.describe("site shell", () => {
     await expect(splitSidebarIcon).toHaveAttribute("data-icon-name", "receipt");
     await expect(protoCardIcon).toHaveAttribute("data-icon-name", "cube");
     await expect(splitCardIcon).toHaveAttribute("data-icon-name", "receipt");
+    expect(await protoCard.locator(".entry-card__glyph").evaluate((node) => node.clientWidth === node.clientHeight)).toBe(true);
 
     await page.getByRole("button", { name: "Open debug menu" }).click();
     for (const [label, style] of [

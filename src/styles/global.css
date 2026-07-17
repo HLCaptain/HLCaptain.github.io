@@ -1046,7 +1046,7 @@ svg {
 .entry-card__glyph {
   --semantic-icon-size: 26px;
   display: inline-grid;
-  width: 48px;
+  width: 36px;
   height: 36px;
   place-items: center;
   color: var(--accent-readable);
