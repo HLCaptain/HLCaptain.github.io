@@ -156,10 +156,10 @@ test.describe("Signal", () => {
     await expect(items.locator("[data-signal-panel][aria-hidden='false']")).toHaveCount(1);
     await expect(items.locator("[data-signal-panel][aria-hidden='true'][inert]")).toHaveCount(1);
     await expect(signal.locator("[data-signal-panel][aria-hidden='false'] [data-signal-link]")).toHaveCount(1);
-    await expect(signal.locator("img[data-signal-image]").first()).toHaveAttribute(
-      "src",
-      "/visuals/signal-project-1-1.svg"
-    );
+    const fallback = signal.locator("[data-signal-item].is-active .signal__media-icon");
+    await expect(fallback).toBeVisible();
+    await expect(fallback.locator('.semantic-icon[data-icon-name="cube"]')).toBeVisible();
+    await expect(signal.locator("img[data-signal-image]")).toHaveCount(1);
 
     const mediaBox = await signal.locator("[data-signal-item].is-active .signal__media").boundingBox();
     expect(mediaBox).not.toBeNull();
@@ -510,45 +510,48 @@ test.describe("Signal", () => {
     }
   });
 
-  test("supports optional thumbnail ratios without changing Signal height", async ({ page }) => {
+  test("supports icon fallback ratios without changing Signal height", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await setSignalOption(page, "Balanced split", "layout", "split");
 
     const signal = page.locator("[data-signal]");
-    const image = signal.locator("img[data-signal-image]").first();
     const active = signal.locator("[data-signal-item].is-active");
     const content = active.locator(".signal__content");
     const media = active.locator(".signal__media");
+    const icon = media.locator(".signal__media-icon .semantic-icon");
     const copy = active.locator(".signal__copy");
     const action = active.locator(".signal__media-action");
     const initialHeight = (await signal.boundingBox())?.height ?? 0;
     const choices = [
-      { name: "Landscape 4:3", value: "landscape", source: "/visuals/signal-project-4-3.svg", aspect: 4 / 3 },
-      { name: "Wide 16:9", value: "wide", source: "/visuals/project-preview.svg", aspect: 16 / 9 },
-      { name: "Portrait 3:4", value: "portrait", source: "/visuals/signal-project-3-4.svg", aspect: 3 / 4 },
-      { name: "Square 1:1", value: "square", source: "/visuals/signal-project-1-1.svg", aspect: 1 }
+      { name: "Landscape 4:3", value: "landscape", aspect: 4 / 3 },
+      { name: "Wide 16:9", value: "wide", aspect: 16 / 9 },
+      { name: "Portrait 3:4", value: "portrait", aspect: 3 / 4 },
+      { name: "Square 1:1", value: "square", aspect: 1 }
     ];
 
+    await expect(icon).toHaveAttribute("data-icon-name", "cube");
     for (const choice of choices) {
       await setSignalOption(page, choice.name, "ratio", choice.value);
-      await expect(image).toHaveAttribute("src", choice.source);
       await expect(media).toHaveAttribute("data-signal-aspect", choice.name.split(" ").at(-1)!);
       await closeDebugPanel(page);
       if (await page.evaluate(() => matchMedia("(hover: hover)").matches)) {
         await active.hover();
         await expect.poll(async () => Number.parseFloat(await action.evaluate((node) => getComputedStyle(node).opacity))).toBeGreaterThan(0.8);
       }
-      const [signalBox, contentBox, mediaBox, copyBox, actionBox] = await Promise.all([
+      const [signalBox, contentBox, mediaBox, iconBox, copyBox, actionBox] = await Promise.all([
         signal.boundingBox(),
         content.boundingBox(),
         media.boundingBox(),
+        icon.boundingBox(),
         copy.boundingBox(),
         action.boundingBox()
       ]);
       expect(Math.abs((signalBox?.height ?? 0) - initialHeight)).toBeLessThanOrEqual(1);
       expect((mediaBox?.width ?? 0) / Math.max(mediaBox?.height ?? 0, 1)).toBeCloseTo(choice.aspect, 1);
       expectInside(mediaBox!, contentBox!);
+      expectInside(iconBox!, mediaBox!);
+      expect(iconBox?.width ?? 0).toBeGreaterThanOrEqual(40);
       expectInside(copyBox!, contentBox!);
       expectInside(actionBox!, mediaBox!);
       const viewportWidth = page.viewportSize()?.width ?? 0;
@@ -569,17 +572,20 @@ test.describe("Signal", () => {
     await page.waitForLoadState("networkidle");
 
     const signal = page.locator("[data-signal]");
-    const active = signal.locator("[data-signal-item].is-active");
+    const profile = signal.locator("[data-signal-item]").filter({ hasText: "About HLCaptain" });
+    await profile.locator("[data-signal-trigger]").click();
+    await expect(profile).toHaveClass(/is-active/);
+    const active = profile;
     const content = active.locator(".signal__content");
     const media = active.locator(".signal__media");
     const image = media.locator("img[data-signal-image]");
     const action = media.locator(".signal__media-action");
     const copy = active.locator(".signal__copy");
     const choices = [
-      { name: "Square 1:1", value: "square", source: "/visuals/signal-project-1-1.svg", aspect: 1 },
-      { name: "Landscape 4:3", value: "landscape", source: "/visuals/signal-project-4-3.svg", aspect: 4 / 3 },
-      { name: "Wide 16:9", value: "wide", source: "/visuals/project-preview.svg", aspect: 16 / 9 },
-      { name: "Portrait 3:4", value: "portrait", source: "/visuals/signal-project-3-4.svg", aspect: 3 / 4 }
+      { name: "Square 1:1", value: "square", source: "/visuals/signal-profile-1-1.svg", aspect: 1 },
+      { name: "Landscape 4:3", value: "landscape", source: "/visuals/signal-profile-4-3.svg", aspect: 4 / 3 },
+      { name: "Wide 16:9", value: "wide", source: "/visuals/about-preview.svg", aspect: 16 / 9 },
+      { name: "Portrait 3:4", value: "portrait", source: "/visuals/signal-profile-3-4.svg", aspect: 3 / 4 }
     ];
 
     await expect(page.locator("html")).toHaveAttribute("data-signal-layout", "compact");

@@ -332,12 +332,12 @@ function applySignalRatio(value) {
     target.replaceChildren(signalRatios.get(ratio));
   });
 
-  document.querySelectorAll("img[data-signal-image]").forEach((image) => {
-    const source = image.getAttribute(`data-signal-src-${ratio}`) || image.getAttribute("data-signal-src-square");
-    const label = image.getAttribute(`data-signal-label-${ratio}`) || "";
-    if (source && image.getAttribute("src") !== source) image.setAttribute("src", source);
+  document.querySelectorAll("[data-signal-visual]").forEach((visual) => {
+    const source = visual.getAttribute(`data-signal-src-${ratio}`) || visual.getAttribute("data-signal-src-square");
+    const label = visual.getAttribute(`data-signal-label-${ratio}`) || "";
+    if (source && visual.getAttribute("src") !== source) visual.setAttribute("src", source);
 
-    const media = image.closest(".signal__media");
+    const media = visual.closest(".signal__media");
     if (media) {
       if (label) {
         media.setAttribute("data-signal-aspect", label);

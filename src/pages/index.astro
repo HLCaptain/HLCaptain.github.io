@@ -4,52 +4,40 @@ import ProjectCard from "@components/ProjectCard.astro";
 import SemanticIcon from "@components/SemanticIcon.astro";
 import Signal from "@components/Signal.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
-import { formatDate, getPublishedArticles, getPublishedProjects } from "@lib/content";
+import { formatDate, getEntryIcon, getPublishedArticles, getPublishedProjects } from "@lib/content";
 
 const articles = await getPublishedArticles();
 const projects = await getPublishedProjects();
 const hasArticles = articles.length > 0;
 const featuredArticles = articles.filter((entry) => entry.data.featured).slice(0, 3);
 const featuredProjects = projects.filter((entry) => entry.data.featured).slice(0, 3);
-const signalThumbnailSets = {
-  article: {
-    square: "/visuals/signal-article-1-1.svg",
-    landscape: "/visuals/signal-article-4-3.svg",
-    wide: "/visuals/article-preview.svg",
-    portrait: "/visuals/signal-article-3-4.svg"
-  },
-  project: {
-    square: "/visuals/signal-project-1-1.svg",
-    landscape: "/visuals/signal-project-4-3.svg",
-    wide: "/visuals/project-preview.svg",
-    portrait: "/visuals/signal-project-3-4.svg"
-  },
-  profile: {
-    square: "/visuals/signal-profile-1-1.svg",
-    landscape: "/visuals/signal-profile-4-3.svg",
-    wide: "/visuals/about-preview.svg",
-    portrait: "/visuals/signal-profile-3-4.svg"
-  }
+const profileImages = {
+  square: "/visuals/signal-profile-1-1.svg",
+  landscape: "/visuals/signal-profile-4-3.svg",
+  wide: "/visuals/about-preview.svg",
+  portrait: "/visuals/signal-profile-3-4.svg"
 };
+const thumbnailImages = (src: string) => ({ square: src, landscape: src, wide: src, portrait: src });
 const previewItems = [
-  ...articles.slice(0, 2).map((article) => {
-    const images = signalThumbnailSets.article;
-    return {
-      kind: "Article",
-      title: article.data.title,
-      description: article.data.description,
-      href: `/articles/${article.id}/`,
-      meta: formatDate(article.data.publishedAt),
-      images
-    };
-  }),
+  ...articles.slice(0, 2).map((article) => ({
+    kind: "Article",
+    title: article.data.title,
+    description: article.data.description,
+    href: `/articles/${article.id}/`,
+    meta: formatDate(article.data.publishedAt),
+    ...(article.data.thumbnail
+      ? { images: thumbnailImages(article.data.thumbnail.src) }
+      : { icon: getEntryIcon("article", article.id) })
+  })),
   ...projects.slice(0, 1).map((project) => ({
     kind: "Project",
     title: project.data.title,
     description: project.data.description,
     href: `/work/${project.id}/`,
     meta: project.data.status,
-    images: signalThumbnailSets.project
+    ...(project.data.thumbnail
+      ? { images: thumbnailImages(project.data.thumbnail.src) }
+      : { icon: getEntryIcon("project", project.id) })
   })),
   {
     kind: "Profile",
@@ -58,7 +46,7 @@ const previewItems = [
       "A compact profile for the work style behind the portfolio: precise interfaces, fast systems, and durable notes.",
     href: "/about/",
     meta: "about",
-    images: signalThumbnailSets.profile
+    images: profileImages
   }
 ];
 ---

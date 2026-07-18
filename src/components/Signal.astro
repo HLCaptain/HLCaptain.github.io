@@ -1,5 +1,6 @@
 ---
 import ArrowIcon from "./ArrowIcon.astro";
+import SemanticIcon from "./SemanticIcon.astro";
 
 type SignalImages = {
   square: string;
@@ -14,7 +15,8 @@ type SignalItem = {
   description: string;
   href: string;
   meta: string;
-  images: SignalImages;
+  images?: SignalImages;
+  icon?: string;
 };
 
 interface Props {
@@ -73,22 +75,36 @@ const { items, label = "Site preview signal" } = Astro.props;
           >
             <div class="signal__content">
               <div class="signal__media" data-signal-aspect="1:1">
-                <img
-                  src={item.images.square}
-                  alt=""
-                  loading={active ? "eager" : "lazy"}
-                  width="640"
-                  height="640"
-                  data-signal-image
-                  data-signal-src-square={item.images.square}
-                  data-signal-src-landscape={item.images.landscape}
-                  data-signal-src-wide={item.images.wide}
-                  data-signal-src-portrait={item.images.portrait}
-                  data-signal-label-square="1:1"
-                  data-signal-label-landscape="4:3"
-                  data-signal-label-wide="16:9"
-                  data-signal-label-portrait="3:4"
-                />
+                {item.images ? (
+                  <img
+                    src={item.images.square}
+                    alt=""
+                    loading={active ? "eager" : "lazy"}
+                    width="640"
+                    height="640"
+                    data-signal-image
+                    data-signal-visual
+                    data-signal-src-square={item.images.square}
+                    data-signal-src-landscape={item.images.landscape}
+                    data-signal-src-wide={item.images.wide}
+                    data-signal-src-portrait={item.images.portrait}
+                    data-signal-label-square="1:1"
+                    data-signal-label-landscape="4:3"
+                    data-signal-label-wide="16:9"
+                    data-signal-label-portrait="3:4"
+                  />
+                ) : (
+                  <span
+                    class="signal__media-icon"
+                    data-signal-visual
+                    data-signal-label-square="1:1"
+                    data-signal-label-landscape="4:3"
+                    data-signal-label-wide="16:9"
+                    data-signal-label-portrait="3:4"
+                  >
+                    <SemanticIcon name={item.icon ?? "link"} />
+                  </span>
+                )}
                 <a
                   class="signal__media-action"
                   href={item.href}
@@ -343,6 +359,20 @@ const { items, label = "Site preview signal" } = Astro.props;
     block-size: 100%;
     object-fit: cover;
     object-position: center;
+  }
+
+  .signal__media-icon {
+    display: grid;
+    inline-size: 100%;
+    block-size: 100%;
+    place-items: center;
+    color: var(--accent-readable);
+  }
+
+  .signal__media-icon :global(.semantic-icon) {
+    inline-size: min(56%, 4rem);
+    block-size: auto;
+    aspect-ratio: 1;
   }
 
   .signal__media-action {

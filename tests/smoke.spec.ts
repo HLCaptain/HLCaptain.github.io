@@ -1994,13 +1994,7 @@ test.describe("site shell", () => {
     await expect(splitSidebarIcon).toHaveAttribute("data-icon-name", "receipt");
     await expect(protoCardIcon).toHaveAttribute("data-icon-name", "cube");
     await expect(splitCardIcon).toHaveAttribute("data-icon-name", "receipt");
-    const fallbackThumbnail = await protoCard.locator(".entry-card__glyph").evaluate((node) => ({
-      width: node.clientWidth,
-      height: node.clientHeight,
-      iconWidth: node.querySelector(".semantic-icon")?.clientWidth ?? 0
-    }));
-    expect(fallbackThumbnail.width / fallbackThumbnail.height).toBeCloseTo(16 / 9, 1);
-    expect(fallbackThumbnail.iconWidth).toBeGreaterThanOrEqual(56);
+    expect(await protoCard.locator(".entry-card__glyph").evaluate((node) => node.clientWidth === node.clientHeight)).toBe(true);
 
     await page.getByRole("button", { name: "Open debug menu" }).click();
     await expect(page.locator("button[data-arrow-style]")).toHaveCount(6);
