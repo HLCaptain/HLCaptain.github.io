@@ -1040,23 +1040,26 @@ svg {
   transform: translateX(0);
 }
 
-.entry-card__glyph {
-  --semantic-icon-size: 26px;
-  display: inline-grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  color: var(--accent-readable);
-}
-
+.entry-card__glyph,
 .entry-card__thumbnail {
-  display: block;
   width: calc(100% + 32px);
   max-width: none;
   aspect-ratio: 16 / 9;
   margin: -16px -16px 0;
-  object-fit: cover;
   border-bottom: 1px solid var(--line);
+}
+
+.entry-card__glyph {
+  --semantic-icon-size: clamp(56px, 7vw, 88px);
+  display: grid;
+  place-items: center;
+  color: var(--accent-readable);
+  background: var(--surface-soft);
+}
+
+.entry-card__thumbnail {
+  display: block;
+  object-fit: cover;
 }
 
 .entry-card__meta {
