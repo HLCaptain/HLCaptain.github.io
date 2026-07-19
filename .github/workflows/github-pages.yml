@@ -1,6 +1,8 @@
 name: Deploy GitHub Pages
 
 on:
+  schedule:
+    - cron: "17 4 * * *"
   workflow_dispatch:
 
 permissions:
@@ -23,6 +25,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Refresh ProtoShape release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          github_release="$(curl --fail --silent --show-error --location --connect-timeout 10 --max-time 30 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/HLCaptain/proto-shape/releases/latest)"
+          godot_asset="$(curl --fail --silent --show-error --location --connect-timeout 10 --max-time 30 \
+            https://godotengine.org/asset-library/api/asset/2237)"
+
+          version="$(jq -er '.tag_name | strings | sub("^v"; "")' <<<"$github_release")"
+          asset_version="$(jq -er '.version_string | strings | sub("^v"; "")' <<<"$godot_asset")"
+          godot_version="$(jq -er '.godot_version | strings' <<<"$godot_asset")"
+
+          test -n "$version"
+          test -n "$godot_version"
+          test "$version" = "$asset_version"
+
+          jq -n \
+            --arg version "$version" \
+            --arg godotVersion "$godot_version" \
+            '{ version: $version, godotVersion: $godotVersion }' \
+            > src/data/proto-shape-release.json
 
       - name: Setup Node
         uses: actions/setup-node@v7
