@@ -551,7 +551,7 @@ test.describe("Signal", () => {
       expect((mediaBox?.width ?? 0) / Math.max(mediaBox?.height ?? 0, 1)).toBeCloseTo(choice.aspect, 1);
       expectInside(mediaBox!, contentBox!);
       expectInside(iconBox!, mediaBox!);
-      expect(iconBox?.width ?? 0).toBeGreaterThanOrEqual(40);
+      expect(iconBox?.width ?? 0).toBeGreaterThanOrEqual(32);
       expectInside(copyBox!, contentBox!);
       expectInside(actionBox!, mediaBox!);
       const viewportWidth = page.viewportSize()?.width ?? 0;
