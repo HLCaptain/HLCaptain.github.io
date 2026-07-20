@@ -18,27 +18,31 @@ const labelClass = ["sidebar-row__label", type === "group" ? "nav-group__label" 
 ---
 
 {type === "group" ? (
-  <summary class="sidebar-row sidebar-row--group">
-    <span class={iconClass}>
-      <SemanticIcon name={glyph} />
-      <SemanticIcon name="chevron" class="group-toggle-icon" />
+  <summary class="sidebar-row sidebar-row--group hover-group">
+    <span class="sidebar-row__content hover-group__target">
+      <span class={iconClass}>
+        <SemanticIcon name={glyph} />
+        <SemanticIcon name="chevron" class="group-toggle-icon" />
+      </span>
+      <span class={labelClass}>{label}</span>
     </span>
-    <span class={labelClass}>{label}</span>
   </summary>
 ) : (
   <a
     href={href}
-    class:list={["sidebar-row", "sidebar-row--item", "nav-item", active && "is-active"]}
+    class:list={["sidebar-row", "sidebar-row--item", "nav-item", "hover-group", active && "is-active"]}
     aria-label={label}
     aria-current={active ? "page" : undefined}
     target={external ? "_blank" : undefined}
     rel={external ? "noreferrer" : undefined}
     data-nav-index={external ? undefined : navIndex}
   >
-    <span class={iconClass}>
-      <SemanticIcon name={glyph} />
+    <span class="sidebar-row__content hover-group__target">
+      <span class={iconClass}>
+        <SemanticIcon name={glyph} />
+      </span>
+      <span class={labelClass}>{label}</span>
+      {external && <ExternalLinkIcon />}
     </span>
-    <span class={labelClass}>{label}</span>
-    {external && <ExternalLinkIcon />}
   </a>
 )}

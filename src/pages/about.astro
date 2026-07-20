@@ -190,18 +190,20 @@ const experiences = [
               <p class="experience-card__organization">{experience.organization}</p>
               <h3>{experience.role}</h3>
               <p>{experience.summary}</p>
-              <button
-                class="button-link experience-card__button"
-                type="button"
-                aria-label={`Read full experience: ${experience.role} at ${experience.organization}`}
-                aria-controls={dialogId}
-                aria-haspopup="dialog"
-                data-experience-open={dialogId}
-                title="Read full experience"
-              >
-                <span class="sr-only">Read full experience</span>
-                <ArrowIcon class="experience-card__button-icon" role="experience" />
-              </button>
+              <span class="button-link-group hover-group experience-card__action">
+                <button
+                  class="button-link hover-group__target experience-card__button"
+                  type="button"
+                  aria-label={`Read full experience: ${experience.role} at ${experience.organization}`}
+                  aria-controls={dialogId}
+                  aria-haspopup="dialog"
+                  data-experience-open={dialogId}
+                  title="Read full experience"
+                >
+                  <span class="sr-only">Read full experience</span>
+                  <ArrowIcon class="experience-card__button-icon" role="experience" />
+                </button>
+              </span>
             </article>
 
             <dialog
@@ -219,9 +221,9 @@ const experiences = [
                       <span class="experience-period">{experience.period}</span> · {experience.location}
                     </p>
                   </div>
-                  <form method="dialog">
+                  <form method="dialog" class="button-link-group hover-group">
                     <button
-                      class="button-link button-link--ghost experience-dialog__close"
+                      class="button-link button-link--ghost hover-group__target experience-dialog__close"
                       type="submit"
                       aria-label={`Close ${experience.role}`}
                     >

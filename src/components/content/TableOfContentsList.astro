@@ -15,7 +15,9 @@ const { items } = Astro.props;
 <ol class="table-of-contents__list">
   {items.map((item) => (
     <li>
-      <a href={`#${item.slug}`} data-toc-link>{item.text}</a>
+      <span class="table-of-contents__link-group hover-group">
+        <a class="hover-group__target" href={`#${item.slug}`} data-toc-link>{item.text}</a>
+      </span>
       {item.children.length > 0 && <Astro.self items={item.children} />}
     </li>
   ))}

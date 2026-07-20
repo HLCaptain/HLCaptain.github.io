@@ -11,13 +11,8 @@ const projects = await getPublishedProjects();
 const hasArticles = articles.length > 0;
 const featuredArticles = articles.filter((entry) => entry.data.featured).slice(0, 3);
 const featuredProjects = projects.filter((entry) => entry.data.featured).slice(0, 3);
-const profileImages = {
-  square: "/visuals/signal-profile-1-1.svg",
-  landscape: "/visuals/signal-profile-4-3.svg",
-  wide: "/visuals/about-preview.svg",
-  portrait: "/visuals/signal-profile-3-4.svg"
-};
 const thumbnailImages = (src: string) => ({ square: src, landscape: src, wide: src, portrait: src });
+const profileImages = thumbnailImages("/visuals/github-profile-avatar.jpg");
 const previewItems = [
   ...articles.slice(0, 2).map((article) => ({
     kind: "Article",
@@ -29,7 +24,7 @@ const previewItems = [
       ? { images: thumbnailImages(article.data.thumbnail.src) }
       : { icon: getEntryIcon("article", article.id) })
   })),
-  ...projects.slice(0, 1).map((project) => ({
+  ...projects.slice(0, 3 - Math.min(articles.length, 2)).map((project) => ({
     kind: "Project",
     title: project.data.title,
     description: project.data.description,
@@ -61,11 +56,17 @@ const previewItems = [
         fast, legible systems.
       </p>
       <div class="hero-actions">
-        {hasArticles && <a href="/articles/" class="button-link">Read articles</a>}
-        <a href="/work/" class="button-link button-link--ghost">
-          <SemanticIcon name="work" />
-          View projects
-        </a>
+        {hasArticles && (
+          <span class="button-link-group hover-group">
+            <a href="/articles/" class="button-link hover-group__target">Read articles</a>
+          </span>
+        )}
+        <span class="button-link-group hover-group">
+          <a href="/work/" class="button-link button-link--ghost hover-group__target">
+            <SemanticIcon name="work" />
+            View projects
+          </a>
+        </span>
       </div>
     </div>
 
