@@ -5,7 +5,9 @@ publishedAt: 2026-07-13
 tags: ["react", "typescript", "cloudflare", "ai-ocr"]
 featured: true
 status: "active"
-links: []
+links:
+  - label: "Try SplitEasy"
+    href: "https://spliteasy-ai-1337.pages.dev/"
 ---
 
 import ProjectFacts from "../../components/content/ProjectFacts.astro";
@@ -60,10 +62,3 @@ for Mistral, OpenAI, and ElevenLabs stay server-side and never enter the browser
 storage, or exported split data. Receipt documents, chat screenshots, or audio are sent to the
 configured provider when the corresponding AI feature is used; split history can be retained
 locally in the browser.
-
-## Current state
-
-SplitEasy is an actively developed private prototype, not a public production service. The core
-receipt-review, assignment, reconciliation, evidence, multi-currency, local-history, and export
-flows are implemented; current work is focused on hardening real-world receipt parsing and reducing
-the amount of manual repair needed after OCR.

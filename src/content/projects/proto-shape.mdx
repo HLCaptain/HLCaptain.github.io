@@ -66,9 +66,3 @@ reimplementing camera projection and drag-plane math for every new shape.
 The gizmo utilities centralize that math and let custom nodes expose focused editing handles with a
 small amount of project-specific code. Runtime shape logic is kept separate from editor-only gizmo
 classes, so exported games do not inherit an unnecessary dependency on Godot's editor APIs.
-
-## Current state
-
-ProtoShape is released under the MIT license and installable from Godot's Asset Library or GitHub
-Releases. The current version targets Godot {release.godotVersion} and provides a reusable base for
-adding more dynamic blockout shapes without duplicating the editor-integration work.
