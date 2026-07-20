@@ -378,11 +378,12 @@ test.describe("site shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("publishes LinkedIn and X profile links", async ({ page }) => {
+  test("publishes a compact list of contact and social links", async ({ page }) => {
     await page.goto("/about/");
 
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
     const profileLinks = [
+      { label: "GitHub", href: "https://github.com/HLCaptain", icon: "github" },
       { label: "LinkedIn", href: "https://www.linkedin.com/in/balazs-puspok-kiss/", icon: "linkedin" },
       { label: "X", href: "https://x.com/hlcaptain", icon: "x" }
     ];
@@ -396,8 +397,18 @@ test.describe("site shell", () => {
     }
 
     const facts = page.locator(".fact-panel");
-    await expect(facts.getByRole("link", { name: "balazs-puspok-kiss" })).toHaveAttribute("href", profileLinks[0].href);
-    await expect(facts.getByRole("link", { name: "@hlcaptain" })).toHaveAttribute("href", profileLinks[1].href);
+    await expect(facts.getByText("Contact / socials")).toBeVisible();
+    await expect(facts.getByRole("link", { name: "Email" })).toHaveAttribute("href", "mailto:pkblazsak@gmail.com");
+
+    for (const { label, href } of profileLinks) {
+      const link = facts.getByRole("link", { name: label, exact: true });
+      await expect(link).toHaveAttribute("href", href);
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noreferrer");
+    }
+
+    expect((await facts.boundingBox())!.width).toBeLessThan(320);
+    await expectNoHorizontalOverflow(page);
   });
 
   test("active project leaf reopens a remembered closed group", async ({ page }) => {

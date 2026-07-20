@@ -1293,7 +1293,7 @@ svg {
 
 .split-section {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.58fr);
+  grid-template-columns: minmax(0, 1fr) max-content;
   gap: 28px;
   align-items: start;
 }
@@ -1309,37 +1309,48 @@ svg {
 }
 
 .fact-panel {
-  background: var(--surface);
+  width: max-content;
+  max-width: 100%;
+  padding: 1px;
+  background: var(--line);
   border: 1px solid var(--line);
 }
 
 .fact-panel dl {
+  display: grid;
+  gap: 1px;
   margin: 0;
 }
 
 .fact-panel div {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 12px;
-  padding: 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
-}
-
-.fact-panel div:last-child {
-  border-bottom: 0;
+  padding: 0.85rem 1rem;
+  background: var(--surface-soft);
 }
 
 .fact-panel dt {
+  margin-bottom: 0.25rem;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .fact-panel dd {
   min-width: 0;
   margin: 0;
+  font-size: 0.92rem;
   overflow-wrap: anywhere;
+}
+
+.fact-panel__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .prose-shell {
@@ -2271,10 +2282,6 @@ svg {
     grid-template-columns: 1fr;
   }
 
-  .fact-panel div {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
