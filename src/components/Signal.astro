@@ -44,83 +44,85 @@ const { items, label = "Site preview signal" } = Astro.props;
       const active = index === 0;
 
       return (
-        <article
-          class:list={["signal__item", active && "is-active"]}
-          data-signal-item
-          data-signal-href={item.href}
-        >
-          <button
-            id={triggerId}
-            class="signal__summary"
-            type="button"
-            data-signal-trigger
-            aria-controls={panelId}
-            aria-expanded={active}
+        <div class="signal__item-group hover-group">
+          <article
+            class:list={["signal__item", "hover-group__target", active && "is-active"]}
+            data-signal-item
+            data-signal-href={item.href}
           >
-            <span class="signal__topline">
-              <span class="signal__kind">{item.kind}</span>
-              <span class="signal__meta">{item.meta}</span>
-            </span>
-            <strong class="signal__title">{item.title}</strong>
-          </button>
+            <button
+              id={triggerId}
+              class="signal__summary"
+              type="button"
+              data-signal-trigger
+              aria-controls={panelId}
+              aria-expanded={active}
+            >
+              <span class="signal__topline">
+                <span class="signal__kind">{item.kind}</span>
+                <span class="signal__meta">{item.meta}</span>
+              </span>
+              <strong class="signal__title">{item.title}</strong>
+            </button>
 
-          <div
-            id={panelId}
-            class="signal__panel"
-            data-signal-panel
-            role="region"
-            aria-labelledby={triggerId}
-            aria-hidden={!active}
-            inert={!active}
-          >
-            <div class="signal__content">
-              <div class="signal__media" data-signal-aspect="1:1">
-                {item.images ? (
-                  <img
-                    src={item.images.square}
-                    alt=""
-                    loading={active ? "eager" : "lazy"}
-                    width="640"
-                    height="640"
-                    data-signal-image
-                    data-signal-visual
-                    data-signal-src-square={item.images.square}
-                    data-signal-src-landscape={item.images.landscape}
-                    data-signal-src-wide={item.images.wide}
-                    data-signal-src-portrait={item.images.portrait}
-                    data-signal-label-square="1:1"
-                    data-signal-label-landscape="4:3"
-                    data-signal-label-wide="16:9"
-                    data-signal-label-portrait="3:4"
-                  />
-                ) : (
-                  <span
-                    class="signal__media-icon"
-                    data-signal-visual
-                    data-signal-label-square="1:1"
-                    data-signal-label-landscape="4:3"
-                    data-signal-label-wide="16:9"
-                    data-signal-label-portrait="3:4"
+            <div
+              id={panelId}
+              class="signal__panel"
+              data-signal-panel
+              role="region"
+              aria-labelledby={triggerId}
+              aria-hidden={!active}
+              inert={!active}
+            >
+              <div class="signal__content">
+                <div class="signal__media" data-signal-aspect="1:1">
+                  {item.images ? (
+                    <img
+                      src={item.images.square}
+                      alt=""
+                      loading={active ? "eager" : "lazy"}
+                      width="640"
+                      height="640"
+                      data-signal-image
+                      data-signal-visual
+                      data-signal-src-square={item.images.square}
+                      data-signal-src-landscape={item.images.landscape}
+                      data-signal-src-wide={item.images.wide}
+                      data-signal-src-portrait={item.images.portrait}
+                      data-signal-label-square="1:1"
+                      data-signal-label-landscape="4:3"
+                      data-signal-label-wide="16:9"
+                      data-signal-label-portrait="3:4"
+                    />
+                  ) : (
+                    <span
+                      class="signal__media-icon"
+                      data-signal-visual
+                      data-signal-label-square="1:1"
+                      data-signal-label-landscape="4:3"
+                      data-signal-label-wide="16:9"
+                      data-signal-label-portrait="3:4"
+                    >
+                      <SemanticIcon name={item.icon ?? "link"} />
+                    </span>
+                  )}
+                  <a
+                    class="signal__media-action"
+                    href={item.href}
+                    data-signal-link
+                    aria-label={`Open ${item.kind.toLowerCase()}: ${item.title}`}
                   >
-                    <SemanticIcon name={item.icon ?? "link"} />
-                  </span>
-                )}
-                <a
-                  class="signal__media-action"
-                  href={item.href}
-                  data-signal-link
-                  aria-label={`Open ${item.kind.toLowerCase()}: ${item.title}`}
-                >
-                  <ArrowIcon class="arrow-icon--inline" aria-hidden="true" />
-                </a>
-              </div>
+                    <ArrowIcon class="arrow-icon--inline" aria-hidden="true" />
+                  </a>
+                </div>
 
-              <div class="signal__copy">
-                <p>{item.description}</p>
+                <div class="signal__copy">
+                  <p>{item.description}</p>
+                </div>
               </div>
             </div>
-          </div>
-        </article>
+          </article>
+        </div>
       );
     })}
   </div>
@@ -192,19 +194,31 @@ const { items, label = "Site preview signal" } = Astro.props;
     );
   }
 
+  .signal__item-group {
+    --hover-group-y: -0.25rem;
+    position: relative;
+    flex: 0 0 auto;
+    min-inline-size: 0;
+    block-size: var(--signal-summary-height);
+    cursor: pointer;
+    transition: block-size 400ms var(--ease);
+  }
+
+  .signal__item-group:has(.signal__item.is-active) {
+    block-size: calc(var(--signal-summary-height) + var(--signal-panel-height));
+  }
+
   .signal__item {
     position: relative;
     display: grid;
     grid-template-rows: var(--signal-summary-height) minmax(0, 1fr);
-    flex: 0 0 auto;
     min-inline-size: 0;
-    block-size: var(--signal-summary-height);
+    block-size: 100%;
     overflow: hidden;
     background: var(--panel-bg);
     border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
     cursor: pointer;
     transition:
-      block-size 400ms var(--ease),
       background-color 220ms var(--ease),
       border-color 220ms var(--ease),
       box-shadow 220ms var(--ease),
@@ -212,18 +226,16 @@ const { items, label = "Site preview signal" } = Astro.props;
   }
 
   .signal__item.is-active {
-    block-size: calc(var(--signal-summary-height) + var(--signal-panel-height));
     background: color-mix(in srgb, var(--surface-soft) 88%, transparent);
     border-color: color-mix(in srgb, var(--accent-readable) 48%, var(--line));
     box-shadow: 0 1rem 2.75rem color-mix(in srgb, var(--ink) 9%, transparent);
   }
 
-  .signal__item:hover {
+  .signal__item-group:is(:hover, :focus-within) > .signal__item {
     z-index: 2;
     background: var(--surface-soft);
     border-color: var(--line-strong);
     box-shadow: 0 1.125rem 3rem color-mix(in srgb, var(--ink) 12%, transparent);
-    transform: translateY(-0.25rem);
   }
 
   .signal__summary {
@@ -404,7 +416,7 @@ const { items, label = "Site preview signal" } = Astro.props;
     color: var(--accent-ink);
   }
 
-  .signal__item.is-active:hover .signal__media-action,
+  .signal__item-group:hover .signal__item.is-active .signal__media-action,
   .signal__item.is-active .signal__media:focus-within .signal__media-action {
     opacity: 1;
     pointer-events: auto;
@@ -426,12 +438,12 @@ const { items, label = "Site preview signal" } = Astro.props;
       border-color 180ms var(--ease);
   }
 
-  .signal__item:hover .signal__media,
-  .signal__item:hover .signal__copy {
+  .signal__item-group:is(:hover, :focus-within) .signal__media,
+  .signal__item-group:is(:hover, :focus-within) .signal__copy {
     border-color: var(--line-strong);
   }
 
-  .signal__item:hover .signal__copy {
+  .signal__item-group:is(:hover, :focus-within) .signal__copy {
     background: color-mix(in srgb, var(--panel-hover) 82%, transparent);
   }
 
@@ -540,6 +552,7 @@ const { items, label = "Site preview signal" } = Astro.props;
 
   @media (prefers-reduced-motion: reduce) {
     .signal__marker,
+    .signal__item-group,
     .signal__item,
     .signal__panel,
     .signal__media-action {

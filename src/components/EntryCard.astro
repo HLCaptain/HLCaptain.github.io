@@ -26,8 +26,8 @@ const { href, ariaLabel, kind, visualKey, title, description, tags, meta, thumbn
 const icon = getEntryIcon(kind, visualKey);
 ---
 
-<article class:list={["entry-card", kind === "project" && "entry-card--project"]}>
-  <a href={href} class="entry-card__link" aria-label={ariaLabel}>
+<article class:list={["entry-card", "hover-group", kind === "project" && "entry-card--project"]}>
+  <a href={href} class="entry-card__link hover-group__target" aria-label={ariaLabel}>
     {thumbnail ? (
       <Image class="entry-card__thumbnail" src={thumbnail} alt="" />
     ) : (
