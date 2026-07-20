@@ -19,7 +19,13 @@ env:
 jobs:
   validate:
     name: Check and build
-    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.author_association == 'OWNER'
+      )
+    runs-on: [self-hosted, macOS, ARM64]
 
     steps:
       - name: Checkout
@@ -29,7 +35,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          package-manager-cache: false
 
       - name: Install dependencies
         run: npm ci
@@ -96,7 +102,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          package-manager-cache: false
 
       - name: Install dependencies
         run: npm ci
@@ -129,7 +135,7 @@ jobs:
 
   ui-tests:
     name: Responsive UI tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     needs: [validate, cloudflare-config, deploy-preview]
     if: always() && needs.validate.result == 'success' && (needs.deploy-preview.result == 'success' || needs.deploy-preview.result == 'skipped')
 
@@ -141,13 +147,13 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          package-manager-cache: false
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npm exec -- playwright install chromium
 
       - name: Build site for UI tests
         run: npm run build
@@ -181,12 +187,3 @@ jobs:
         run: npx playwright test
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ steps.ui-target.outputs.base_url }}
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
-          path: playwright-report/
-          if-no-files-found: ignore
-          retention-days: 7
