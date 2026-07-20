@@ -470,9 +470,10 @@ test.describe("site shell", () => {
       await expect(item.getByRole("heading", { name: role, exact: true })).toBeVisible();
       await expect(item.locator(".experience-timeline__meta")).toContainText(period);
       await expect(item.locator(".experience-card > p:not(.experience-card__organization)")).not.toBeEmpty();
-      await expect(
-        item.getByRole("button", { name: `Read full experience: ${role} at ${organization}` })
-      ).toHaveAttribute("aria-haspopup", "dialog");
+      const itemDialog = item.locator("dialog");
+      const itemButton = item.getByRole("button", { name: `Read full experience: ${role} at ${organization}` });
+      await expect(itemButton).toHaveAttribute("aria-haspopup", "dialog");
+      await expect(itemButton).toHaveAttribute("aria-controls", (await itemDialog.getAttribute("id"))!);
       const periodLayout = await item.locator(".experience-period").first().evaluate((node) => {
         const style = getComputedStyle(node);
         return {
@@ -486,31 +487,82 @@ test.describe("site shell", () => {
       expect(await item.locator(".experience-dialog__body > p").count()).toBeGreaterThanOrEqual(2);
     }
 
+    const geometry = await items.evaluateAll((nodes) =>
+      nodes.map((node, index) => {
+        const item = node.getBoundingClientRect();
+        const card = node.querySelector(".experience-card")!.getBoundingClientRect();
+        const period = node.querySelector(".experience-period")!.getBoundingClientRect();
+        const markerStyle = getComputedStyle(node, "::before");
+        const lineStyle = getComputedStyle(node, "::after");
+        const marker = {
+          x: item.left + Number.parseFloat(markerStyle.left) + Number.parseFloat(markerStyle.width) / 2,
+          y: item.top + Number.parseFloat(markerStyle.top) + Number.parseFloat(markerStyle.height) / 2
+        };
+        return {
+          cardLeft: card.left,
+          cardRight: card.right,
+          periodCenterY: period.top + period.height / 2,
+          marker,
+          line:
+            index < nodes.length - 1
+              ? {
+                  x: item.left + Number.parseFloat(lineStyle.left) + Number.parseFloat(lineStyle.width) / 2,
+                  top: item.top + Number.parseFloat(lineStyle.top),
+                  bottom: item.bottom - Number.parseFloat(lineStyle.bottom)
+                }
+              : null
+        };
+      })
+    );
+    expect(Math.max(...geometry.map(({ cardLeft }) => cardLeft)) - Math.min(...geometry.map(({ cardLeft }) => cardLeft))).toBeLessThanOrEqual(1);
+    expect(Math.max(...geometry.map(({ cardRight }) => cardRight)) - Math.min(...geometry.map(({ cardRight }) => cardRight))).toBeLessThanOrEqual(1);
+    for (const [index, item] of geometry.entries()) {
+      expect(Math.abs(item.marker.y - item.periodCenterY)).toBeLessThanOrEqual(1);
+      if (!item.line) continue;
+      expect(Math.abs(item.line.x - item.marker.x)).toBeLessThanOrEqual(1);
+      expect(item.line.top).toBeLessThanOrEqual(item.marker.y + 1);
+      expect(item.line.bottom).toBeGreaterThanOrEqual(geometry[index + 1].marker.y - 1);
+    }
+
     const wizzItem = items.nth(2);
     const openButton = wizzItem.getByRole("button", { name: "Read full experience: Android Developer at Wizz Air" });
+    const card = wizzItem.locator(".experience-card");
+    const cardGroup = wizzItem.locator(".experience-card-group");
     const dialog = wizzItem.locator("dialog");
-    const compactLayout = await wizzItem.evaluate((node) => {
-      const button = node.querySelector(".experience-card__button")!.getBoundingClientRect();
-      const summary = node.querySelector(".experience-card > p:not(.experience-card__organization)")!.getBoundingClientRect();
-      const card = node.querySelector(".experience-card")!.getBoundingClientRect();
+    const beforeHover = await card.evaluate((node) => {
+      const cardStyle = getComputedStyle(node);
+      const icon = node.querySelector(".experience-card__button-icon")!;
       return {
-        buttonLeft: button.left,
-        buttonTop: button.top,
-        buttonBottom: button.bottom,
-        summaryLeft: summary.left,
-        summaryBottom: summary.bottom,
-        cardBottom: card.bottom
+        background: cardStyle.backgroundColor,
+        shadow: cardStyle.boxShadow,
+        transform: cardStyle.transform,
+        iconBackground: getComputedStyle(icon).backgroundColor,
+        arrowTransform: getComputedStyle(icon.querySelector(".semantic-icon")!).transform
       };
     });
-    expect(compactLayout.buttonLeft).toBeGreaterThan(compactLayout.summaryLeft);
-    expect(compactLayout.buttonTop).toBeLessThan(compactLayout.summaryBottom);
-    expect(compactLayout.buttonBottom).toBeLessThanOrEqual(compactLayout.cardBottom + 1);
-
-    await openButton.hover();
+    await expect(card).toHaveCSS("cursor", "pointer");
+    await cardGroup.hover({ position: { x: 16, y: 16 } });
     await expect
-      .poll(async () => openButton.evaluate((node) => getComputedStyle(node).transform))
-      .not.toBe("none");
-    await openButton.click();
+      .poll(async () =>
+        card.evaluate(
+          (node, before) => {
+            const cardStyle = getComputedStyle(node);
+            const icon = node.querySelector(".experience-card__button-icon")!;
+            return (
+              cardStyle.backgroundColor !== before.background &&
+              cardStyle.boxShadow !== before.shadow &&
+              cardStyle.transform !== before.transform &&
+              getComputedStyle(icon).backgroundColor !== before.iconBackground &&
+              getComputedStyle(icon.querySelector(".semantic-icon")!).transform !== before.arrowTransform
+            );
+          },
+          beforeHover
+        )
+      )
+      .toBe(true);
+
+    const cardBox = (await card.boundingBox())!;
+    await page.mouse.click(cardBox.x + 16, cardBox.y + cardBox.height - 16);
 
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveJSProperty("open", true);
@@ -530,6 +582,12 @@ test.describe("site shell", () => {
 
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
+    await expect(openButton).toBeFocused();
+
+    await openButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(openButton).toBeFocused();
 
     await openButton.click();

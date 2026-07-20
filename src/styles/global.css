@@ -1424,14 +1424,15 @@ svg {
 .experience-timeline__item {
   position: relative;
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: clamp(18px, 4vw, 40px);
-  padding: 0 0 22px 28px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 0 0 22px 24px;
 }
 
 .experience-timeline__item::before {
   position: absolute;
-  top: 6px;
+  z-index: 1;
+  top: 3px;
   left: 0;
   width: 11px;
   height: 11px;
@@ -1443,8 +1444,8 @@ svg {
 
 .experience-timeline__item:not(:last-child)::after {
   position: absolute;
-  top: 20px;
-  bottom: -2px;
+  top: 8px;
+  bottom: -9px;
   left: 5px;
   width: 1px;
   background: var(--line-strong);
@@ -1452,11 +1453,16 @@ svg {
 }
 
 .experience-timeline__meta {
-  margin: 2px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  align-items: baseline;
+  min-height: 17px;
+  margin: 0;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  line-height: 1.45;
+  line-height: 17px;
   text-transform: uppercase;
 }
 
@@ -1469,9 +1475,13 @@ svg {
 }
 
 .experience-timeline__meta span + span {
-  margin-top: 8px;
   color: var(--ink-soft);
   text-transform: none;
+}
+
+.experience-card-group {
+  --hover-group-y: -4px;
+  min-width: 0;
 }
 
 .experience-card {
@@ -1480,6 +1490,18 @@ svg {
   padding: clamp(16px, 2.5vw, 22px);
   background: var(--surface-soft);
   border: 1px solid var(--line);
+  cursor: pointer;
+  transition:
+    background-color 180ms var(--ease),
+    border-color 180ms var(--ease),
+    box-shadow 180ms var(--ease),
+    transform 180ms var(--ease);
+}
+
+.experience-card-group:is(:hover, :focus-within) .experience-card {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .experience-card__organization {
@@ -1508,31 +1530,50 @@ svg {
   color: var(--ink-soft);
 }
 
-.experience-card__action {
-  position: absolute;
-  top: clamp(16px, 2.5vw, 22px);
-  right: clamp(16px, 2.5vw, 22px);
-}
-
 .experience-card__button {
-  width: 42px;
-  height: 42px;
-  min-height: 42px;
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
-  border-radius: 0;
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 10%, transparent);
+  background: transparent;
+  border: 0;
   cursor: pointer;
 }
 
-.experience-card__button-icon {
-  width: 20px;
-  height: 20px;
-  color: var(--accent-ink);
+.experience-card__button:focus-visible {
+  outline-offset: -3px;
 }
 
-.experience-card__button:hover .experience-card__button-icon,
-.experience-card__button:focus-visible .experience-card__button-icon {
+.experience-card__button-icon {
+  position: absolute;
+  top: clamp(16px, 2.5vw, 22px);
+  right: clamp(16px, 2.5vw, 22px);
+  width: 42px;
+  height: 42px;
+  color: var(--accent-readable);
+  background: transparent;
+  transition:
+    background-color 180ms var(--ease),
+    box-shadow 180ms var(--ease),
+    color 180ms var(--ease);
+}
+
+.experience-card__button-icon .semantic-icon {
+  width: 20px;
+  height: 20px;
+  transition: transform 180ms var(--ease);
+}
+
+.experience-card-group:is(:hover, :focus-within) .experience-card__button-icon {
+  color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.experience-card-group:is(:hover, :focus-within) .experience-card__button-icon .semantic-icon {
   transform: translateX(3px);
 }
 
@@ -2286,21 +2327,6 @@ html:has(.experience-dialog[open]) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .experience-timeline__item {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-    padding-left: 24px;
-  }
-
-  .experience-timeline__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px 12px;
-  }
-
-  .experience-timeline__meta span + span {
-    margin-top: 0;
-  }
 }
 
 @media (min-width: 721px) and (max-width: 900px) {
