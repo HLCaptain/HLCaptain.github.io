@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function expectNoHorizontalOverflow(page: Page) {
   const fits = await page.evaluate(() => {
@@ -6,6 +6,35 @@ async function expectNoHorizontalOverflow(page: Page) {
     return root.scrollWidth <= root.clientWidth + 1;
   });
   expect(fits).toBe(true);
+}
+
+async function expectStableHoverTarget(page: Page, target: Locator, offset: { x: number; y: number }) {
+  const group = target.locator("..");
+  await expect(group).toHaveClass(/\bhover-group\b/);
+  await expect(target).toHaveClass(/\bhover-group__target\b/);
+  await group.scrollIntoViewIfNeeded();
+
+  const box = await group.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(
+    offset.x > 0 ? box!.x + 1 : box!.x + box!.width / 2,
+    offset.y < 0 ? box!.y + box!.height - 1 : box!.y + box!.height / 2
+  );
+
+  const readState = () =>
+    target.evaluate((node) => {
+      const transform = getComputedStyle(node).transform;
+      const matrix = transform === "none" ? new DOMMatrixReadOnly() : new DOMMatrixReadOnly(transform);
+      return {
+        groupHovered: node.parentElement?.matches(":hover") ?? false,
+        x: Math.round(matrix.m41),
+        y: Math.round(matrix.m42)
+      };
+    });
+
+  await expect.poll(readState).toEqual({ groupHovered: true, ...offset });
+  await page.waitForTimeout(260);
+  expect(await readState()).toEqual({ groupHovered: true, ...offset });
 }
 
 type ParsedColor = { r: number; g: number; b: number; a: number };
@@ -587,13 +616,19 @@ test.describe("site shell", () => {
         aboutLink.evaluate((node) => {
           const rect = node.getBoundingClientRect();
           const edgeTarget = document.elementFromPoint(rect.right - 1, rect.top + rect.height / 2);
+          const content = node.querySelector(".sidebar-row__content")!;
+          const translateX = (element: Element) => {
+            const transform = getComputedStyle(element).transform;
+            return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41;
+          };
           return {
-            translated: new DOMMatrixReadOnly(getComputedStyle(node).transform).m41,
+            rowTranslated: translateX(node),
+            contentTranslated: translateX(content),
             edgeVisible: edgeTarget?.closest(".sidebar-row") === node
           };
         })
       )
-      .toEqual({ translated: 3, edgeVisible: true });
+      .toEqual({ rowTranslated: 0, contentTranslated: 3, edgeVisible: true });
 
     await page.mouse.move(220, 220);
     const actionMetrics = await page.evaluate(() => {
@@ -1084,6 +1119,12 @@ test.describe("site shell", () => {
           .evaluate((node) => getComputedStyle(node).display)
       )
       .toBe("block");
+    const externalLabelGap = await nav.getByRole("link", { name: "GitHub", exact: true }).evaluate((node) => {
+      const label = node.querySelector(".sidebar-row__label")!.getBoundingClientRect();
+      const icon = node.querySelector(".external-link-icon")!.getBoundingClientRect();
+      return icon.left - label.right;
+    });
+    expect(externalLabelGap).toBeGreaterThanOrEqual(0);
     const overlaySurfaceControls = await page.evaluate(() => {
       const labels = Array.from(document.querySelectorAll(".accent-panel .surface-control__label")).map((node) => getComputedStyle(node).display);
       const rectOf = (selector: string) => {
@@ -1896,6 +1937,29 @@ test.describe("site shell", () => {
         arrow.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity))
       )
       .toBeGreaterThan(0.7);
+  });
+
+  test("hover elevations keep their original hit areas", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1200, "Desktop-only hover hit-area check");
+
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    await expectStableHoverTarget(page, page.getByRole("link", { name: "About", exact: true }).locator(".sidebar-row__content"), {
+      x: 3,
+      y: 0
+    });
+    await expectStableHoverTarget(page, page.getByRole("link", { name: "View projects", exact: true }), { x: 0, y: -2 });
+    await expectStableHoverTarget(page, page.locator(".entry-card__link").first(), { x: 0, y: -4 });
+    await expectStableHoverTarget(page, page.locator(".signal__item").first(), { x: 0, y: -4 });
+
+    await page.goto("/work/proto-shape/");
+    await page.waitForLoadState("networkidle");
+
+    const tocLink = page.locator("[data-toc-desktop] [data-toc-link]").first();
+    const projectLink = page.getByRole("navigation", { name: "Project links" }).getByRole("link").first();
+    await expectStableHoverTarget(page, tocLink, { x: 2, y: 0 });
+    await expectStableHoverTarget(page, projectLink, { x: 0, y: -2 });
   });
 
   test("network profile icons stay drawn across overview and detail pages", async ({ page }) => {

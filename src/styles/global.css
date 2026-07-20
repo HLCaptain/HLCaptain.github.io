@@ -197,6 +197,15 @@ svg {
   outline-offset: 3px;
 }
 
+.hover-group {
+  --hover-group-x: 0px;
+  --hover-group-y: 0px;
+}
+
+.hover-group:is(:hover, :focus-within) > .hover-group__target {
+  transform: translate(var(--hover-group-x), var(--hover-group-y));
+}
+
 ::selection {
   background: var(--accent);
   color: var(--accent-ink);
@@ -335,6 +344,7 @@ svg {
 }
 
 .sidebar-row {
+  --hover-group-x: 3px;
   position: relative;
   display: grid;
   grid-template-columns: var(--sidebar-row-icon-size) minmax(0, 1fr) auto;
@@ -354,8 +364,17 @@ svg {
     gap 240ms var(--ease),
     grid-template-columns 240ms var(--ease),
     min-height 240ms var(--ease),
-    padding 240ms var(--ease),
-    transform 180ms var(--ease);
+    padding 240ms var(--ease);
+}
+
+.sidebar-row__content {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  gap: inherit;
+  align-items: center;
+  min-width: 0;
+  transition: transform 180ms var(--ease);
 }
 
 .sidebar-row__label {
@@ -389,7 +408,6 @@ svg {
   color: var(--ink);
   background: var(--panel-hover);
   box-shadow: inset 0 0 0 1px var(--line-strong);
-  transform: translateX(3px);
 }
 
 .sidebar-row__icon {
@@ -525,9 +543,9 @@ svg {
   will-change: opacity, transform;
 }
 
-.nav-item > .sidebar-row__icon,
-.nav-item > .sidebar-row__label,
-.nav-item > .external-link-icon {
+.nav-item > .sidebar-row__content > .sidebar-row__icon,
+.nav-item > .sidebar-row__content > .sidebar-row__label,
+.nav-item > .sidebar-row__content > .external-link-icon {
   position: relative;
   z-index: 1;
 }
@@ -923,6 +941,12 @@ svg {
   margin-top: 28px;
 }
 
+.button-link-group {
+  --hover-group-y: -2px;
+  display: inline-flex;
+  width: fit-content;
+}
+
 .button-link {
   display: inline-flex;
   gap: 8px;
@@ -940,8 +964,7 @@ svg {
     background-color 180ms var(--ease);
 }
 
-.button-link:hover {
-  transform: translateY(-2px);
+.button-link-group:is(:hover, :focus-within) > .button-link {
   box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 18%, transparent);
 }
 
@@ -996,6 +1019,7 @@ svg {
 }
 
 .entry-card {
+  --hover-group-y: -4px;
   min-width: 0;
 }
 
@@ -1028,14 +1052,13 @@ svg {
     transform 180ms var(--ease);
 }
 
-.entry-card__link:hover {
+.entry-card:is(:hover, :focus-within) > .entry-card__link {
   border-color: var(--line-strong);
   background: var(--surface-soft);
   box-shadow: 0 18px 48px color-mix(in srgb, var(--ink) 12%, transparent);
-  transform: translateY(-4px);
 }
 
-.entry-card__link:hover .entry-card__arrow {
+.entry-card:is(:hover, :focus-within) .entry-card__arrow {
   opacity: 1;
   transform: translateX(0);
 }
@@ -1202,6 +1225,7 @@ svg {
 }
 
 :root.sidebar-collapsed:not(.sidebar-overlay-open) .nav-item {
+  --hover-group-x: 0px;
   border-color: transparent;
   transform: none;
 }
@@ -1234,7 +1258,10 @@ svg {
     );
   }
 
-  :root.sidebar-collapsed .sidebar-row:has(> .external-link-icon) > .sidebar-row__label {
+  :root.sidebar-collapsed
+    .sidebar-row:has(> .sidebar-row__content > .external-link-icon)
+    > .sidebar-row__content
+    > .sidebar-row__label {
     inline-size: calc(
       var(--sidebar-width)
       - (var(--sidebar-outer-padding) * 2)
@@ -1413,6 +1440,11 @@ svg {
   margin-top: 3px;
 }
 
+.table-of-contents__link-group {
+  --hover-group-x: 2px;
+  display: block;
+}
+
 .table-of-contents__list a {
   display: block;
   padding: 5px 6px;
@@ -1425,11 +1457,10 @@ svg {
     transform 160ms var(--ease);
 }
 
-.table-of-contents__list a:hover,
+.table-of-contents__link-group:hover > a,
 .table-of-contents__list a:focus-visible {
   color: var(--accent-readable);
   background: color-mix(in srgb, var(--accent-readable) 10%, transparent);
-  transform: translateX(2px);
 }
 
 .document-meta {
@@ -1591,6 +1622,11 @@ svg {
   border-bottom: 1px solid var(--line);
 }
 
+.link-strip__item {
+  --hover-group-y: -2px;
+  display: inline-flex;
+}
+
 .link-strip a {
   display: inline-flex;
   gap: 8px;
@@ -1607,16 +1643,15 @@ svg {
     transform 180ms var(--ease);
 }
 
-.link-strip a:hover,
+.link-strip__item:hover > a,
 .link-strip a:focus-visible {
   color: var(--accent-readable);
   background: color-mix(in srgb, var(--accent-readable) 12%, var(--surface-soft));
   border-color: var(--accent-readable);
   box-shadow: 0 8px 18px color-mix(in srgb, var(--ink) 10%, transparent);
-  transform: translateY(-2px);
 }
 
-.link-strip a:hover .external-link-icon,
+.link-strip__item:hover .external-link-icon,
 .link-strip a:focus-visible .external-link-icon {
   color: var(--accent-readable);
   transform: translate(2px, -1px);

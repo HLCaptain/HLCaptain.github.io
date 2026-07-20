@@ -29,10 +29,12 @@ const { Content, headings } = await render(project);
     {project.data.links.length > 0 && (
       <nav class="link-strip" aria-label="Project links">
         {project.data.links.map((link) => (
-          <a href={link.href} target="_blank" rel="noreferrer">
-            {link.label}
-            <ExternalLinkIcon />
-          </a>
+          <span class="link-strip__item hover-group">
+            <a class="hover-group__target" href={link.href} target="_blank" rel="noreferrer">
+              {link.label}
+              <ExternalLinkIcon />
+            </a>
+          </span>
         ))}
       </nav>
     )}

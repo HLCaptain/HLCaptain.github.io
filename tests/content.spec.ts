@@ -199,7 +199,7 @@ test.describe("project case studies", () => {
     );
     expect(
       await toc.locator('a[href="#shared-gizmo-utilities"]').evaluate((link) =>
-        link.closest("ol")?.parentElement?.querySelector(":scope > a")?.getAttribute("href")
+        link.closest("ol")?.parentElement?.querySelector(":scope > .table-of-contents__link-group > a")?.getAttribute("href")
       )
     ).toBe("#editor-tooling-as-a-reusable-system");
 
