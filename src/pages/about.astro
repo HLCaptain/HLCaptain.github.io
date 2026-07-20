@@ -1,4 +1,6 @@
 ---
+import ArrowIcon from "@components/ArrowIcon.astro";
+import ExternalLinkIcon from "@components/ExternalLinkIcon.astro";
 import PageHeader from "@components/PageHeader.astro";
 import SemanticIcon from "@components/SemanticIcon.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
@@ -180,7 +182,7 @@ const experiences = [
         return (
           <li class="experience-timeline__item">
             <p class="experience-timeline__meta">
-              <span>{experience.period}</span>
+              <span class="experience-period">{experience.period}</span>
               <span>{experience.location}</span>
             </p>
 
@@ -189,14 +191,16 @@ const experiences = [
               <h3>{experience.role}</h3>
               <p>{experience.summary}</p>
               <button
-                class="button-link button-link--ghost experience-card__button"
+                class="button-link experience-card__button"
                 type="button"
+                aria-label={`Read full experience: ${experience.role} at ${experience.organization}`}
                 aria-controls={dialogId}
                 aria-haspopup="dialog"
                 data-experience-open={dialogId}
+                title="Read full experience"
               >
-                Read full experience
-                <SemanticIcon name="arrowRight" class="experience-card__button-icon" />
+                <span class="sr-only">Read full experience</span>
+                <ArrowIcon class="experience-card__button-icon" role="experience" />
               </button>
             </article>
 
@@ -211,10 +215,16 @@ const experiences = [
                   <div>
                     <p class="eyebrow">{experience.organization}</p>
                     <h3 id={titleId}>{experience.role}</h3>
-                    <p class="experience-dialog__meta">{experience.period} · {experience.location}</p>
+                    <p class="experience-dialog__meta">
+                      <span class="experience-period">{experience.period}</span> · {experience.location}
+                    </p>
                   </div>
                   <form method="dialog">
-                    <button class="experience-dialog__close" type="submit" aria-label={`Close ${experience.role}`}>
+                    <button
+                      class="button-link button-link--ghost experience-dialog__close"
+                      type="submit"
+                      aria-label={`Close ${experience.role}`}
+                    >
                       <SemanticIcon name="close" />
                     </button>
                   </form>
@@ -229,7 +239,7 @@ const experiences = [
                         <li>
                           <a href={link.href} target="_blank" rel="noreferrer">
                             {link.label}
-                            <SemanticIcon name="external" class="external-link-icon" />
+                            <ExternalLinkIcon />
                           </a>
                         </li>
                       ))}

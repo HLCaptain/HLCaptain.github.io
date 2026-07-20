@@ -935,12 +935,15 @@ svg {
   border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
   text-decoration: none;
   transition:
-    transform 180ms var(--ease),
+    background-color 180ms var(--ease),
+    border-color 180ms var(--ease),
     box-shadow 180ms var(--ease),
-    background-color 180ms var(--ease);
+    color 180ms var(--ease),
+    transform 180ms var(--ease);
 }
 
-.button-link:hover {
+.button-link:hover,
+.button-link:focus-visible {
   transform: translateY(-2px);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 18%, transparent);
 }
@@ -949,6 +952,13 @@ svg {
   color: var(--ink);
   background: transparent;
   border-color: var(--line-strong);
+}
+
+.button-link--ghost:hover,
+.button-link--ghost:focus-visible {
+  color: var(--accent-readable);
+  background: color-mix(in srgb, var(--accent-readable) 12%, var(--surface-soft));
+  border-color: var(--accent-readable);
 }
 
 
@@ -1388,9 +1398,9 @@ svg {
 .experience-timeline__item {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(116px, 154px) minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: clamp(18px, 4vw, 40px);
-  padding: 0 0 30px 28px;
+  padding: 0 0 22px 28px;
 }
 
 .experience-timeline__item::before {
@@ -1428,6 +1438,10 @@ svg {
   display: block;
 }
 
+.experience-period {
+  white-space: nowrap;
+}
+
 .experience-timeline__meta span + span {
   margin-top: 8px;
   color: var(--ink-soft);
@@ -1435,8 +1449,9 @@ svg {
 }
 
 .experience-card {
+  position: relative;
   min-width: 0;
-  padding: clamp(18px, 3vw, 26px);
+  padding: clamp(16px, 2.5vw, 22px);
   background: var(--surface-soft);
   border: 1px solid var(--line);
 }
@@ -1451,6 +1466,11 @@ svg {
   text-transform: uppercase;
 }
 
+.experience-card__organization,
+.experience-card h3 {
+  padding-right: 56px;
+}
+
 .experience-card h3 {
   margin: 8px 0 0;
   font-size: clamp(1.2rem, 2.3vw, 1.65rem);
@@ -1463,12 +1483,23 @@ svg {
 }
 
 .experience-card__button {
-  margin-top: 18px;
+  position: absolute;
+  top: clamp(16px, 2.5vw, 22px);
+  right: clamp(16px, 2.5vw, 22px);
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 10%, transparent);
   cursor: pointer;
 }
 
 .experience-card__button-icon {
-  transition: transform 180ms var(--ease);
+  width: 20px;
+  height: 20px;
+  color: var(--accent-ink);
 }
 
 .experience-card__button:hover .experience-card__button-icon,
@@ -1490,18 +1521,73 @@ html:has(.experience-dialog[open]) {
   color: var(--ink);
   background: var(--surface-soft);
   border: 1px solid var(--line-strong);
+  border-radius: 0;
   box-shadow: 0 28px 90px color-mix(in srgb, var(--ink) 32%, transparent);
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 180ms var(--ease),
+    transform 220ms var(--ease),
+    overlay 220ms allow-discrete,
+    display 220ms allow-discrete;
+}
+
+.experience-dialog[open] {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .experience-dialog::backdrop {
-  background: color-mix(in srgb, var(--canvas) 28%, transparent);
+  background-color: transparent;
+  backdrop-filter: blur(0);
+  opacity: 0;
+  transition:
+    background-color 220ms var(--ease),
+    backdrop-filter 220ms var(--ease),
+    opacity 180ms var(--ease),
+    overlay 220ms allow-discrete,
+    display 220ms allow-discrete;
+}
+
+.experience-dialog[open]::backdrop {
+  background-color: color-mix(in srgb, var(--canvas) 28%, transparent);
   backdrop-filter: blur(5px);
+  opacity: 1;
 }
 
 .experience-dialog__panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   max-height: calc(100dvh - 34px);
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 160ms var(--ease),
+    transform 220ms var(--ease);
+}
+
+.experience-dialog[open] .experience-dialog__panel {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 45ms;
+}
+
+@starting-style {
+  .experience-dialog[open] {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  .experience-dialog[open]::backdrop {
+    background-color: transparent;
+    backdrop-filter: blur(0);
+    opacity: 0;
+  }
+
+  .experience-dialog[open] .experience-dialog__panel {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 .experience-dialog__header {
@@ -1535,18 +1621,11 @@ html:has(.experience-dialog[open]) {
   display: grid;
   width: 42px;
   height: 42px;
+  min-height: 42px;
   padding: 0;
   place-items: center;
-  color: var(--ink);
-  background: transparent;
-  border: 1px solid var(--line-strong);
+  border-radius: 0;
   cursor: pointer;
-}
-
-.experience-dialog__close:hover {
-  color: var(--accent-readable);
-  background: var(--panel-hover);
-  border-color: var(--accent-readable);
 }
 
 .experience-dialog__body {
@@ -2169,6 +2248,22 @@ html:has(.experience-dialog[open]) {
   .entry-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .experience-timeline__item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding-left: 24px;
+  }
+
+  .experience-timeline__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 12px;
+  }
+
+  .experience-timeline__meta span + span {
+    margin-top: 0;
+  }
 }
 
 @media (min-width: 721px) and (max-width: 900px) {
@@ -2507,22 +2602,6 @@ html:has(.experience-dialog[open]) {
   .experience-section {
     margin-top: 44px;
     padding-top: 26px;
-  }
-
-  .experience-timeline__item {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-    padding-left: 24px;
-  }
-
-  .experience-timeline__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px 12px;
-  }
-
-  .experience-timeline__meta span + span {
-    margin-top: 0;
   }
 
   .experience-dialog {

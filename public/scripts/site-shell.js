@@ -1496,13 +1496,30 @@ function initHeadingReferences() {
   }
 }
 
-function handleExperienceDialogOpen(event) {
-  const button = event.target instanceof Element ? event.target.closest("[data-experience-open]") : null;
-  const dialogId = button?.dataset.experienceOpen;
-  if (!dialogId) return;
+function handleExperienceDialogIntent(event) {
+  if (!(event.target instanceof Element)) return;
 
-  const dialog = document.getElementById(dialogId);
-  if (dialog instanceof HTMLDialogElement && !dialog.open) dialog.showModal();
+  const button = event.target.closest("[data-experience-open]");
+  const dialogId = button?.dataset.experienceOpen;
+  if (dialogId) {
+    const dialog = document.getElementById(dialogId);
+    if (dialog instanceof HTMLDialogElement && !dialog.open) dialog.showModal();
+    return;
+  }
+
+  const dialog =
+    event.target instanceof HTMLDialogElement && event.target.classList.contains("experience-dialog")
+      ? event.target
+      : null;
+  if (!dialog?.open || !(event instanceof MouseEvent)) return;
+
+  const bounds = dialog.getBoundingClientRect();
+  const outside =
+    event.clientX < bounds.left ||
+    event.clientX > bounds.right ||
+    event.clientY < bounds.top ||
+    event.clientY > bounds.bottom;
+  if (outside) dialog.close("backdrop");
 }
 
 function getSignal(element, key) {
@@ -1528,7 +1545,7 @@ if (!window.__hlShellEventsBound) {
   updateSettledPath();
   document.addEventListener("pointerdown", handleTransitionSidebarPointer, { capture: true });
   document.addEventListener("click", handleNavigationIntent, { capture: true });
-  document.addEventListener("click", handleExperienceDialogOpen);
+  document.addEventListener("click", handleExperienceDialogIntent);
   document.addEventListener("astro:before-preparation", handleTransitionPreparation);
   document.addEventListener("astro:before-swap", preserveShellState);
   document.addEventListener("astro:after-swap", updateSettledPath);

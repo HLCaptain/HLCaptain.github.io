@@ -441,25 +441,74 @@ test.describe("site shell", () => {
       await expect(item.getByRole("heading", { name: role, exact: true })).toBeVisible();
       await expect(item.locator(".experience-timeline__meta")).toContainText(period);
       await expect(item.locator(".experience-card > p:not(.experience-card__organization)")).not.toBeEmpty();
-      await expect(item.getByRole("button", { name: "Read full experience" })).toHaveAttribute(
-        "aria-haspopup",
-        "dialog"
-      );
+      await expect(
+        item.getByRole("button", { name: `Read full experience: ${role} at ${organization}` })
+      ).toHaveAttribute("aria-haspopup", "dialog");
+      const periodLayout = await item.locator(".experience-period").first().evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          height: node.getBoundingClientRect().height,
+          lineHeight: Number.parseFloat(style.lineHeight),
+          clipped: node.scrollWidth > node.clientWidth + 1
+        };
+      });
+      expect(periodLayout.height).toBeLessThanOrEqual(Math.ceil(periodLayout.lineHeight) + 1);
+      expect(periodLayout.clipped).toBe(false);
       expect(await item.locator(".experience-dialog__body > p").count()).toBeGreaterThanOrEqual(2);
     }
 
     const wizzItem = items.nth(2);
-    const openButton = wizzItem.getByRole("button", { name: "Read full experience" });
+    const openButton = wizzItem.getByRole("button", { name: "Read full experience: Android Developer at Wizz Air" });
     const dialog = wizzItem.locator("dialog");
+    const compactLayout = await wizzItem.evaluate((node) => {
+      const button = node.querySelector(".experience-card__button")!.getBoundingClientRect();
+      const summary = node.querySelector(".experience-card > p:not(.experience-card__organization)")!.getBoundingClientRect();
+      const card = node.querySelector(".experience-card")!.getBoundingClientRect();
+      return {
+        buttonLeft: button.left,
+        buttonTop: button.top,
+        buttonBottom: button.bottom,
+        summaryLeft: summary.left,
+        summaryBottom: summary.bottom,
+        cardBottom: card.bottom
+      };
+    });
+    expect(compactLayout.buttonLeft).toBeGreaterThan(compactLayout.summaryLeft);
+    expect(compactLayout.buttonTop).toBeLessThan(compactLayout.summaryBottom);
+    expect(compactLayout.buttonBottom).toBeLessThanOrEqual(compactLayout.cardBottom + 1);
+
+    await openButton.hover();
+    await expect
+      .poll(async () => openButton.evaluate((node) => getComputedStyle(node).transform))
+      .not.toBe("none");
     await openButton.click();
 
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveJSProperty("open", true);
     await expect(dialog).toContainText("led its migration to Jetpack Compose");
     await expect(dialog.getByRole("button", { name: "Close Android Developer" })).toBeFocused();
+    const motion = await dialog.evaluate((node) => ({
+      dialog: getComputedStyle(node).transitionProperty,
+      backdrop: getComputedStyle(node, "::backdrop").transitionProperty,
+      backdropFilter: getComputedStyle(node, "::backdrop").backdropFilter,
+      borderRadius: getComputedStyle(node).borderRadius
+    }));
+    expect(motion.dialog).toContain("opacity");
+    expect(motion.dialog).toContain("overlay");
+    expect(motion.backdrop).toContain("backdrop-filter");
+    expect(motion.backdropFilter).toContain("blur");
+    expect(motion.borderRadius).toBe("0px");
 
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
+    await expect(openButton).toBeFocused();
+
+    await openButton.click();
+    await expect(dialog).toBeVisible();
+    const dialogBox = (await dialog.boundingBox())!;
+    await page.mouse.click(Math.max(1, dialogBox.x - 4), Math.max(1, dialogBox.y - 4));
+    await expect(dialog).not.toBeVisible();
+    await expect(dialog).toHaveJSProperty("returnValue", "backdrop");
     await expect(openButton).toBeFocused();
     await expectNoHorizontalOverflow(page);
   });
