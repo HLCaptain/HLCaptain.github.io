@@ -1,6 +1,6 @@
 ---
 import ArrowIcon from "@components/ArrowIcon.astro";
-import ExternalLinkIcon from "@components/ExternalLinkIcon.astro";
+import ExternalLinkButton from "@components/ExternalLinkButton.astro";
 import PageHeader from "@components/PageHeader.astro";
 import SemanticIcon from "@components/SemanticIcon.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
@@ -13,9 +13,9 @@ const experiences = [
     role: "Android Developer",
     period: "January 2026 — Present",
     location: "Budapest, Hungary",
-    summary: "Building the frontend for an Android-based POS terminal with an experienced product team.",
+    summary: "Developing the frontend for a new Android-based POS terminal with an experienced product team.",
     details: [
-      "I develop the frontend of an Android-based POS terminal, working with an experienced team on a new project."
+      "The role focuses on frontend development for a new Android-based POS terminal, in collaboration with an experienced product team."
     ]
   },
   {
@@ -24,10 +24,10 @@ const experiences = [
     role: "Medior Android Developer",
     period: "March 2025 — January 2026",
     location: "Budapest, Hungary",
-    summary: "Built mobile-banking features, resolved architecture issues, and supported modernization work.",
+    summary: "Delivered mobile-banking features, resolved architectural issues, and supported modernization work.",
     details: [
-      "I worked on the mobile banking application and implemented “Pénzkérés Simán” QVIK NFC and QR payment requests.",
-      "I solved architectural issues, built new features, fixed bugs, and supported migration work that made development more efficient."
+      "Work on OTP Bank’s mobile banking application included implementing “Pénzkérés Simán” QVIK payment requests via NFC and QR codes.",
+      "The role also involved resolving architectural issues, delivering new features and bug fixes, and supporting migrations that made development more efficient."
     ]
   },
   {
@@ -36,9 +36,9 @@ const experiences = [
     role: "Android Developer",
     period: "September 2022 — March 2025",
     location: "Budapest, Hungary",
-    summary: "Developed the Android app and led its Jetpack Compose migration with UX and maintainability in focus.",
+    summary: "Developed Wizz Air’s Android app and led its Jetpack Compose migration, with a focus on UX, UI quality, and maintainability.",
     details: [
-      "I developed Wizz Air’s Android application and led its migration to Jetpack Compose, keeping UX and UI quality in focus while cleaning up the codebase to adopt more robust tools and architectures."
+      "Work on Wizz Air’s Android application included leading its migration to Jetpack Compose, maintaining a strong focus on UX and UI quality, and modernizing the codebase with more robust tools and architectures."
     ]
   },
   {
@@ -48,7 +48,7 @@ const experiences = [
     period: "June 2023 — September 2023",
     location: "Budapest, Hungary",
     summary: "Researched and prototyped in-house AI solutions.",
-    details: ["I researched and prototyped in-house AI solutions."]
+    details: ["The research role focused on exploring and prototyping in-house AI solutions."]
   },
   {
     id: "bme-mobile",
@@ -58,8 +58,8 @@ const experiences = [
     location: "Budapest, Hungary",
     summary: "Taught third-year Android development and created modern Jetpack Compose laboratory material.",
     details: [
-      "I taught Android and Android application development to third-year students.",
-      "I shipped new laboratory exercises using Jetpack Compose, Kotlin Coroutines, and Material Design 3. I also led laboratories for the IMSc group and gave feedback on laboratory work and homework."
+      "Teaching responsibilities covered Android application development for third-year students.",
+      "New laboratory exercises introduced Jetpack Compose, Kotlin Coroutines, and Material Design 3; the role also included leading IMSc laboratories and reviewing laboratory work and homework."
     ]
   },
   {
@@ -68,11 +68,11 @@ const experiences = [
     role: "Mobile Software Development Engineer",
     period: "June 2022 — August 2022",
     location: "Budapest, Hungary",
-    summary: "Worked across Android, REST APIs, and internal projects during a mobile software internship.",
+    summary: "Worked across Android development, REST APIs, and internal projects during a mobile software internship.",
     details: [
-      "I worked on internal projects, REST APIs, and Android development, with some exposure to Angular projects.",
-      "My main focus was modern Android development with Jetpack Compose, Kotlin Coroutines, and clean architecture. I used GitLab for Git-based development and Figma to wireframe application features with Material Design 3 components.",
-      "During the internship, I rewrote university laboratory exercises using newer technologies, clean-code principles, and current best practices."
+      "The internship covered internal projects, REST APIs, and Android development, with some exposure to Angular.",
+      "The main focus was modern Android development with Jetpack Compose, Kotlin Coroutines, and clean architecture, using GitLab for Git-based collaboration and Figma to wireframe features with Material Design 3 components.",
+      "University laboratory exercises were rewritten with newer technologies, clean-code principles, and current best practices."
     ]
   },
   {
@@ -83,8 +83,8 @@ const experiences = [
     location: "Budapest, Hungary",
     summary: "Developed Jay, a driver-behavior analytics project, through an AI research scholarship.",
     details: [
-      "I joined a scholarship focused on AI research, data analytics, and communication with my pet project Jay, a driver-behavior analytics solution.",
-      "Dr. Péter Szilágyi mentored the work, which Nokia supported for the spring 2022 semester."
+      "Jay—a pet project for driver-behavior analytics—became the focus of a scholarship covering AI research, data analytics, and communication.",
+      "Nokia supported the work during the spring 2022 semester, with mentorship from Dr. Péter Szilágyi."
     ],
     links: [
       { label: "Jay on GitHub", href: "https://github.com/HLCaptain/jay-android" },
@@ -99,8 +99,8 @@ const experiences = [
     location: "Budapest, Hungary",
     summary: "Taught C programming in English and mentored students through laboratories and assessments.",
     details: [
-      "I taught C programming in English to international students in the Basics of Programming course.",
-      "I led laboratories, mentored students, reviewed laboratory work and homework, and helped organize midterm exams."
+      "The Basics of Programming course involved teaching C in English to international students.",
+      "Responsibilities included leading laboratories, mentoring students, reviewing laboratory work and homework, and helping organize midterm exams."
     ]
   },
   {
@@ -111,8 +111,8 @@ const experiences = [
     location: "Budapest, Hungary",
     summary: "Taught object-oriented C++, clean-code basics, UML, and competitive-programming techniques.",
     details: [
-      "I led laboratories for Basics of Programming 2, teaching object-oriented programming, C++, and clean-code fundamentals.",
-      "I organized student competitions, reviewed homework and laboratory work, shared competitive-programming techniques, and introduced class diagrams in UML."
+      "Basics of Programming 2 laboratories covered object-oriented programming, C++, and clean-code fundamentals.",
+      "Additional work included organizing student competitions, reviewing homework and laboratory work, sharing competitive-programming techniques, and introducing UML class diagrams."
     ]
   }
 ] as const;
@@ -178,6 +178,8 @@ const experiences = [
         const dialogId = `experience-${experience.id}`;
         const titleId = `${dialogId}-title`;
         const summaryId = `${dialogId}-summary`;
+        const detailId = `${dialogId}-detail`;
+        const hasDialogSummary = experience.details.length > 1;
 
         return (
           <li class="experience-timeline__item">
@@ -210,7 +212,7 @@ const experiences = [
               class="experience-dialog"
               id={dialogId}
               aria-labelledby={titleId}
-              aria-describedby={summaryId}
+              aria-describedby={hasDialogSummary ? summaryId : detailId}
             >
               <article class="experience-dialog__panel">
                 <header class="experience-dialog__header">
@@ -233,16 +235,17 @@ const experiences = [
                 </header>
 
                 <div class="experience-dialog__body">
-                  <p class="experience-dialog__summary" id={summaryId}>{experience.summary}</p>
-                  {experience.details.map((detail) => <p>{detail}</p>)}
+                  {hasDialogSummary && (
+                    <p class="experience-dialog__summary" id={summaryId}>{experience.summary}</p>
+                  )}
+                  {experience.details.map((detail, index) => (
+                    <p id={!hasDialogSummary && index === 0 ? detailId : undefined}>{detail}</p>
+                  ))}
                   {"links" in experience && (
                     <ul class="link-strip experience-dialog__links">
                       {experience.links.map((link) => (
                         <li>
-                          <a href={link.href} target="_blank" rel="noreferrer">
-                            {link.label}
-                            <ExternalLinkIcon />
-                          </a>
+                          <ExternalLinkButton href={link.href}>{link.label}</ExternalLinkButton>
                         </li>
                       ))}
                     </ul>

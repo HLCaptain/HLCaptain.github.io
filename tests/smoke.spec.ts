@@ -461,6 +461,7 @@ test.describe("site shell", () => {
       ["Budapest University of Technology and Economics", "Demonstrator (C)", "September 2021 — January 2022"],
       ["Budapest University of Technology and Economics", "Demonstrator (C++ and OOP)", "February 2021 — July 2021"]
     ];
+    const dialogSummaryExpected = [false, true, false, false, true, true, true, true, true];
     const items = page.locator(".experience-timeline__item");
     await expect(items).toHaveCount(expectedExperiences.length);
 
@@ -493,7 +494,13 @@ test.describe("site shell", () => {
       });
       expect(periodLayout.height).toBeLessThanOrEqual(Math.ceil(periodLayout.lineHeight) + 1);
       expect(periodLayout.clipped).toBe(false);
-      expect(await item.locator(".experience-dialog__body > p").count()).toBeGreaterThanOrEqual(2);
+      await expect(item.locator(".experience-dialog__summary")).toHaveCount(dialogSummaryExpected[index] ? 1 : 0);
+      expect(await item.locator(".experience-dialog__body > p").count()).toBeGreaterThanOrEqual(
+        dialogSummaryExpected[index] ? 3 : 1
+      );
+      const descriptionId = await itemDialog.getAttribute("aria-describedby");
+      expect(descriptionId).not.toBeNull();
+      await expect(itemDialog.locator(`#${descriptionId}`)).toHaveCount(1);
     }
 
     const geometry = await items.evaluateAll((nodes) =>
@@ -578,7 +585,7 @@ test.describe("site shell", () => {
 
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveJSProperty("open", true);
-    await expect(dialog).toContainText("led its migration to Jetpack Compose");
+    await expect(dialog).toContainText("leading its migration to Jetpack Compose");
     const closeButton = dialog.getByRole("button", { name: "Close Android Developer" });
     await expect(closeButton).toBeFocused();
     await closeButton.hover();
@@ -630,6 +637,44 @@ test.describe("site shell", () => {
     await expect(dialog).not.toBeVisible();
     await expect(dialog).toHaveJSProperty("returnValue", "backdrop");
     await expect(openButton).toBeFocused();
+
+    const nokiaItem = items.nth(6);
+    const nokiaOpenButton = nokiaItem.getByRole("button", {
+      name: "Read full experience: Research Scholar at Nokia Bell Labs"
+    });
+    const nokiaDialog = nokiaItem.locator("dialog");
+    await nokiaOpenButton.click();
+    await expect(nokiaDialog).toBeVisible();
+
+    const jayLink = nokiaDialog.getByRole("link", { name: "Jay on GitHub" });
+    await expect(jayLink).toHaveAttribute("href", "https://github.com/HLCaptain/jay-android");
+    await expect(jayLink).toHaveAttribute("target", "_blank");
+    await expect(jayLink).toHaveAttribute("rel", "noreferrer");
+    await expect(nokiaDialog.getByRole("link", { name: "Scholarship description" })).toHaveAttribute(
+      "href",
+      "https://www.vik.bme.hu/hir/2877-nokia-bell-labs-palyazati-felhivas"
+    );
+    const beforeLinkHover = await jayLink.evaluate((node) => ({
+      shadow: getComputedStyle(node).boxShadow,
+      transform: getComputedStyle(node).transform,
+      iconTransform: getComputedStyle(node.querySelector(".external-link-icon")!).transform
+    }));
+    await jayLink.hover();
+    await expect
+      .poll(async () =>
+        jayLink.evaluate(
+          (node, before) =>
+            getComputedStyle(node).boxShadow !== before.shadow &&
+            getComputedStyle(node).transform !== before.transform &&
+            getComputedStyle(node.querySelector(".external-link-icon")!).transform !== before.iconTransform,
+          beforeLinkHover
+        )
+      )
+      .toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(nokiaDialog).not.toBeVisible();
+    await expect(nokiaOpenButton).toBeFocused();
     await expectNoHorizontalOverflow(page);
   });
 
