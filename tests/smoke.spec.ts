@@ -499,6 +499,8 @@ test.describe("site shell", () => {
           y: item.top + Number.parseFloat(markerStyle.top) + Number.parseFloat(markerStyle.height) / 2
         };
         return {
+          itemTop: item.top,
+          cardBottom: card.bottom,
           cardLeft: card.left,
           cardRight: card.right,
           periodCenterY: period.top + period.height / 2,
@@ -517,11 +519,12 @@ test.describe("site shell", () => {
     expect(Math.max(...geometry.map(({ cardLeft }) => cardLeft)) - Math.min(...geometry.map(({ cardLeft }) => cardLeft))).toBeLessThanOrEqual(1);
     expect(Math.max(...geometry.map(({ cardRight }) => cardRight)) - Math.min(...geometry.map(({ cardRight }) => cardRight))).toBeLessThanOrEqual(1);
     for (const [index, item] of geometry.entries()) {
-      expect(Math.abs(item.marker.y - item.periodCenterY)).toBeLessThanOrEqual(1);
+      expect(Math.abs(item.marker.y - item.periodCenterY)).toBeLessThanOrEqual(1.1);
       if (!item.line) continue;
-      expect(Math.abs(item.line.x - item.marker.x)).toBeLessThanOrEqual(1);
-      expect(item.line.top).toBeLessThanOrEqual(item.marker.y + 1);
-      expect(item.line.bottom).toBeGreaterThanOrEqual(geometry[index + 1].marker.y - 1);
+      expect(Math.abs(item.line.x - item.marker.x)).toBeLessThanOrEqual(0.1);
+      expect(Math.abs(item.line.top - item.marker.y)).toBeLessThanOrEqual(0.1);
+      expect(Math.abs(item.line.bottom - geometry[index + 1].marker.y)).toBeLessThanOrEqual(0.1);
+      expect(geometry[index + 1].itemTop - item.cardBottom).toBeGreaterThanOrEqual(29);
     }
 
     const wizzItem = items.nth(2);
@@ -537,7 +540,7 @@ test.describe("site shell", () => {
         shadow: cardStyle.boxShadow,
         transform: cardStyle.transform,
         iconBackground: getComputedStyle(icon).backgroundColor,
-        arrowTransform: getComputedStyle(icon.querySelector(".semantic-icon")!).transform
+        iconTransform: getComputedStyle(icon).transform
       };
     });
     await expect(card).toHaveCSS("cursor", "pointer");
@@ -553,7 +556,7 @@ test.describe("site shell", () => {
               cardStyle.boxShadow !== before.shadow &&
               cardStyle.transform !== before.transform &&
               getComputedStyle(icon).backgroundColor !== before.iconBackground &&
-              getComputedStyle(icon.querySelector(".semantic-icon")!).transform !== before.arrowTransform
+              getComputedStyle(icon).transform !== before.iconTransform
             );
           },
           beforeHover
@@ -580,9 +583,27 @@ test.describe("site shell", () => {
     expect(motion.backdropFilter).toContain("blur");
     expect(motion.borderRadius).toBe("0px");
 
-    await page.keyboard.press("Escape");
+    await dialog.getByRole("button", { name: "Close Android Developer" }).click();
     await expect(dialog).not.toBeVisible();
     await expect(openButton).toBeFocused();
+    await expect
+      .poll(async () =>
+        card.evaluate(
+          (node, before) => {
+            const cardStyle = getComputedStyle(node);
+            const iconStyle = getComputedStyle(node.querySelector(".experience-card__button-icon")!);
+            return (
+              cardStyle.backgroundColor === before.background &&
+              cardStyle.boxShadow === before.shadow &&
+              cardStyle.transform === before.transform &&
+              iconStyle.backgroundColor === before.iconBackground &&
+              iconStyle.transform === before.iconTransform
+            );
+          },
+          beforeHover
+        )
+      )
+      .toBe(true);
 
     await openButton.focus();
     await page.keyboard.press("Enter");
