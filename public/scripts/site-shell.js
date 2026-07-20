@@ -1496,6 +1496,15 @@ function initHeadingReferences() {
   }
 }
 
+function handleExperienceDialogOpen(event) {
+  const button = event.target instanceof Element ? event.target.closest("[data-experience-open]") : null;
+  const dialogId = button?.dataset.experienceOpen;
+  if (!dialogId) return;
+
+  const dialog = document.getElementById(dialogId);
+  if (dialog instanceof HTMLDialogElement && !dialog.open) dialog.showModal();
+}
+
 function getSignal(element, key) {
   if (!element[`_${key}Controller`]) {
     element[`_${key}Controller`] = new AbortController();
@@ -1519,6 +1528,7 @@ if (!window.__hlShellEventsBound) {
   updateSettledPath();
   document.addEventListener("pointerdown", handleTransitionSidebarPointer, { capture: true });
   document.addEventListener("click", handleNavigationIntent, { capture: true });
+  document.addEventListener("click", handleExperienceDialogOpen);
   document.addEventListener("astro:before-preparation", handleTransitionPreparation);
   document.addEventListener("astro:before-swap", preserveShellState);
   document.addEventListener("astro:after-swap", updateSettledPath);

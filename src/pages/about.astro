@@ -1,7 +1,119 @@
 ---
 import PageHeader from "@components/PageHeader.astro";
+import SemanticIcon from "@components/SemanticIcon.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
 import { siteConfig } from "../site.config";
+
+const experiences = [
+  {
+    id: "fizetesi-pont",
+    organization: "Fizetési Pont",
+    role: "Android Developer",
+    period: "January 2026 — Present",
+    location: "Budapest, Hungary",
+    summary: "Building the frontend for an Android-based POS terminal with an experienced product team.",
+    details: [
+      "I develop the frontend of an Android-based POS terminal, working with an experienced team on a new project."
+    ]
+  },
+  {
+    id: "otp-bank",
+    organization: "OTP Bank Magyarország",
+    role: "Medior Android Developer",
+    period: "March 2025 — January 2026",
+    location: "Budapest, Hungary",
+    summary: "Built mobile-banking features, resolved architecture issues, and supported modernization work.",
+    details: [
+      "I worked on the mobile banking application and implemented “Pénzkérés Simán” QVIK NFC and QR payment requests.",
+      "I solved architectural issues, built new features, fixed bugs, and supported migration work that made development more efficient."
+    ]
+  },
+  {
+    id: "wizz-air",
+    organization: "Wizz Air",
+    role: "Android Developer",
+    period: "September 2022 — March 2025",
+    location: "Budapest, Hungary",
+    summary: "Developed the Android app and led its Jetpack Compose migration with UX and maintainability in focus.",
+    details: [
+      "I developed Wizz Air’s Android application and led its migration to Jetpack Compose, keeping UX and UI quality in focus while cleaning up the codebase to adopt more robust tools and architectures."
+    ]
+  },
+  {
+    id: "ericsson",
+    organization: "Ericsson",
+    role: "Student Researcher",
+    period: "June 2023 — September 2023",
+    location: "Budapest, Hungary",
+    summary: "Researched and prototyped in-house AI solutions.",
+    details: ["I researched and prototyped in-house AI solutions."]
+  },
+  {
+    id: "bme-mobile",
+    organization: "Budapest University of Technology and Economics",
+    role: "Demonstrator (Mobile)",
+    period: "August 2022 — January 2023",
+    location: "Budapest, Hungary",
+    summary: "Taught third-year Android development and created modern Jetpack Compose laboratory material.",
+    details: [
+      "I taught Android and Android application development to third-year students.",
+      "I shipped new laboratory exercises using Jetpack Compose, Kotlin Coroutines, and Material Design 3. I also led laboratories for the IMSc group and gave feedback on laboratory work and homework."
+    ]
+  },
+  {
+    id: "autsoft",
+    organization: "AutSoft",
+    role: "Mobile Software Development Engineer",
+    period: "June 2022 — August 2022",
+    location: "Budapest, Hungary",
+    summary: "Worked across Android, REST APIs, and internal projects during a mobile software internship.",
+    details: [
+      "I worked on internal projects, REST APIs, and Android development, with some exposure to Angular projects.",
+      "My main focus was modern Android development with Jetpack Compose, Kotlin Coroutines, and clean architecture. I used GitLab for Git-based development and Figma to wireframe application features with Material Design 3 components.",
+      "During the internship, I rewrote university laboratory exercises using newer technologies, clean-code principles, and current best practices."
+    ]
+  },
+  {
+    id: "nokia-bell-labs",
+    organization: "Nokia Bell Labs",
+    role: "Research Scholar",
+    period: "February 2022 — June 2022",
+    location: "Budapest, Hungary",
+    summary: "Developed Jay, a driver-behavior analytics project, through an AI research scholarship.",
+    details: [
+      "I joined a scholarship focused on AI research, data analytics, and communication with my pet project Jay, a driver-behavior analytics solution.",
+      "Dr. Péter Szilágyi mentored the work, which Nokia supported for the spring 2022 semester."
+    ],
+    links: [
+      { label: "Jay on GitHub", href: "https://github.com/HLCaptain/jay-android" },
+      { label: "Scholarship description", href: "https://www.vik.bme.hu/hir/2877-nokia-bell-labs-palyazati-felhivas" }
+    ]
+  },
+  {
+    id: "bme-c",
+    organization: "Budapest University of Technology and Economics",
+    role: "Demonstrator (C)",
+    period: "September 2021 — January 2022",
+    location: "Budapest, Hungary",
+    summary: "Taught C programming in English and mentored students through laboratories and assessments.",
+    details: [
+      "I taught C programming in English to international students in the Basics of Programming course.",
+      "I led laboratories, mentored students, reviewed laboratory work and homework, and helped organize midterm exams."
+    ]
+  },
+  {
+    id: "bme-cpp",
+    organization: "Budapest University of Technology and Economics",
+    role: "Demonstrator (C++ and OOP)",
+    period: "February 2021 — July 2021",
+    location: "Budapest, Hungary",
+    summary: "Taught object-oriented C++, clean-code basics, UML, and competitive-programming techniques.",
+    details: [
+      "I led laboratories for Basics of Programming 2, teaching object-oriented programming, C++, and clean-code fundamentals.",
+      "I organized student competitions, reviewed homework and laboratory work, shared competitive-programming techniques, and introduced class diagrams in UML."
+    ]
+  }
+] as const;
 ---
 
 <BaseLayout title="About" description="About HLCaptain and the work collected on this site.">
@@ -50,5 +162,85 @@ import { siteConfig } from "../site.config";
         </div>
       </dl>
     </div>
+  </section>
+
+  <section class="experience-section" aria-labelledby="experience-heading">
+    <header class="experience-section__header">
+      <p class="eyebrow">Curriculum vitae</p>
+      <h2 id="experience-heading">Experience</h2>
+      <p>A timeline of the teams, products, research, and teaching that shaped my work.</p>
+    </header>
+
+    <ol class="experience-timeline">
+      {experiences.map((experience) => {
+        const dialogId = `experience-${experience.id}`;
+        const titleId = `${dialogId}-title`;
+        const summaryId = `${dialogId}-summary`;
+
+        return (
+          <li class="experience-timeline__item">
+            <p class="experience-timeline__meta">
+              <span>{experience.period}</span>
+              <span>{experience.location}</span>
+            </p>
+
+            <article class="experience-card">
+              <p class="experience-card__organization">{experience.organization}</p>
+              <h3>{experience.role}</h3>
+              <p>{experience.summary}</p>
+              <button
+                class="button-link button-link--ghost experience-card__button"
+                type="button"
+                aria-controls={dialogId}
+                aria-haspopup="dialog"
+                data-experience-open={dialogId}
+              >
+                Read full experience
+                <SemanticIcon name="arrowRight" class="experience-card__button-icon" />
+              </button>
+            </article>
+
+            <dialog
+              class="experience-dialog"
+              id={dialogId}
+              aria-labelledby={titleId}
+              aria-describedby={summaryId}
+            >
+              <article class="experience-dialog__panel">
+                <header class="experience-dialog__header">
+                  <div>
+                    <p class="eyebrow">{experience.organization}</p>
+                    <h3 id={titleId}>{experience.role}</h3>
+                    <p class="experience-dialog__meta">{experience.period} · {experience.location}</p>
+                  </div>
+                  <form method="dialog">
+                    <button class="experience-dialog__close" type="submit" aria-label={`Close ${experience.role}`}>
+                      <SemanticIcon name="close" />
+                    </button>
+                  </form>
+                </header>
+
+                <div class="experience-dialog__body">
+                  <p class="experience-dialog__summary" id={summaryId}>{experience.summary}</p>
+                  {experience.details.map((detail) => <p>{detail}</p>)}
+                  {"links" in experience && (
+                    <ul class="link-strip experience-dialog__links">
+                      {experience.links.map((link) => (
+                        <li>
+                          <a href={link.href} target="_blank" rel="noreferrer">
+                            {link.label}
+                            <SemanticIcon name="external" class="external-link-icon" />
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </article>
+            </dialog>
+          </li>
+        );
+      })}
+    </ol>
   </section>
 </BaseLayout>

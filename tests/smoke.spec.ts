@@ -418,6 +418,52 @@ test.describe("site shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("publishes the complete experience timeline with accessible dialogs", async ({ page }) => {
+    await page.goto("/about/");
+
+    const expectedExperiences = [
+      ["Fizetési Pont", "Android Developer", "January 2026 — Present"],
+      ["OTP Bank Magyarország", "Medior Android Developer", "March 2025 — January 2026"],
+      ["Wizz Air", "Android Developer", "September 2022 — March 2025"],
+      ["Ericsson", "Student Researcher", "June 2023 — September 2023"],
+      ["Budapest University of Technology and Economics", "Demonstrator (Mobile)", "August 2022 — January 2023"],
+      ["AutSoft", "Mobile Software Development Engineer", "June 2022 — August 2022"],
+      ["Nokia Bell Labs", "Research Scholar", "February 2022 — June 2022"],
+      ["Budapest University of Technology and Economics", "Demonstrator (C)", "September 2021 — January 2022"],
+      ["Budapest University of Technology and Economics", "Demonstrator (C++ and OOP)", "February 2021 — July 2021"]
+    ];
+    const items = page.locator(".experience-timeline__item");
+    await expect(items).toHaveCount(expectedExperiences.length);
+
+    for (const [index, [organization, role, period]] of expectedExperiences.entries()) {
+      const item = items.nth(index);
+      await expect(item.locator(".experience-card__organization")).toHaveText(organization);
+      await expect(item.getByRole("heading", { name: role, exact: true })).toBeVisible();
+      await expect(item.locator(".experience-timeline__meta")).toContainText(period);
+      await expect(item.locator(".experience-card > p:not(.experience-card__organization)")).not.toBeEmpty();
+      await expect(item.getByRole("button", { name: "Read full experience" })).toHaveAttribute(
+        "aria-haspopup",
+        "dialog"
+      );
+      expect(await item.locator(".experience-dialog__body > p").count()).toBeGreaterThanOrEqual(2);
+    }
+
+    const wizzItem = items.nth(2);
+    const openButton = wizzItem.getByRole("button", { name: "Read full experience" });
+    const dialog = wizzItem.locator("dialog");
+    await openButton.click();
+
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveJSProperty("open", true);
+    await expect(dialog).toContainText("led its migration to Jetpack Compose");
+    await expect(dialog.getByRole("button", { name: "Close Android Developer" })).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(openButton).toBeFocused();
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("active project leaf reopens a remembered closed group", async ({ page }) => {
     await page.goto("/");
     await page.evaluate(() =>
