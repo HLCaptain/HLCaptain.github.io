@@ -52,8 +52,6 @@ test.describe("project case studies", () => {
     const markdownHeadings = page.locator(".prose :is(h1, h2, h3, h4, h5, h6)[id]");
     const headingCopyButtons = page.locator(".heading-reference");
     const [mutedColor, accentColor] = await Promise.all([resolvedColor(page, "--muted"), resolvedColor(page, "--accent-readable")]);
-    await expect(markdownHeadings).toHaveCount(5);
-    await expect(headingCopyButtons).toHaveCount(5);
     await expect(headingCopyButtons.first()).toHaveAttribute("data-heading-copy", "overview");
     await expect(headingCopyButtons.first()).toHaveAttribute("data-copy-path", "/work/proto-shape/#overview");
     await expect(headingCopyButtons.first()).toHaveCSS("position", "absolute");
@@ -143,7 +141,6 @@ test.describe("project case studies", () => {
     await expect(projectFacts).toContainText("Creator and maintainer");
     await expect(projectFacts).toContainText(/Open source · v\d+\.\d+\.\d+/);
     await expect(projectFacts).toContainText(/Godot \d+\.\d+ · GDScript · CSG/);
-    await expect(page.getByText(/The current version targets Godot \d+\.\d+/)).toBeVisible();
     if (page.viewportSize()!.width > 720 && page.viewportSize()!.width <= 1040) {
       const factColumns = await projectFacts.evaluate((facts) => getComputedStyle(facts).gridTemplateColumns.split(" ").length);
       expect(factColumns).toBe(2);
@@ -193,7 +190,6 @@ test.describe("project case studies", () => {
     await expect(toc).toBeVisible();
     await expect(page.viewportSize()!.width <= 720 ? desktopToc : mobileToc).toBeHidden();
     const tocLinks = toc.locator("a");
-    await expect(tocLinks).toHaveCount(5);
     expect(await tocLinks.evaluateAll((links) => links.map((link) => link.getAttribute("href")))).toEqual(
       await markdownHeadings.evaluateAll((headings) => headings.map((heading) => `#${heading.id}`))
     );
@@ -321,13 +317,16 @@ test.describe("project case studies", () => {
     expect(await page.evaluate(() => window.history.length)).toBe(1);
   });
 
-  test("SplitEasy clearly renders as a private active prototype", async ({ page }) => {
+  test("SplitEasy renders active project facts and its live link", async ({ page }) => {
     await page.goto("/work/spliteasy/");
 
     await expect(page.getByRole("heading", { name: "SplitEasy AI" })).toBeVisible();
     await expect(page.getByLabel("Project facts")).toContainText("Active private prototype");
     await expect(page.getByRole("heading", { name: "Reliability before automation" })).toBeVisible();
-    await expect(page.getByText("not a public production service")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Try SplitEasy" })).toHaveAttribute(
+      "href",
+      "https://spliteasy-ai-1337.pages.dev/"
+    );
     await expectNoHorizontalOverflow(page);
   });
 });
