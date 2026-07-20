@@ -1894,15 +1894,19 @@ test.describe("site shell", () => {
         root.evaluate((node) => getComputedStyle(node).getPropertyValue("--accent").trim())
       )
       .not.toBe(afterAccent);
-    const contrastResult = await page.locator(".entry-card__link").first().evaluate((node) => {
-      const cardStyle = getComputedStyle(node);
-      const icon = node.querySelector(".entry-card__glyph .semantic-icon");
-      if (!icon) return null;
-      const iconStyle = getComputedStyle(icon);
-      return { icon: iconStyle.color, card: cardStyle.backgroundColor, body: getComputedStyle(document.body).backgroundColor };
-    });
-    const body = parseColor(contrastResult!.body);
-    expect(contrast(composite(parseColor(contrastResult!.icon), body), composite(parseColor(contrastResult!.card), body))).toBeGreaterThan(3);
+    await expect
+      .poll(async () => {
+        const contrastResult = await page.locator(".entry-card__link").first().evaluate((node) => {
+          const cardStyle = getComputedStyle(node);
+          const icon = node.querySelector(".entry-card__glyph .semantic-icon");
+          if (!icon) return null;
+          const iconStyle = getComputedStyle(icon);
+          return { icon: iconStyle.color, card: cardStyle.backgroundColor, body: getComputedStyle(document.body).backgroundColor };
+        });
+        const body = parseColor(contrastResult!.body);
+        return contrast(composite(parseColor(contrastResult!.icon), body), composite(parseColor(contrastResult!.card), body));
+      })
+      .toBeGreaterThan(3);
 
     await page.locator("[data-accent-reset]").evaluate((node: HTMLButtonElement) => node.click());
     await expect(page.getByRole("button", { name: "Reset accent to auto" })).toHaveAttribute("aria-pressed", "true");
