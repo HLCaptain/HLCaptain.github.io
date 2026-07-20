@@ -1390,7 +1390,6 @@ svg {
 }
 
 .experience-section {
-  width: min(100%, 920px);
   margin-top: 56px;
   padding-top: 32px;
   border-top: 1px solid var(--line);
@@ -1697,6 +1696,10 @@ html:has(.experience-dialog[open]) {
   place-items: center;
   border-radius: 0;
   cursor: pointer;
+}
+
+.experience-dialog__header .button-link-group:is(:hover, :focus-within) > .experience-dialog__close {
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.14);
 }
 
 .experience-dialog__body {

@@ -464,6 +464,15 @@ test.describe("site shell", () => {
     const items = page.locator(".experience-timeline__item");
     await expect(items).toHaveCount(expectedExperiences.length);
 
+    const sectionEdges = await page.locator(".split-section, .experience-section").evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const bounds = node.getBoundingClientRect();
+        return { left: bounds.left, right: bounds.right };
+      })
+    );
+    expect(Math.abs(sectionEdges[0].left - sectionEdges[1].left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sectionEdges[0].right - sectionEdges[1].right)).toBeLessThanOrEqual(1);
+
     for (const [index, [organization, role, period]] of expectedExperiences.entries()) {
       const item = items.nth(index);
       await expect(item.locator(".experience-card__organization")).toHaveText(organization);
@@ -570,7 +579,10 @@ test.describe("site shell", () => {
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveJSProperty("open", true);
     await expect(dialog).toContainText("led its migration to Jetpack Compose");
-    await expect(dialog.getByRole("button", { name: "Close Android Developer" })).toBeFocused();
+    const closeButton = dialog.getByRole("button", { name: "Close Android Developer" });
+    await expect(closeButton).toBeFocused();
+    await closeButton.hover();
+    await expect(closeButton).toHaveCSS("box-shadow", "rgba(0, 0, 0, 0.14) 0px 3px 10px 0px");
     const motion = await dialog.evaluate((node) => ({
       dialog: getComputedStyle(node).transitionProperty,
       backdrop: getComputedStyle(node, "::backdrop").transitionProperty,
@@ -583,7 +595,7 @@ test.describe("site shell", () => {
     expect(motion.backdropFilter).toContain("blur");
     expect(motion.borderRadius).toBe("0px");
 
-    await dialog.getByRole("button", { name: "Close Android Developer" }).click();
+    await closeButton.click();
     await expect(dialog).not.toBeVisible();
     await expect(openButton).toBeFocused();
     await expect
