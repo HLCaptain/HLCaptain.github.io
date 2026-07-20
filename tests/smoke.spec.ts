@@ -381,6 +381,13 @@ test.describe("site shell", () => {
   test("publishes a compact list of contact and social links", async ({ page }) => {
     await page.goto("/about/");
 
+    const header = page.locator(".page-header");
+    await expect(header).toContainText(
+      "I'm Balázs, a software engineer building thoughtful interfaces and useful tools."
+    );
+    await expect(header).not.toContainText("OTP Bank");
+    await expect(header).not.toContainText("Püspök-Kiss");
+
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
     const profileLinks = [
       { label: "GitHub", href: "https://github.com/HLCaptain", icon: "github" },
