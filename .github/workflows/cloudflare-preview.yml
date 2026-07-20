@@ -19,13 +19,7 @@ env:
 jobs:
   validate:
     name: Check and build
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.author_association == 'OWNER'
-      )
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -135,7 +129,7 @@ jobs:
 
   ui-tests:
     name: Responsive UI tests
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: ubuntu-latest
     needs: [validate, cloudflare-config, deploy-preview]
     if: always() && needs.validate.result == 'success' && (needs.deploy-preview.result == 'success' || needs.deploy-preview.result == 'skipped')
 
@@ -153,7 +147,7 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        run: npm exec -- playwright install chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Build site for UI tests
         run: npm run build
