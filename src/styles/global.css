@@ -1724,15 +1724,24 @@ html:has(.experience-dialog[open]) {
   font-size: 0.75rem;
 }
 
-.table-of-contents--desktop {
+.detail-sidebar {
   position: sticky;
   top: 24px;
+  display: grid;
+  gap: 12px;
   align-self: start;
   max-height: calc(100dvh - 48px);
-  padding: 14px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+.detail-toc-lead--mobile {
+  display: none;
+}
+
+.table-of-contents--desktop {
+  padding: 14px;
 }
 
 .table-of-contents--desktop p {
@@ -2528,6 +2537,10 @@ html:has(.experience-dialog[open]) {
     display: none;
   }
 
+  .detail-sidebar {
+    display: none;
+  }
+
   .prose {
     display: flex;
     flex-direction: column;
@@ -2553,6 +2566,12 @@ html:has(.experience-dialog[open]) {
     display: block;
     order: -1;
     margin: 0 0 24px;
+  }
+
+  .detail-body--sectioned > .detail-toc-lead--mobile {
+    display: block;
+    order: -2;
+    margin: 0 0 12px;
   }
 
   .table-of-contents--mobile::details-content {

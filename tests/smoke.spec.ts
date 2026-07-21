@@ -412,7 +412,7 @@ test.describe("site shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("publishes a compact list of contact and social links", async ({ page }) => {
+  test("publishes a profile hero and compact contact links", async ({ page }) => {
     await page.goto("/about/");
 
     const header = page.locator(".page-header");
@@ -447,9 +447,20 @@ test.describe("site shell", () => {
       await expect(link.locator(`.semantic-icon[data-icon-name="${icon}"] .semantic-icon__svg`)).toHaveCount(6);
     }
 
-    const facts = page.getByLabel("Profile facts");
+    const profileHero = page.locator(
+      page.viewportSize()!.width <= 720
+        ? ".detail-toc-lead--mobile .about-profile-hero"
+        : ".detail-toc-lead--desktop .about-profile-hero"
+    );
+    const facts = profileHero.getByLabel("Profile facts");
+    await expect(profileHero).toBeVisible();
+    await expect(profileHero.locator("img")).toHaveAttribute("src", "/visuals/github-profile-avatar.jpg");
+    await expect(profileHero).toContainText("Product-minded Android developer");
     await expect(facts).toHaveClass(/detail-facts/);
     await expect(facts).toHaveClass(/project-facts/);
+    expect(
+      await facts.evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(" ").length)
+    ).toBe(1);
     await expect(facts.getByText("Contact / socials")).toBeVisible();
     await expect(facts.getByRole("link", { name: "Email" })).toHaveAttribute("href", "mailto:pkblazsak@gmail.com");
 
@@ -501,7 +512,7 @@ test.describe("site shell", () => {
     await expect(items.nth(3)).toContainText("C++ abstract syntax trees");
 
     const railEdges = await page
-      .locator(".page-header, .about-direction, .project-facts, .experience-section")
+      .locator(".page-header, .about-direction, .experience-section")
       .evaluateAll((nodes) =>
         nodes.map((node) => {
           const bounds = node.getBoundingClientRect();
@@ -517,24 +528,36 @@ test.describe("site shell", () => {
 
     const aboutToc = page.locator(page.viewportSize()!.width <= 720 ? "[data-toc-mobile]" : "[data-toc-desktop]");
     await expect(aboutToc).toBeVisible();
+    const profileHero = page.locator(
+      page.viewportSize()!.width <= 720
+        ? ".detail-toc-lead--mobile .about-profile-hero"
+        : ".detail-toc-lead--desktop .about-profile-hero"
+    );
+    await expect(profileHero).toBeVisible();
+    const [profileBounds, tocBounds] = await Promise.all([profileHero.boundingBox(), aboutToc.boundingBox()]);
+    expect(profileBounds!.y + profileBounds!.height).toBeLessThanOrEqual(tocBounds!.y + 1);
     expect(
       await aboutToc.locator("a").evaluateAll((links) => links.map((link) => link.getAttribute("href")))
     ).toEqual(["#current-direction", "#experience"]);
     if (page.viewportSize()!.width <= 720) {
       const mobileOrder = await page.evaluate(() => {
         const header = document.querySelector(".page-header")!.getBoundingClientRect();
+        const profile = document.querySelector(".detail-toc-lead--mobile .about-profile-hero")!.getBoundingClientRect();
         const toc = document.querySelector("[data-toc-mobile]")!.getBoundingClientRect();
         const direction = document.querySelector(".about-direction")!.getBoundingClientRect();
         const experience = document.querySelector(".experience-section")!.getBoundingClientRect();
         return {
           headerBottom: header.bottom,
+          profileTop: profile.top,
+          profileBottom: profile.bottom,
           tocTop: toc.top,
           tocBottom: toc.bottom,
           directionTop: direction.top,
           experienceTop: experience.top
         };
       });
-      expect(mobileOrder.tocTop).toBeGreaterThanOrEqual(mobileOrder.headerBottom - 1);
+      expect(mobileOrder.profileTop).toBeGreaterThanOrEqual(mobileOrder.headerBottom - 1);
+      expect(mobileOrder.tocTop).toBeGreaterThanOrEqual(mobileOrder.profileBottom - 1);
       expect(mobileOrder.directionTop).toBeGreaterThanOrEqual(mobileOrder.tocBottom - 1);
       expect(mobileOrder.experienceTop).toBeGreaterThan(mobileOrder.directionTop);
     }

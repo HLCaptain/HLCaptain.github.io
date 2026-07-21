@@ -280,7 +280,8 @@ test.describe("project case studies", () => {
     } else {
       expect(
         await desktopToc.evaluate((node) => {
-          const style = getComputedStyle(node);
+          const rail = node.closest(".detail-sidebar")!;
+          const style = getComputedStyle(rail);
           return {
             position: style.position,
             overflowY: style.overflowY,

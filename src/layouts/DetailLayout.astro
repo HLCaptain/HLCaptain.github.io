@@ -32,6 +32,7 @@ const {
 } = Astro.props;
 const hasMeta = publishedAt || updatedAt || tags.length > 0;
 const hasTableOfContents = headings.length > 0;
+const hasTocLead = hasTableOfContents && Astro.slots.has("toc-lead");
 ---
 
 <BaseLayout title={documentTitle} description={description}>
@@ -57,10 +58,24 @@ const hasTableOfContents = headings.length > 0;
         )}
       </div>
       <div class:list={["detail-body", prose && "prose", !prose && "detail-body--sectioned"]}>
+        {hasTocLead && (
+          <div class="detail-toc-lead detail-toc-lead--mobile">
+            <slot name="toc-lead" />
+          </div>
+        )}
         <slot />
         {hasTableOfContents && <TableOfContents headings={headings} variant="mobile" />}
       </div>
     </div>
-    {hasTableOfContents && <TableOfContents headings={headings} variant="desktop" />}
+    {hasTableOfContents && (
+      <div class="detail-sidebar">
+        {hasTocLead && (
+          <div class="detail-toc-lead detail-toc-lead--desktop">
+            <slot name="toc-lead" />
+          </div>
+        )}
+        <TableOfContents headings={headings} variant="desktop" />
+      </div>
+    )}
   </article>
 </BaseLayout>

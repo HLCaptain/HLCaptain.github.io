@@ -142,6 +142,40 @@ const experiences = [
   description="I'm Balázs, a product-minded mobile developer making difficult workflows easier to understand, use, and trust."
   headings={aboutHeadings}
 >
+  <Fragment slot="toc-lead">
+    <section class="about-profile-hero" aria-label="Profile summary">
+      <div class="about-profile-hero__portrait">
+        <img
+          src="/visuals/github-profile-avatar.jpg"
+          alt=""
+          width="460"
+          height="460"
+          decoding="async"
+        />
+        <div class="about-profile-hero__identity">
+          <p>Product-minded Android developer</p>
+          <strong>{siteConfig.author.name}</strong>
+        </div>
+      </div>
+      <DetailFacts
+        label="Profile facts"
+        items={[
+          { label: "Role", value: siteConfig.author.role },
+          { label: "Location", value: siteConfig.author.location },
+          {
+            label: "Contact / socials",
+            links: [
+              { label: "Email", href: `mailto:${siteConfig.author.email}` },
+              { label: "GitHub", href: siteConfig.author.github, external: true },
+              { label: "LinkedIn", href: siteConfig.author.linkedin, external: true },
+              { label: "X", href: siteConfig.author.x, external: true }
+            ]
+          }
+        ]}
+      />
+    </section>
+  </Fragment>
+
   <section class="about-direction" aria-labelledby="current-direction">
     <h2 id="current-direction">Current direction</h2>
     <p>
@@ -155,23 +189,6 @@ const experiences = [
       {" "}turns repeated 3D editor work into direct, reusable Godot tooling. The common direction is practical
       software that removes friction without hiding important state.
     </p>
-    <DetailFacts
-      label="Profile facts"
-      items={[
-        { label: "Name", value: siteConfig.author.name },
-        { label: "Role", value: siteConfig.author.role },
-        { label: "Location", value: siteConfig.author.location },
-        {
-          label: "Contact / socials",
-          links: [
-            { label: "Email", href: `mailto:${siteConfig.author.email}` },
-            { label: "GitHub", href: siteConfig.author.github, external: true },
-            { label: "LinkedIn", href: siteConfig.author.linkedin, external: true },
-            { label: "X", href: siteConfig.author.x, external: true }
-          ]
-        }
-      ]}
-    />
   </section>
 
   <section class="experience-section" aria-labelledby="experience">
@@ -267,3 +284,91 @@ const experiences = [
     </ol>
   </section>
 </DetailLayout>
+
+<style>
+  .about-profile-hero {
+    overflow: hidden;
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+  }
+
+  .about-profile-hero__portrait {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--surface-strong);
+  }
+
+  .about-profile-hero__portrait::after {
+    position: absolute;
+    inset: 38% 0 0;
+    content: "";
+    background: linear-gradient(transparent, rgb(0 0 0 / 0.78));
+    pointer-events: none;
+  }
+
+  .about-profile-hero__portrait img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .about-profile-hero__identity {
+    position: absolute;
+    z-index: 1;
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    color: #fff;
+  }
+
+  .about-profile-hero__identity p,
+  .about-profile-hero__identity strong {
+    display: block;
+    margin: 0;
+  }
+
+  .about-profile-hero__identity p {
+    margin-bottom: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    line-height: 1.3;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .about-profile-hero__identity strong {
+    font-size: 1rem;
+  }
+
+  .about-profile-hero :global(.detail-facts) {
+    grid-template-columns: 1fr;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .about-profile-hero :global(.detail-facts__links) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0.75rem;
+  }
+
+  @media (max-width: 720px) {
+    .about-profile-hero {
+      display: grid;
+      grid-template-columns: minmax(112px, 0.8fr) minmax(0, 1.2fr);
+    }
+
+    .about-profile-hero__portrait {
+      min-height: 100%;
+      aspect-ratio: auto;
+    }
+
+    .about-profile-hero :global(.detail-facts) {
+      border-top: 0;
+      border-left: 1px solid var(--line);
+    }
+  }
+</style>
