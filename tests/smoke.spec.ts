@@ -461,9 +461,11 @@ test.describe("site shell", () => {
       ["Budapest University of Technology and Economics", "Demonstrator (C)", "September 2021 — January 2022"],
       ["Budapest University of Technology and Economics", "Demonstrator (C++ and OOP)", "February 2021 — July 2021"]
     ];
-    const dialogSummaryExpected = [false, true, false, false, true, true, true, true, true];
+    const dialogSummaryExpected = [false, true, true, false, true, true, true, true, true];
     const items = page.locator(".experience-timeline__item");
     await expect(items).toHaveCount(expectedExperiences.length);
+    await expect(items.nth(0)).not.toContainText("experienced product team");
+    await expect(items.nth(3)).toContainText("C++ abstract syntax trees");
 
     const sectionEdges = await page.locator(".split-section, .experience-section").evaluateAll((nodes) =>
       nodes.map((node) => {
@@ -585,7 +587,10 @@ test.describe("site shell", () => {
 
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveJSProperty("open", true);
-    await expect(dialog).toContainText("leading its migration to Jetpack Compose");
+    await expect(dialog).toContainText("development responsibility for the booking user flow");
+    await expect(dialog).toContainText("four separate implementations into one reusable component");
+    await expect(dialog).toContainText("expandable step-status bar");
+    await expect(dialog).toContainText("edge-to-edge support within the legacy UI");
     const closeButton = dialog.getByRole("button", { name: "Close Android Developer" });
     await expect(closeButton).toBeFocused();
     await closeButton.hover();
