@@ -425,7 +425,7 @@ test.describe("site shell", () => {
     await page.goto("/about/");
 
     const header = page.locator(".page-header");
-    await expect(header.getByRole("heading", { name: "Complex systems, clear interactions." })).toBeVisible();
+    await expect(header.getByRole("heading", { name: "Complexity, clarified." })).toBeVisible();
     await expect(header).toContainText("making difficult workflows easier to understand, use, and trust");
     await expect(header).not.toContainText("OTP Bank");
     await expect(header).not.toContainText("Püspök-Kiss");

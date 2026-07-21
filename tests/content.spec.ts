@@ -54,11 +54,11 @@ test.describe("project case studies", () => {
           titleRight: title.right,
           titleBottom: title.bottom,
           taglineLeft: tagline.left,
-          taglineTop: tagline.top
+          taglineBottom: tagline.bottom
         };
       });
       expect(titleLayout.taglineLeft).toBeGreaterThan(titleLayout.titleRight);
-      expect(titleLayout.taglineTop).toBeLessThan(titleLayout.titleBottom);
+      expect(Math.abs(titleLayout.taglineBottom - titleLayout.titleBottom)).toBeLessThanOrEqual(1);
 
       if (page.viewportSize()!.width <= 720) {
         await expect(mobileToc).toBeVisible();
