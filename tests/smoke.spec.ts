@@ -493,10 +493,11 @@ test.describe("site shell", () => {
       ["Budapest University of Technology and Economics", "Demonstrator (C)", "September 2021 — January 2022"],
       ["Budapest University of Technology and Economics", "Demonstrator (C++ and OOP)", "February 2021 — July 2021"]
     ];
-    const dialogSummaryExpected = [false, true, true, false, true, true, true, true, true];
+    const dialogSummaryExpected = [true, true, true, false, true, true, true, true, true];
     const items = page.locator(".experience-timeline__item");
     await expect(items).toHaveCount(expectedExperiences.length);
     await expect(items.nth(0)).not.toContainText("experienced product team");
+    await expect(items.nth(0)).toContainText("dual-screen functionality");
     await expect(items.nth(3)).toContainText("C++ abstract syntax trees");
 
     const railEdges = await page
