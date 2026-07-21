@@ -650,6 +650,15 @@ test.describe("site shell", () => {
     await expect(jayLink).toHaveAttribute("href", "https://github.com/HLCaptain/jay-android");
     await expect(jayLink).toHaveAttribute("target", "_blank");
     await expect(jayLink).toHaveAttribute("rel", "noreferrer");
+    await expect(nokiaDialog).toContainText("synthetic sensor data generated in BeamNG simulations");
+    await expect(nokiaDialog.getByRole("link", { name: "Hawk AI on GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/HLCaptain/hawk-ai"
+    );
+    await expect(nokiaDialog.getByRole("link", { name: "BeamNG.tech" })).toHaveAttribute(
+      "href",
+      "https://www.beamng.tech/"
+    );
     await expect(nokiaDialog.getByRole("link", { name: "Scholarship description" })).toHaveAttribute(
       "href",
       "https://www.vik.bme.hu/hir/2877-nokia-bell-labs-palyazati-felhivas"
