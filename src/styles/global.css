@@ -1814,7 +1814,7 @@ html:has(.experience-dialog[open]) {
   scroll-margin-top: 24px;
 }
 
-.prose :is(h1, h2, h3, h4, h5, h6)[id] {
+.detail-body :is(h1, h2, h3, h4, h5, h6)[id]:not(dialog *) {
   position: relative;
 }
 
@@ -1841,7 +1841,7 @@ html:has(.experience-dialog[open]) {
     transform 160ms var(--ease);
 }
 
-.prose :is(h1, h2, h3, h4, h5, h6)[id]:hover .heading-reference {
+.detail-body :is(h1, h2, h3, h4, h5, h6)[id]:not(dialog *):hover .heading-reference {
   opacity: 1;
 }
 

@@ -167,9 +167,12 @@ test.describe("site shell", () => {
     const readParallax = () =>
       page.evaluate(() => {
         const rootStyle = getComputedStyle(document.documentElement);
-        const gridStyle = getComputedStyle(document.querySelector(".background-grid")!);
+        const grid = document.querySelector<HTMLElement>(".background-grid")!;
+        const gridStyle = getComputedStyle(grid);
         return {
-          y: rootStyle.getPropertyValue("--grid-parallax-y").trim(),
+          y: gridStyle.getPropertyValue("--grid-parallax-y").trim(),
+          rootInlineY: document.documentElement.style.getPropertyValue("--grid-parallax-y"),
+          gridInlineY: grid.style.getPropertyValue("--grid-parallax-y"),
           transform: gridStyle.transform,
           removedProperties: ["--grid-parallax-x", "--grid-pointer-x", "--grid-pointer-y"].map((property) =>
             rootStyle.getPropertyValue(property).trim()
@@ -179,6 +182,8 @@ test.describe("site shell", () => {
 
     const before = await readParallax();
     expect(before.removedProperties).toEqual(["", "", ""]);
+    expect(before.rootInlineY).toBe("");
+    expect(before.gridInlineY).toBe(before.y);
     await page.evaluate(() => window.scrollTo(0, 420));
     await expect
       .poll(async () => {
@@ -217,7 +222,7 @@ test.describe("site shell", () => {
         const maskUrl = /url\(["']?(.*?)["']?\)/.exec(maskImage)?.[1] ?? "";
         const matrix = new DOMMatrix(gridStyle.transform);
         return {
-          y: rootStyle.getPropertyValue("--grid-parallax-y").trim(),
+          y: gridStyle.getPropertyValue("--grid-parallax-y").trim(),
           gridSize: rootStyle.getPropertyValue("--grid-size").trim(),
           removedProperties: ["--grid-parallax-x", "--grid-pointer-x", "--grid-pointer-y"].map((property) =>
             rootStyle.getPropertyValue(property).trim()
@@ -416,6 +421,8 @@ test.describe("site shell", () => {
     await expect(header).not.toContainText("OTP Bank");
     await expect(header).not.toContainText("Püspök-Kiss");
     await expect(page.locator(".about-direction")).toContainText("Android remains the center of my professional work");
+    await expect(page.locator(".about-direction")).toContainText("SplitEasy keeps");
+    await expect(page.locator(".about-direction")).toContainText("ProtoShape turns");
     await expect(page.locator(".about-direction").getByRole("link", { name: "SplitEasy" })).toHaveAttribute(
       "href",
       "/work/spliteasy/"
@@ -452,6 +459,22 @@ test.describe("site shell", () => {
       await expect(link).toHaveAttribute("target", "_blank");
       await expect(link).toHaveAttribute("rel", "noreferrer");
     }
+
+    const headingReferences = page.locator(".detail-body--sectioned h2[id] > [data-heading-copy]");
+    await expect(headingReferences).toHaveCount(2);
+    await expect(headingReferences.nth(0)).toHaveAttribute("data-copy-path", "/about/#current-direction");
+    await expect(headingReferences.nth(1)).toHaveAttribute("data-copy-path", "/about/#experience");
+    await expect(page.locator(".experience-dialog [data-heading-copy]")).toHaveCount(0);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const resizeFrames = await page.evaluate(() => {
+      const state = window as Window & { __hlHeadingReferenceFrame?: number };
+      window.dispatchEvent(new Event("resize"));
+      const first = state.__hlHeadingReferenceFrame;
+      for (let index = 0; index < 7; index += 1) window.dispatchEvent(new Event("resize"));
+      return [first, state.__hlHeadingReferenceFrame];
+    });
+    expect(resizeFrames[0]).toBeGreaterThan(0);
+    expect(resizeFrames[1]).toBe(resizeFrames[0]);
 
     await expectNoHorizontalOverflow(page);
   });

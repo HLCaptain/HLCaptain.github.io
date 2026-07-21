@@ -41,6 +41,8 @@ const signalRatios = new Map([
   ["wide", "Wide 16:9"],
   ["portrait", "Portrait 3:4"]
 ]);
+const headingReferenceSelector =
+  ".detail-body :is(h1, h2, h3, h4, h5, h6)[id]:not(dialog *)";
 
 function toHex(rgb) {
   return `#${[rgb.r, rgb.g, rgb.b]
@@ -138,7 +140,6 @@ const customThemeProperties = [
   "--grid-line-soft"
 ];
 
-const gridParallaxProperties = ["--grid-parallax-y"];
 const pageTransitionProperties = ["--page-old-scroll-offset-y"];
 let lastSettledPath = null;
 
@@ -404,18 +405,22 @@ function initAccentControls() {
 }
 
 function initBackgroundParallax() {
-  if (window.__hlGridParallaxBound) return;
+  if (window.__hlGridParallaxBound) {
+    window.__hlGridParallaxUpdate?.();
+    return;
+  }
   window.__hlGridParallaxBound = true;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const root = document.documentElement;
+  const backgroundGrid = () => document.querySelector(".background-grid");
+  const gridSize = () => Number.parseFloat(getComputedStyle(root).getPropertyValue("--grid-size")) || 28;
   let frame = 0;
+  let size = gridSize();
 
   const reset = () => {
-    root.style.setProperty("--grid-parallax-y", "0px");
+    backgroundGrid()?.style.setProperty("--grid-parallax-y", "0px");
   };
-
-  const gridSize = () => Number.parseFloat(getComputedStyle(root).getPropertyValue("--grid-size")) || 28;
   const wrap = (value, size) => {
     const shifted = value % size;
     return shifted < 0 ? shifted + size : shifted;
@@ -432,18 +437,23 @@ function initBackgroundParallax() {
       return;
     }
 
-    const size = gridSize();
     const scrollShiftY = wrap(snapToDevicePixel(window.scrollY * -0.065), size);
 
-    root.style.setProperty("--grid-parallax-y", `${scrollShiftY}px`);
+    backgroundGrid()?.style.setProperty("--grid-parallax-y", `${scrollShiftY}px`);
   };
 
   const requestUpdate = () => {
     if (!frame) frame = window.requestAnimationFrame(update);
   };
 
+  const handleResize = () => {
+    size = gridSize();
+    requestUpdate();
+  };
+
+  window.__hlGridParallaxUpdate = requestUpdate;
   window.addEventListener("scroll", requestUpdate, { passive: true });
-  window.addEventListener("resize", requestUpdate, { passive: true });
+  window.addEventListener("resize", handleResize, { passive: true });
   reduceMotion.addEventListener?.("change", requestUpdate);
   requestUpdate();
 }
@@ -1037,11 +1047,6 @@ function preserveShellState(event) {
     }
   });
 
-  gridParallaxProperties.forEach((property) => {
-    const value = root.style.getPropertyValue(property);
-    if (value) nextRoot.style.setProperty(property, value);
-  });
-
   pageTransitionProperties.forEach((property) => {
     const value = root.style.getPropertyValue(property);
     if (value) nextRoot.style.setProperty(property, value);
@@ -1434,7 +1439,7 @@ function initSignals() {
 function positionHeadingReferences() {
   const compact = window.matchMedia("(max-width: 900px)").matches;
 
-  document.querySelectorAll(".prose :is(h1, h2, h3, h4, h5, h6)[id]").forEach((heading) => {
+  document.querySelectorAll(headingReferenceSelector).forEach((heading) => {
     const button = heading.querySelector(":scope > [data-heading-copy]");
     if (!(button instanceof HTMLElement)) return;
 
@@ -1455,8 +1460,16 @@ function positionHeadingReferences() {
   });
 }
 
+function scheduleHeadingReferencePositions() {
+  if (window.__hlHeadingReferenceFrame) return;
+  window.__hlHeadingReferenceFrame = window.requestAnimationFrame(() => {
+    window.__hlHeadingReferenceFrame = 0;
+    positionHeadingReferences();
+  });
+}
+
 function initHeadingReferences() {
-  const headings = document.querySelectorAll(".prose :is(h1, h2, h3, h4, h5, h6)[id]");
+  const headings = document.querySelectorAll(headingReferenceSelector);
   const iconTemplate = document.querySelector("template[data-heading-reference-icon]");
   if (!(iconTemplate instanceof HTMLTemplateElement)) return;
 
@@ -1489,10 +1502,10 @@ function initHeadingReferences() {
     heading.append(button);
   });
 
-  window.requestAnimationFrame(positionHeadingReferences);
+  scheduleHeadingReferencePositions();
   if (!window.__hlHeadingReferenceResizeBound) {
     window.__hlHeadingReferenceResizeBound = true;
-    window.addEventListener("resize", positionHeadingReferences, { passive: true });
+    window.addEventListener("resize", scheduleHeadingReferencePositions, { passive: true });
   }
 }
 
