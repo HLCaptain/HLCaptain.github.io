@@ -455,7 +455,8 @@ test.describe("site shell", () => {
     const facts = profileHero.getByLabel("Profile facts");
     await expect(profileHero).toBeVisible();
     await expect(profileHero.locator("img")).toHaveAttribute("src", "/visuals/github-profile-avatar.jpg");
-    await expect(profileHero).toContainText("Product-minded Android developer");
+    await expect(profileHero).toContainText("Balázs Püspök-Kiss");
+    await expect(profileHero).not.toContainText("HLCaptain");
     await expect(facts).toHaveClass(/detail-facts/);
     await expect(facts).toHaveClass(/project-facts/);
     expect(

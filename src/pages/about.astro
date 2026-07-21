@@ -152,14 +152,11 @@ const experiences = [
           height="460"
           decoding="async"
         />
-        <div class="about-profile-hero__identity">
-          <p>Product-minded Android developer</p>
-          <strong>{siteConfig.author.name}</strong>
-        </div>
       </div>
       <DetailFacts
         label="Profile facts"
         items={[
+          { label: "Name", value: "Balázs Püspök-Kiss" },
           { label: "Role", value: siteConfig.author.role },
           { label: "Location", value: siteConfig.author.location },
           {
@@ -299,47 +296,11 @@ const experiences = [
     background: var(--surface-strong);
   }
 
-  .about-profile-hero__portrait::after {
-    position: absolute;
-    inset: 38% 0 0;
-    content: "";
-    background: linear-gradient(transparent, rgb(0 0 0 / 0.78));
-    pointer-events: none;
-  }
-
   .about-profile-hero__portrait img {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-
-  .about-profile-hero__identity {
-    position: absolute;
-    z-index: 1;
-    right: 14px;
-    bottom: 14px;
-    left: 14px;
-    color: #fff;
-  }
-
-  .about-profile-hero__identity p,
-  .about-profile-hero__identity strong {
-    display: block;
-    margin: 0;
-  }
-
-  .about-profile-hero__identity p {
-    margin-bottom: 4px;
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    line-height: 1.3;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .about-profile-hero__identity strong {
-    font-size: 1rem;
   }
 
   .about-profile-hero :global(.detail-facts) {
