@@ -494,7 +494,7 @@ test.describe("site shell", () => {
     const aboutToc = page.locator(page.viewportSize()!.width <= 720 ? "[data-toc-mobile]" : "[data-toc-desktop]");
     await expect(aboutToc).toBeVisible();
     expect(
-      await aboutToc.getByRole("link").evaluateAll((links) => links.map((link) => link.getAttribute("href")))
+      await aboutToc.locator("a").evaluateAll((links) => links.map((link) => link.getAttribute("href")))
     ).toEqual(["#current-direction", "#experience"]);
     if (page.viewportSize()!.width <= 720) {
       const mobileOrder = await page.evaluate(() => {
