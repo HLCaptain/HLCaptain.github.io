@@ -28,6 +28,7 @@ test.describe("project case studies", () => {
 
       const shell = page.locator("[data-detail-shell]");
       const content = page.locator("[data-detail-content]");
+      const titleRow = page.locator(".page-header__title-row");
       const mobileToc = page.locator("[data-toc-mobile]");
       const desktopToc = page.locator("[data-toc-desktop]");
       await expect(shell).toHaveCount(1);
@@ -45,6 +46,19 @@ test.describe("project case studies", () => {
       expect(layout.shellWidth).toBeLessThanOrEqual(1041);
       expect(layout.contentWidth).toBeLessThanOrEqual(781);
       contentWidths.push(layout.contentWidth);
+
+      const titleLayout = await titleRow.evaluate((node) => {
+        const title = node.querySelector("h1")!.getBoundingClientRect();
+        const tagline = node.querySelector(".eyebrow")!.getBoundingClientRect();
+        return {
+          titleRight: title.right,
+          titleBottom: title.bottom,
+          taglineLeft: tagline.left,
+          taglineTop: tagline.top
+        };
+      });
+      expect(titleLayout.taglineLeft).toBeGreaterThan(titleLayout.titleRight);
+      expect(titleLayout.taglineTop).toBeLessThan(titleLayout.titleBottom);
 
       if (page.viewportSize()!.width <= 720) {
         await expect(mobileToc).toBeVisible();

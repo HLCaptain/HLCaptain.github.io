@@ -8,10 +8,19 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(fits).toBe(true);
 }
 
-async function expectStableHoverTarget(page: Page, target: Locator, offset: { x: number; y: number }) {
-  const group = target.locator("..");
-  await expect(group).toHaveClass(/\bhover-group\b/);
-  await expect(target).toHaveClass(/\bhover-group__target\b/);
+async function expectStableHoverTarget(
+  page: Page,
+  target: Locator,
+  offset: { x: number; y: number },
+  self = false
+) {
+  const group = self ? target : target.locator("..");
+  if (self) {
+    await expect(target).toHaveClass(/\bsidebar-row\b/);
+  } else {
+    await expect(group).toHaveClass(/\bhover-group\b/);
+    await expect(target).toHaveClass(/\bhover-group__target\b/);
+  }
   await group.scrollIntoViewIfNeeded();
 
   const box = await group.boundingBox();
@@ -22,15 +31,15 @@ async function expectStableHoverTarget(page: Page, target: Locator, offset: { x:
   );
 
   const readState = () =>
-    target.evaluate((node) => {
+    target.evaluate((node, targetIsGroup) => {
       const transform = getComputedStyle(node).transform;
       const matrix = transform === "none" ? new DOMMatrixReadOnly() : new DOMMatrixReadOnly(transform);
       return {
-        groupHovered: node.parentElement?.matches(":hover") ?? false,
+        groupHovered: (targetIsGroup ? node : node.parentElement)?.matches(":hover") ?? false,
         x: Math.round(matrix.m41),
         y: Math.round(matrix.m42)
       };
-    });
+    }, self);
 
   await expect.poll(readState).toEqual({ groupHovered: true, ...offset });
   await page.waitForTimeout(260);
@@ -967,6 +976,7 @@ test.describe("site shell", () => {
           const rect = node.getBoundingClientRect();
           const edgeTarget = document.elementFromPoint(rect.right - 1, rect.top + rect.height / 2);
           const content = node.querySelector(".sidebar-row__content")!;
+          const style = getComputedStyle(node);
           const translateX = (element: Element) => {
             const transform = getComputedStyle(element).transform;
             return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41;
@@ -974,11 +984,12 @@ test.describe("site shell", () => {
           return {
             rowTranslated: translateX(node),
             contentTranslated: translateX(content),
+            hasBackground: style.backgroundColor !== "rgba(0, 0, 0, 0)",
             edgeVisible: edgeTarget?.closest(".sidebar-row") === node
           };
         })
       )
-      .toEqual({ rowTranslated: 0, contentTranslated: 3, edgeVisible: true });
+      .toEqual({ rowTranslated: 3, contentTranslated: 0, hasBackground: true, edgeVisible: true });
 
     await page.mouse.move(220, 220);
     const actionMetrics = await page.evaluate(() => {
@@ -1300,10 +1311,23 @@ test.describe("site shell", () => {
     await aboutLink.hover();
     await expect
       .poll(async () => {
-        const shadow = await aboutLink.evaluate((node) => getComputedStyle(node).boxShadow);
-        return shadow !== "none" && !/rgba\(0, 0, 0, 0\)|\/ 0/.test(shadow);
+        return aboutLink.evaluate((node) => {
+          const content = node.querySelector(".sidebar-row__content")!;
+          const translateX = (element: Element) => {
+            const transform = getComputedStyle(element).transform;
+            return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41;
+          };
+          const style = getComputedStyle(node);
+          const shadow = style.boxShadow;
+          return {
+            rowTranslated: translateX(node),
+            contentTranslated: translateX(content),
+            hasBackground: style.backgroundColor !== "rgba(0, 0, 0, 0)",
+            hasShadow: shadow !== "none" && !/rgba\(0, 0, 0, 0\)|\/ 0/.test(shadow)
+          };
+        });
       })
-      .toBe(true);
+      .toEqual({ rowTranslated: 3, contentTranslated: 0, hasBackground: true, hasShadow: true });
     await page.mouse.move(1000, 520);
 
     const expandedMetrics = await page.locator(".nav-group").nth(1).evaluate((group) => {
@@ -2299,10 +2323,7 @@ test.describe("site shell", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expectStableHoverTarget(page, page.getByRole("link", { name: "About", exact: true }).locator(".sidebar-row__content"), {
-      x: 3,
-      y: 0
-    });
+    await expectStableHoverTarget(page, page.getByRole("link", { name: "About", exact: true }), { x: 3, y: 0 }, true);
     await expectStableHoverTarget(page, page.getByRole("link", { name: "View projects", exact: true }), { x: 0, y: -2 });
     await expectStableHoverTarget(page, page.locator(".entry-card__link").first(), { x: 0, y: -4 });
     await expectStableHoverTarget(page, page.locator(".signal__item").first(), { x: 0, y: -4 });

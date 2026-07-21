@@ -347,7 +347,7 @@ svg {
 }
 
 .sidebar-row {
-  --hover-group-x: 3px;
+  --sidebar-row-hover-x: 3px;
   position: relative;
   display: grid;
   grid-template-columns: var(--sidebar-row-icon-size) minmax(0, 1fr) auto;
@@ -360,6 +360,7 @@ svg {
   border: 1px solid transparent;
   box-shadow: inset 0 0 0 1px transparent;
   text-decoration: none;
+  transform: translateX(0);
   transition:
     background-color 180ms var(--ease),
     box-shadow 180ms var(--ease),
@@ -367,7 +368,8 @@ svg {
     gap 240ms var(--ease),
     grid-template-columns 240ms var(--ease),
     min-height 240ms var(--ease),
-    padding 240ms var(--ease);
+    padding 240ms var(--ease),
+    transform 180ms var(--ease);
 }
 
 .sidebar-row__content {
@@ -377,7 +379,6 @@ svg {
   gap: inherit;
   align-items: center;
   min-width: 0;
-  transition: transform 180ms var(--ease);
 }
 
 .sidebar-row__label {
@@ -411,6 +412,20 @@ svg {
   color: var(--ink);
   background: var(--panel-hover);
   box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.sidebar-row:is(:hover, :focus-visible) {
+  transform: translateX(var(--sidebar-row-hover-x));
+}
+
+.sidebar-row__hit-area {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+}
+
+.sidebar-row:is(:hover, :focus-visible) > .sidebar-row__hit-area {
+  transform: translateX(calc(0px - var(--sidebar-row-hover-x)));
 }
 
 .sidebar-row__icon {
@@ -887,12 +902,18 @@ svg {
 
 .page-header__title-row {
   display: flex;
-  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
   gap: 10px 16px;
   align-items: baseline;
 }
 
+.page-header__title-row h1 {
+  min-width: 0;
+}
+
 .page-header__title-row .eyebrow {
+  flex: none;
   margin: 0;
   padding-left: 10px;
   color: var(--accent-readable);
@@ -1240,7 +1261,7 @@ svg {
 }
 
 :root.sidebar-collapsed:not(.sidebar-overlay-open) .nav-item {
-  --hover-group-x: 0px;
+  --sidebar-row-hover-x: 0px;
   border-color: transparent;
   transform: none;
 }
