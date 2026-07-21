@@ -121,6 +121,7 @@ test.describe("project case studies", () => {
       (heading as HTMLElement).style.maxWidth = "260px";
       window.dispatchEvent(new Event("resize"));
     });
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
     const headingReferenceGeometry = await markdownHeadings.nth(2).evaluate((heading) => {
       const button = heading.querySelector<HTMLElement>(":scope > .heading-reference")!;
       const range = document.createRange();
