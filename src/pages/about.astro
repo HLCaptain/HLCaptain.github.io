@@ -1,10 +1,16 @@
 ---
+import type { MarkdownHeading } from "astro";
 import ArrowIcon from "@components/ArrowIcon.astro";
 import ExternalLinkButton from "@components/ExternalLinkButton.astro";
-import PageHeader from "@components/PageHeader.astro";
 import SemanticIcon from "@components/SemanticIcon.astro";
-import BaseLayout from "@layouts/BaseLayout.astro";
+import DetailFacts from "@components/content/DetailFacts.astro";
+import DetailLayout from "@layouts/DetailLayout.astro";
 import { siteConfig } from "../site.config";
+
+const aboutHeadings = [
+  { depth: 2, slug: "current-direction", text: "Current direction" },
+  { depth: 2, slug: "experience", text: "Experience" }
+] satisfies MarkdownHeading[];
 
 const experiences = [
   {
@@ -124,58 +130,49 @@ const experiences = [
 ] as const;
 ---
 
-<BaseLayout title="About" description="About HLCaptain and the work collected on this site.">
-  <PageHeader
-    eyebrow="Profile"
-    title="Clear interfaces, fast systems, durable notes."
-    description="I'm Balázs, a software engineer building thoughtful interfaces and useful tools."
-  />
-
-  <section class="split-section">
-    <div>
-      <h2>Current direction</h2>
-      <p>
-        I care about interfaces that feel light without becoming thin: visible state, precise motion,
-        accessible navigation, and performance that holds up on everyday devices.
-      </p>
-      <p>
-        The writing archive is Markdown-first, so publishing a new note is just a repository change
-        and a static rebuild.
-      </p>
-    </div>
-    <div class="fact-panel">
-      <dl aria-label="Profile facts">
-        <div>
-          <dt>Name</dt>
-          <dd>{siteConfig.author.name}</dd>
-        </div>
-        <div>
-          <dt>Role</dt>
-          <dd>{siteConfig.author.role}</dd>
-        </div>
-        <div>
-          <dt>Location</dt>
-          <dd>{siteConfig.author.location}</dd>
-        </div>
-        <div>
-          <dt>Contact / socials</dt>
-          <dd>
-            <ul class="fact-panel__links">
-              <li><a href={`mailto:${siteConfig.author.email}`}>Email</a></li>
-              <li><a href={siteConfig.author.github} target="_blank" rel="noreferrer">GitHub</a></li>
-              <li><a href={siteConfig.author.linkedin} target="_blank" rel="noreferrer">LinkedIn</a></li>
-              <li><a href={siteConfig.author.x} target="_blank" rel="noreferrer">X</a></li>
-            </ul>
-          </dd>
-        </div>
-      </dl>
-    </div>
+<DetailLayout
+  documentTitle="About"
+  eyebrow="Profile"
+  title="Complex systems, clear interactions."
+  description="I'm Balázs, a product-minded mobile developer making difficult workflows easier to understand, use, and trust."
+  headings={aboutHeadings}
+>
+  <section class="about-direction" aria-labelledby="current-direction">
+    <h2 id="current-direction">Current direction</h2>
+    <p>
+      Android remains the center of my professional work: modernizing booking, banking, and payment
+      flows with reusable architecture, Jetpack Compose, deliberate motion, and platform features
+      that still work across older devices.
+    </p>
+    <p>
+      Independent projects follow the same product instinct. <a href="/work/spliteasy/">SplitEasy</a>
+      keeps AI-assisted receipt splitting inspectable and deterministic, while <a href="/work/proto-shape/">ProtoShape</a>
+      turns repeated 3D editor work into direct, reusable Godot tooling. The common direction is practical
+      software that removes friction without hiding important state.
+    </p>
+    <DetailFacts
+      label="Profile facts"
+      items={[
+        { label: "Name", value: siteConfig.author.name },
+        { label: "Role", value: siteConfig.author.role },
+        { label: "Location", value: siteConfig.author.location },
+        {
+          label: "Contact / socials",
+          links: [
+            { label: "Email", href: `mailto:${siteConfig.author.email}` },
+            { label: "GitHub", href: siteConfig.author.github, external: true },
+            { label: "LinkedIn", href: siteConfig.author.linkedin, external: true },
+            { label: "X", href: siteConfig.author.x, external: true }
+          ]
+        }
+      ]}
+    />
   </section>
 
-  <section class="experience-section" aria-labelledby="experience-heading">
+  <section class="experience-section" aria-labelledby="experience">
     <header class="experience-section__header">
       <p class="eyebrow">Curriculum vitae</p>
-      <h2 id="experience-heading">Experience</h2>
+      <h2 id="experience">Experience</h2>
       <p>A timeline of the teams, products, research, and teaching that shaped my work.</p>
     </header>
 
@@ -264,4 +261,4 @@ const experiences = [
       })}
     </ol>
   </section>
-</BaseLayout>
+</DetailLayout>

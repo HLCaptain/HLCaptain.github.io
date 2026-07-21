@@ -1,0 +1,66 @@
+---
+import type { MarkdownHeading } from "astro";
+import PageHeader from "@components/PageHeader.astro";
+import TableOfContents from "@components/content/TableOfContents.astro";
+import { formatDate } from "@lib/content";
+import BaseLayout from "./BaseLayout.astro";
+
+type Props = {
+  title: string;
+  description: string;
+  documentTitle?: string;
+  eyebrow: string;
+  backLabel?: string;
+  publishedAt?: Date;
+  updatedAt?: Date;
+  tags?: string[];
+  headings?: MarkdownHeading[];
+  prose?: boolean;
+};
+
+const {
+  title,
+  description,
+  documentTitle = title,
+  eyebrow,
+  backLabel,
+  publishedAt,
+  updatedAt,
+  tags = [],
+  headings = [],
+  prose = false
+} = Astro.props;
+const hasMeta = publishedAt || updatedAt || tags.length > 0;
+const hasTableOfContents = headings.length > 0;
+---
+
+<BaseLayout title={documentTitle} description={description}>
+  <article
+    class:list={["detail-shell", hasTableOfContents && "detail-shell--with-toc"]}
+    data-detail-shell
+  >
+    <div class="detail-main" data-detail-content>
+      <div class="detail-hero">
+        <PageHeader
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+          backLabel={backLabel}
+        />
+        <slot name="actions" />
+        {hasMeta && (
+          <div class="detail-meta">
+            {publishedAt && <time datetime={publishedAt.toISOString()}>{formatDate(publishedAt)}</time>}
+            {updatedAt && <span>Updated {formatDate(updatedAt)}</span>}
+            {tags.length > 0 && <span>{tags.join(" / ")}</span>}
+          </div>
+        )}
+      </div>
+      <div class:list={["detail-body", prose && "prose", !prose && "detail-body--sectioned"]}>
+        <slot />
+        {hasTableOfContents && <TableOfContents headings={headings} variant="mobile" />}
+      </div>
+    </div>
+    {hasTableOfContents && <TableOfContents headings={headings} variant="desktop" />}
+  </article>
+</BaseLayout>

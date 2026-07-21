@@ -1,6 +1,6 @@
 ---
 import { getCollection, render } from "astro:content";
-import MarkdownLayout from "@layouts/MarkdownLayout.astro";
+import DetailLayout from "@layouts/DetailLayout.astro";
 
 export async function getStaticPaths() {
   const articles = await getCollection("articles", ({ data }) => !data.draft);
@@ -14,7 +14,7 @@ const { article } = Astro.props;
 const { Content, headings } = await render(article);
 ---
 
-<MarkdownLayout
+<DetailLayout
   eyebrow="Article"
   title={article.data.title}
   description={article.data.description}
@@ -23,6 +23,7 @@ const { Content, headings } = await render(article);
   updatedAt={article.data.updatedAt}
   tags={article.data.tags}
   headings={headings}
+  prose
 >
   <Content />
-</MarkdownLayout>
+</DetailLayout>

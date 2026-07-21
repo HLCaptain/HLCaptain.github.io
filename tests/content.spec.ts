@@ -20,6 +20,46 @@ async function resolvedColor(page: Page, token: string) {
 }
 
 test.describe("project case studies", () => {
+  test("detail pages share one content and table-of-contents rail", async ({ page }) => {
+    const contentWidths: number[] = [];
+
+    for (const path of ["/about/", "/work/proto-shape/", "/work/spliteasy/"]) {
+      await page.goto(path);
+
+      const shell = page.locator("[data-detail-shell]");
+      const content = page.locator("[data-detail-content]");
+      const mobileToc = page.locator("[data-toc-mobile]");
+      const desktopToc = page.locator("[data-toc-desktop]");
+      await expect(shell).toHaveCount(1);
+      await expect(content).toHaveCount(1);
+
+      const layout = await shell.evaluate((node) => {
+        const shellBounds = node.getBoundingClientRect();
+        const contentBounds = node.querySelector("[data-detail-content]")!.getBoundingClientRect();
+        return {
+          shellWidth: shellBounds.width,
+          contentWidth: contentBounds.width,
+          contentRight: contentBounds.right
+        };
+      });
+      expect(layout.shellWidth).toBeLessThanOrEqual(1041);
+      expect(layout.contentWidth).toBeLessThanOrEqual(781);
+      contentWidths.push(layout.contentWidth);
+
+      if (page.viewportSize()!.width <= 720) {
+        await expect(mobileToc).toBeVisible();
+        await expect(desktopToc).toBeHidden();
+      } else {
+        await expect(desktopToc).toBeVisible();
+        await expect(mobileToc).toBeHidden();
+        expect((await desktopToc.boundingBox())!.x).toBeGreaterThanOrEqual(layout.contentRight);
+      }
+      await expectNoHorizontalOverflow(page);
+    }
+
+    expect(Math.max(...contentWidths) - Math.min(...contentWidths)).toBeLessThanOrEqual(1);
+  });
+
   test("work index lists the real projects and removes placeholders", async ({ page }) => {
     await page.goto("/work/");
 
@@ -240,7 +280,13 @@ test.describe("project case studies", () => {
       expect(
         await desktopToc.evaluate((node) => {
           const style = getComputedStyle(node);
-          return { position: style.position, overflowY: style.overflowY, rightOfContent: node.getBoundingClientRect().left > document.querySelector(".document-content")!.getBoundingClientRect().right };
+          return {
+            position: style.position,
+            overflowY: style.overflowY,
+            rightOfContent:
+              node.getBoundingClientRect().left >
+              document.querySelector("[data-detail-content]")!.getBoundingClientRect().right
+          };
         })
       ).toEqual({ position: "sticky", overflowY: "auto", rightOfContent: true });
     }

@@ -1,7 +1,7 @@
 ---
 import { getCollection, render } from "astro:content";
-import MarkdownLayout from "@layouts/MarkdownLayout.astro";
 import ExternalLinkButton from "@components/ExternalLinkButton.astro";
+import DetailLayout from "@layouts/DetailLayout.astro";
 
 export async function getStaticPaths() {
   const projects = await getCollection("projects", ({ data }) => !data.draft);
@@ -15,7 +15,7 @@ const { project } = Astro.props;
 const { Content, headings } = await render(project);
 ---
 
-<MarkdownLayout
+<DetailLayout
   eyebrow={project.data.status}
   title={project.data.title}
   description={project.data.description}
@@ -24,8 +24,9 @@ const { Content, headings } = await render(project);
   updatedAt={project.data.updatedAt}
   tags={project.data.tags}
   headings={headings}
+  prose
 >
-  <Fragment slot="subheader">
+  <Fragment slot="actions">
     {project.data.links.length > 0 && (
       <nav class="link-strip" aria-label="Project links">
         {project.data.links.map((link) => (
@@ -35,4 +36,4 @@ const { Content, headings } = await render(project);
     )}
   </Fragment>
   <Content />
-</MarkdownLayout>
+</DetailLayout>

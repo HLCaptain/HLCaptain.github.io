@@ -411,11 +411,19 @@ test.describe("site shell", () => {
     await page.goto("/about/");
 
     const header = page.locator(".page-header");
-    await expect(header).toContainText(
-      "I'm Balázs, a software engineer building thoughtful interfaces and useful tools."
-    );
+    await expect(header.getByRole("heading", { name: "Complex systems, clear interactions." })).toBeVisible();
+    await expect(header).toContainText("making difficult workflows easier to understand, use, and trust");
     await expect(header).not.toContainText("OTP Bank");
     await expect(header).not.toContainText("Püspök-Kiss");
+    await expect(page.locator(".about-direction")).toContainText("Android remains the center of my professional work");
+    await expect(page.locator(".about-direction").getByRole("link", { name: "SplitEasy" })).toHaveAttribute(
+      "href",
+      "/work/spliteasy/"
+    );
+    await expect(page.locator(".about-direction").getByRole("link", { name: "ProtoShape" })).toHaveAttribute(
+      "href",
+      "/work/proto-shape/"
+    );
 
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
     const profileLinks = [
@@ -432,7 +440,9 @@ test.describe("site shell", () => {
       await expect(link.locator(`.semantic-icon[data-icon-name="${icon}"] .semantic-icon__svg`)).toHaveCount(6);
     }
 
-    const facts = page.locator(".fact-panel");
+    const facts = page.getByLabel("Profile facts");
+    await expect(facts).toHaveClass(/detail-facts/);
+    await expect(facts).toHaveClass(/project-facts/);
     await expect(facts.getByText("Contact / socials")).toBeVisible();
     await expect(facts.getByRole("link", { name: "Email" })).toHaveAttribute("href", "mailto:pkblazsak@gmail.com");
 
@@ -443,7 +453,6 @@ test.describe("site shell", () => {
       await expect(link).toHaveAttribute("rel", "noreferrer");
     }
 
-    expect((await facts.boundingBox())!.width).toBeLessThan(320);
     await expectNoHorizontalOverflow(page);
   });
 
@@ -467,14 +476,44 @@ test.describe("site shell", () => {
     await expect(items.nth(0)).not.toContainText("experienced product team");
     await expect(items.nth(3)).toContainText("C++ abstract syntax trees");
 
-    const sectionEdges = await page.locator(".split-section, .experience-section").evaluateAll((nodes) =>
-      nodes.map((node) => {
-        const bounds = node.getBoundingClientRect();
-        return { left: bounds.left, right: bounds.right };
-      })
-    );
-    expect(Math.abs(sectionEdges[0].left - sectionEdges[1].left)).toBeLessThanOrEqual(1);
-    expect(Math.abs(sectionEdges[0].right - sectionEdges[1].right)).toBeLessThanOrEqual(1);
+    const railEdges = await page
+      .locator(".page-header, .about-direction, .project-facts, .experience-section")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const bounds = node.getBoundingClientRect();
+          return { left: bounds.left, right: bounds.right };
+        })
+      );
+    expect(
+      Math.max(...railEdges.map(({ left }) => left)) - Math.min(...railEdges.map(({ left }) => left))
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.max(...railEdges.map(({ right }) => right)) - Math.min(...railEdges.map(({ right }) => right))
+    ).toBeLessThanOrEqual(1);
+
+    const aboutToc = page.locator(page.viewportSize()!.width <= 720 ? "[data-toc-mobile]" : "[data-toc-desktop]");
+    await expect(aboutToc).toBeVisible();
+    expect(
+      await aboutToc.getByRole("link").evaluateAll((links) => links.map((link) => link.getAttribute("href")))
+    ).toEqual(["#current-direction", "#experience"]);
+    if (page.viewportSize()!.width <= 720) {
+      const mobileOrder = await page.evaluate(() => {
+        const header = document.querySelector(".page-header")!.getBoundingClientRect();
+        const toc = document.querySelector("[data-toc-mobile]")!.getBoundingClientRect();
+        const direction = document.querySelector(".about-direction")!.getBoundingClientRect();
+        const experience = document.querySelector(".experience-section")!.getBoundingClientRect();
+        return {
+          headerBottom: header.bottom,
+          tocTop: toc.top,
+          tocBottom: toc.bottom,
+          directionTop: direction.top,
+          experienceTop: experience.top
+        };
+      });
+      expect(mobileOrder.tocTop).toBeGreaterThanOrEqual(mobileOrder.headerBottom - 1);
+      expect(mobileOrder.directionTop).toBeGreaterThanOrEqual(mobileOrder.tocBottom - 1);
+      expect(mobileOrder.experienceTop).toBeGreaterThan(mobileOrder.directionTop);
+    }
 
     for (const [index, [organization, role, period]] of expectedExperiences.entries()) {
       const item = items.nth(index);
