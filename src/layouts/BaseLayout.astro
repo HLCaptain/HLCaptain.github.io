@@ -31,9 +31,10 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         const gridPatternKey = "hlcaptain-grid-pattern";
         const signalLayoutKey = "hlcaptain-signal-layout";
         const signalRatioKey = "hlcaptain-signal-ratio";
+        const surfaceAccentKey = "hlcaptain-surface-accent";
+        const defaultSurfaceAccent = 20;
         const hex = (rgb) =>
           `#${[rgb.r, rgb.g, rgb.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
-        const rgb = (value, alpha = 1) => `rgb(${Math.round(value.r)} ${Math.round(value.g)} ${Math.round(value.b)} / ${alpha})`;
         const parse = (value) => {
           const match = /^#?([a-f\d]{3}|[a-f\d]{6})$/i.exec(value || "");
           if (!match) return null;
@@ -74,41 +75,10 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
           let readable = accent;
           for (let i = 0; i < 12 && contrast(readable, bg) < 3.8; i += 1) readable = mix(readable, target, 0.12);
           const tint = mix(theme === "black" ? { r: 75, g: 68, b: 50 } : { r: 184, g: 170, b: 138 }, accent, theme === "black" ? 0.34 : 0.5);
-          const base =
-            theme === "black"
-              ? {
-                  canvas: { r: 6, g: 6, b: 4 },
-                  surface: { r: 22, g: 21, b: 15 },
-                  surfaceSoft: { r: 33, g: 31, b: 22 },
-                  surfaceStrong: { r: 44, g: 41, b: 29 },
-                  line: { r: 75, g: 68, b: 50 },
-                  lineStrong: { r: 151, g: 139, b: 105 }
-                }
-              : {
-                  canvas: { r: 241, g: 238, b: 226 },
-                  surface: { r: 228, g: 223, b: 205 },
-                  surfaceSoft: { r: 247, g: 244, b: 232 },
-                  surfaceStrong: { r: 215, g: 207, b: 185 },
-                  line: { r: 198, g: 190, b: 168 },
-                  lineStrong: { r: 138, g: 128, b: 109 }
-                };
-          const amount = theme === "black" ? 0.16 : 0.14;
           return {
             accent: hex(accent),
             readable: hex(readable),
-            tint: hex(tint),
-            tokens: {
-              "--canvas": hex(mix(base.canvas, tint, amount * 0.45)),
-              "--surface": hex(mix(base.surface, tint, amount)),
-              "--surface-soft": hex(mix(base.surfaceSoft, tint, amount)),
-              "--surface-strong": hex(mix(base.surfaceStrong, tint, amount * 1.2)),
-              "--line": hex(mix(base.line, tint, amount * 1.1)),
-              "--line-strong": hex(mix(base.lineStrong, tint, amount * 1.4)),
-              "--panel-hover": hex(mix(base.surfaceSoft, tint, amount * 1.35)),
-              "--active-fill": hex(mix(base.surfaceStrong, tint, amount * 1.6)),
-              "--grid-line": rgb(tint, theme === "black" ? 0.27 : 0.18),
-              "--grid-line-soft": rgb(tint, theme === "black" ? 0.14 : 0.09)
-            }
+            tint: hex(tint)
           };
         };
         try {
@@ -121,12 +91,18 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
           const gridPattern = localStorage.getItem(gridPatternKey);
           const signalLayout = localStorage.getItem(signalLayoutKey);
           const signalRatio = localStorage.getItem(signalRatioKey);
+          const savedSurfaceAccent = localStorage.getItem(surfaceAccentKey);
+          const parsedSurfaceAccent = Number(savedSurfaceAccent);
+          const surfaceAccent = savedSurfaceAccent !== null && savedSurfaceAccent !== "" && Number.isFinite(parsedSurfaceAccent)
+            ? Math.min(30, Math.max(0, parsedSurfaceAccent))
+            : defaultSurfaceAccent;
           root.dataset.theme = theme;
           root.dataset.themeMode = themeMode;
           root.dataset.arrowStyle = ["tabler", "lucide", "phosphor", "remix", "fluent", "pixelart"].includes(arrow) ? arrow : "tabler";
           root.dataset.gridPattern = ["grid", "dots", "plus", "crosshatch", "diagonal", "circuit", "scanlines"].includes(gridPattern) ? gridPattern : "plus";
           root.dataset.signalLayout = ["split", "stack", "compact"].includes(signalLayout) ? signalLayout : "compact";
           root.dataset.signalRatio = ["square", "landscape", "wide", "portrait"].includes(signalRatio) ? signalRatio : "square";
+          root.style.setProperty("--surface-accent-strength", `${surfaceAccent}%`);
           root.classList.toggle(
             "sidebar-collapsed",
             localStorage.getItem(sidebarKey) === "collapsed" && matchMedia("(min-width: 721px)").matches
@@ -138,7 +114,6 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
               root.style.setProperty("--accent", normalized.accent);
               root.style.setProperty("--accent-readable", normalized.readable);
               root.style.setProperty("--accent-tint", normalized.tint);
-              Object.entries(normalized.tokens).forEach(([property, value]) => root.style.setProperty(property, value));
               root.style.setProperty("accent-color", normalized.accent);
             }
           }
@@ -182,6 +157,22 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         <p class="eyebrow">Debug</p>
         <button type="button" data-debug-close aria-label="Close debug menu">Close</button>
       </header>
+      <fieldset>
+        <legend>Accent on surfaces</legend>
+        <label class="debug-range">
+          <span>Influence</span>
+          <input
+            type="range"
+            min="0"
+            max="30"
+            step="1"
+            value="20"
+            data-surface-accent-input
+            aria-label="Accent influence on surfaces"
+          />
+          <output data-surface-accent-value>20%</output>
+        </label>
+      </fieldset>
       <fieldset>
         <legend>Icon set</legend>
         <button type="button" data-arrow-style="tabler">Tabler</button>

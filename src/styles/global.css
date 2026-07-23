@@ -7,17 +7,18 @@
   --accent-ink: #171712;
   --accent-readable: color-mix(in srgb, var(--accent) 68%, var(--ink));
   --accent-tint: #b8aa8a;
-  --canvas: #f1eee2;
-  --surface: #e4dfcd;
-  --surface-soft: #f7f4e8;
-  --surface-strong: #d7cfb9;
-  --line: #c6bea8;
-  --line-strong: #8a806d;
+  --surface-accent-strength: 20%;
+  --canvas: color-mix(in srgb, #f1eee2, var(--accent-tint) calc(var(--surface-accent-strength) * 0.45));
+  --surface: color-mix(in srgb, #e4dfcd, var(--accent-tint) var(--surface-accent-strength));
+  --surface-soft: color-mix(in srgb, #f7f4e8, var(--accent-tint) var(--surface-accent-strength));
+  --surface-strong: color-mix(in srgb, #d7cfb9, var(--accent-tint) calc(var(--surface-accent-strength) * 1.2));
+  --line: color-mix(in srgb, #c6bea8, var(--accent-tint) calc(var(--surface-accent-strength) * 1.1));
+  --line-strong: color-mix(in srgb, #8a806d, var(--accent-tint) calc(var(--surface-accent-strength) * 1.4));
   --panel-bg: var(--surface);
-  --panel-hover: #efe8d8;
-  --active-fill: #ddd1b7;
-  --grid-line: rgb(185 132 59 / 0.18);
-  --grid-line-soft: rgb(185 132 59 / 0.09);
+  --panel-hover: color-mix(in srgb, #efe8d8, var(--accent-tint) calc(var(--surface-accent-strength) * 1.35));
+  --active-fill: color-mix(in srgb, #ddd1b7, var(--accent-tint) calc(var(--surface-accent-strength) * 1.6));
+  --grid-line: color-mix(in srgb, var(--accent) 18%, transparent);
+  --grid-line-soft: color-mix(in srgb, var(--accent) 9%, transparent);
   --grid-size: 28px;
   --grid-half-size: 14px;
   --grid-large-size: 56px;
@@ -50,17 +51,17 @@
   --accent-ink: #050504;
   --accent-readable: color-mix(in srgb, var(--accent) 58%, var(--ink));
   --accent-tint: #4b4432;
-  --canvas: #060604;
-  --surface: #16150f;
-  --surface-soft: #211f16;
-  --surface-strong: #2c291d;
-  --line: #4b4432;
-  --line-strong: #978b69;
+  --canvas: color-mix(in srgb, #060604, var(--accent-tint) calc(var(--surface-accent-strength) * 0.45));
+  --surface: color-mix(in srgb, #16150f, var(--accent-tint) var(--surface-accent-strength));
+  --surface-soft: color-mix(in srgb, #211f16, var(--accent-tint) var(--surface-accent-strength));
+  --surface-strong: color-mix(in srgb, #2c291d, var(--accent-tint) calc(var(--surface-accent-strength) * 1.2));
+  --line: color-mix(in srgb, #4b4432, var(--accent-tint) calc(var(--surface-accent-strength) * 1.1));
+  --line-strong: color-mix(in srgb, #978b69, var(--accent-tint) calc(var(--surface-accent-strength) * 1.4));
   --panel-bg: var(--surface);
-  --panel-hover: #252318;
-  --active-fill: #302d1f;
-  --grid-line: rgb(185 132 59 / 0.27);
-  --grid-line-soft: rgb(185 132 59 / 0.14);
+  --panel-hover: color-mix(in srgb, #252318, var(--accent-tint) calc(var(--surface-accent-strength) * 1.35));
+  --active-fill: color-mix(in srgb, #302d1f, var(--accent-tint) calc(var(--surface-accent-strength) * 1.6));
+  --grid-line: color-mix(in srgb, var(--accent) 27%, transparent);
+  --grid-line-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   --shadow: 0 24px 70px rgb(0 0 0 / 0.46);
 }
 
@@ -2132,6 +2133,24 @@ html:has(.experience-dialog[open]) {
 
 .debug-current span {
   color: var(--ink);
+}
+
+.debug-range {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 3ch;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.debug-range input {
+  min-width: 0;
+}
+
+.debug-range output {
+  text-align: right;
 }
 
 ::view-transition-old(page-content) {
