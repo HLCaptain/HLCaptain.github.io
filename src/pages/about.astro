@@ -1,55 +1,348 @@
 ---
-import PageHeader from "@components/PageHeader.astro";
-import BaseLayout from "@layouts/BaseLayout.astro";
+import type { MarkdownHeading } from "astro";
+import ArrowIcon from "@components/ArrowIcon.astro";
+import ExternalLinkButton from "@components/ExternalLinkButton.astro";
+import SemanticIcon from "@components/SemanticIcon.astro";
+import DetailFacts from "@components/content/DetailFacts.astro";
+import DetailLayout from "@layouts/DetailLayout.astro";
 import { siteConfig } from "../site.config";
+
+const aboutHeadings = [
+  { depth: 2, slug: "about-me", text: "About me" },
+  { depth: 2, slug: "experience", text: "Experience" }
+] satisfies MarkdownHeading[];
+
+const experiences = [
+  {
+    id: "fizetesi-pont",
+    organization: "Fizetési Pont",
+    role: "Android Developer",
+    period: "January 2026 — Present",
+    location: "Budapest, Hungary",
+    summary: "Building an Android POS terminal across backend integrations, payment journeys, and core UI architecture.",
+    details: [
+      "Owned backend communication and networking.",
+      "Set the UI architecture, navigation, and animations.",
+      "Implemented dual-screen functionality.",
+      "Delivered transaction handling, listings, printing, onboarding, card reading, and payment flows."
+    ]
+  },
+  {
+    id: "otp-bank",
+    organization: "OTP Bank Magyarország",
+    role: "Medior Android Developer",
+    period: "March 2025 — January 2026",
+    location: "Budapest, Hungary",
+    summary: "Delivered mobile-banking features, resolved architectural issues, and supported modernization work.",
+    details: [
+      "Work on OTP Bank's mobile banking application included implementing “Pénzkérés Simán” QVIK payment requests via NFC and QR codes.",
+      "The role also involved resolving architectural issues, delivering new features and bug fixes, and supporting migrations that made development more efficient."
+    ]
+  },
+  {
+    id: "wizz-air",
+    organization: "Wizz Air",
+    role: "Android Developer",
+    period: "September 2022 — March 2025",
+    location: "Budapest, Hungary",
+    summary: "Owned Wizz Air's booking flow, unified flight search, and modernized key screens with Jetpack Compose.",
+    details: [
+      "The role carried development responsibility for the booking user flow.",
+      "The main flight-search screen was refactored from four separate implementations into one reusable component.",
+      "Key booking components were redesigned, including an expandable step-status bar for viewing progress and an add-services screen rebuilt in Jetpack Compose with advanced UX/UI animations.",
+      "Compatibility work covered older Android versions alongside modern platform features, including edge-to-edge support within the legacy UI."
+    ]
+  },
+  {
+    id: "ericsson",
+    organization: "Ericsson",
+    role: "Student Researcher",
+    period: "June 2023 — September 2023",
+    location: "Budapest, Hungary",
+    summary: "Researched data augmentation through C++ AST transformations with Clang tooling.",
+    details: [
+      "The research role explored data-augmentation techniques by transforming C++ abstract syntax trees (ASTs) with Clang tooling."
+    ]
+  },
+  {
+    id: "bme-mobile",
+    organization: "Budapest University of Technology and Economics",
+    role: "Demonstrator (Mobile)",
+    period: "August 2022 — January 2023",
+    location: "Budapest, Hungary",
+    summary: "Taught third-year Android development and created modern Jetpack Compose laboratory material.",
+    details: [
+      "Teaching responsibilities covered Android application development for third-year students.",
+      "New laboratory exercises introduced Jetpack Compose, Kotlin Coroutines, and Material Design 3; the role also included leading IMSc laboratories and reviewing laboratory work and homework."
+    ]
+  },
+  {
+    id: "autsoft",
+    organization: "AutSoft",
+    role: "Mobile Software Development Engineer",
+    period: "June 2022 — August 2022",
+    location: "Budapest, Hungary",
+    summary: "Worked across Android development, REST APIs, and internal projects during a mobile software internship.",
+    details: [
+      "The internship covered internal projects, REST APIs, and Android development, with some exposure to Angular.",
+      "The main focus was modern Android development with Jetpack Compose, Kotlin Coroutines, and clean architecture, using GitLab for Git-based collaboration and Figma to wireframe features with Material Design 3 components.",
+      "University laboratory exercises were rewritten with newer technologies, clean-code principles, and current best practices."
+    ]
+  },
+  {
+    id: "nokia-bell-labs",
+    organization: "Nokia Bell Labs",
+    role: "Research Scholar",
+    period: "February 2022 — June 2022",
+    location: "Budapest, Hungary",
+    summary: "Developed Jay and Hawk AI, pairing driver-behavior analytics with models trained on synthetic BeamNG data.",
+    details: [
+      "Jay—a pet project for driver-behavior analytics—became the focus of a scholarship covering AI research, data analytics, and communication.",
+      "Alongside the app, a built-in AI component—published as Hawk AI—used machine-learning models for ADAS and autonomous-driving systems trained on synthetic sensor data generated in BeamNG simulations. Configurable scenarios and in-game AI drivers produced data used to analyze and predict vehicle behavior.",
+      "Nokia supported the work during the spring 2022 semester, with mentorship from Dr. Péter Szilágyi."
+    ],
+    links: [
+      { label: "Jay on GitHub", href: "https://github.com/HLCaptain/jay-android" },
+      { label: "Hawk AI on GitHub", href: "https://github.com/HLCaptain/hawk-ai" },
+      { label: "BeamNG.tech", href: "https://www.beamng.tech/" },
+      { label: "Scholarship description", href: "https://www.vik.bme.hu/hir/2877-nokia-bell-labs-palyazati-felhivas" }
+    ]
+  },
+  {
+    id: "bme-c",
+    organization: "Budapest University of Technology and Economics",
+    role: "Demonstrator (C)",
+    period: "September 2021 — January 2022",
+    location: "Budapest, Hungary",
+    summary: "Taught C programming in English and mentored students through laboratories and assessments.",
+    details: [
+      "The Basics of Programming course involved teaching C in English to international students.",
+      "Responsibilities included leading laboratories, mentoring students, reviewing laboratory work and homework, and helping organize midterm exams."
+    ]
+  },
+  {
+    id: "bme-cpp",
+    organization: "Budapest University of Technology and Economics",
+    role: "Demonstrator (C++ and OOP)",
+    period: "February 2021 — July 2021",
+    location: "Budapest, Hungary",
+    summary: "Taught object-oriented C++, clean-code basics, UML, and competitive-programming techniques.",
+    details: [
+      "Basics of Programming 2 laboratories covered object-oriented programming, C++, and clean-code fundamentals.",
+      "Additional work included organizing student competitions, reviewing homework and laboratory work, sharing competitive-programming techniques, and introducing UML class diagrams."
+    ]
+  }
+] as const;
 ---
 
-<BaseLayout title="About" description="About HLCaptain and the work collected on this site.">
-  <PageHeader
-    eyebrow="Profile"
-    title="Clear interfaces, fast systems, durable notes."
-    description="This site collects portfolio work and upcoming writing around software design, frontend implementation, and product-shaped engineering decisions."
-  />
+<DetailLayout
+  documentTitle="About"
+  eyebrow="Profile"
+  title="Complexity, clarified."
+  description="I'm a maker at heart, who loves to tinker with stuff and dvelves deep into technical details to get things done just right."
+  headings={aboutHeadings}
+>
+  <Fragment slot="toc-lead">
+    <section class="about-profile-hero" aria-label="Profile summary">
+      <div class="about-profile-hero__portrait">
+        <img
+          src="/visuals/github-profile-avatar.webp"
+          alt=""
+          width="460"
+          height="460"
+          decoding="async"
+        />
+      </div>
+      <DetailFacts
+        label="Profile facts"
+        items={[
+          { label: "Name", value: "Balázs Püspök-Kiss" },
+          { label: "Role", value: siteConfig.author.role },
+          { label: "Location", value: siteConfig.author.location },
+          {
+            label: "Contact / socials",
+            links: [
+              { label: "Email", href: `mailto:${siteConfig.author.email}` },
+              { label: "GitHub", href: siteConfig.author.github, external: true },
+              { label: "LinkedIn", href: siteConfig.author.linkedin, external: true },
+              { label: "X", href: siteConfig.author.x, external: true }
+            ]
+          }
+        ]}
+      />
+    </section>
+  </Fragment>
 
-  <section class="split-section">
-    <div>
-      <h2>Current direction</h2>
-      <p>
-        I care about interfaces that feel light without becoming thin: visible state, precise motion,
-        accessible navigation, and performance that holds up on everyday devices.
-      </p>
-      <p>
-        The writing archive is Markdown-first, so publishing a new note is just a repository change
-        and a static rebuild.
-      </p>
-    </div>
-    <div class="fact-panel">
-      <dl>
-        <div>
-          <dt>Name</dt>
-          <dd>{siteConfig.author.name}</dd>
-        </div>
-        <div>
-          <dt>Role</dt>
-          <dd>{siteConfig.author.role}</dd>
-        </div>
-        <div>
-          <dt>Location</dt>
-          <dd>{siteConfig.author.location}</dd>
-        </div>
-        <div>
-          <dt>Email</dt>
-          <dd><a href={`mailto:${siteConfig.author.email}`}>{siteConfig.author.email}</a></dd>
-        </div>
-        <div>
-          <dt>LinkedIn</dt>
-          <dd><a href={siteConfig.author.linkedin} target="_blank" rel="noreferrer">balazs-puspok-kiss</a></dd>
-        </div>
-        <div>
-          <dt>X</dt>
-          <dd><a href={siteConfig.author.x} target="_blank" rel="noreferrer">@hlcaptain</a></dd>
-        </div>
-      </dl>
-    </div>
+  <section class="about-direction" aria-labelledby="about-me">
+    <h2 id="about-me">About me</h2>
+    <p>
+      Android and mobile developer by day: always learning and using my experiences to enhance user experience
+      across leading airline, banking and fintech applications. Worked on features and apps used by millions,
+      with 4,8+ ratings. From Android, I branched out to Kotlin and Compose Multiplatform development.
+    </p>
+    <p>
+      Always eager to improve workflow efficiency. I am <i>very</i> open about limitations, pros & cons, actionable plans for a problem.
+    </p>
+    <p>
+      I love game development as a hobby and even created a plugin for Godot engine. <a href="/work/proto-shape/">ProtoShape</a>{" "}
+      turns repetitive level prototyping more efficient with intuitive, reusable complex shapes and built-in support for Godot editor tooling.
+      The original idea came from having to implement customizable staircases/ramps for a map. Having no good alternative,
+      I experimented with shapes and gizmos to enable game developers to easily customize any shape.
+    </p>
+    <p>
+      I love experimenting with new ideas. AI enables me to code-up practical solutions to existing day-to-day problems.
+      As an example, I created <a href="/work/spliteasy/">SplitEasy</a>{" "} with AI-assisted bill splitting while
+      keeping every step inspectable and deterministic, so the user can overlook and steer any part of the split.
+      It combines OCRs and tiny LLMs which can quickly analyze even multi-page PDF receipts quickly and accurately.
+      The solution is cost-efficient, easy-to-use, fast, punctual, supporting multiple languages and customizable.
+    </p>
+    <p>
+      We live in unprecedented times and I am taking my chance to make the most out of it.
+    </p>
   </section>
-</BaseLayout>
+
+  <section class="experience-section" aria-labelledby="experience">
+    <header class="experience-section__header">
+      <p class="eyebrow">Curriculum vitae</p>
+      <h2 id="experience">Experience</h2>
+      <p>A timeline of the teams, products, research, and teaching that shaped my work.</p>
+    </header>
+
+    <ol class="experience-timeline">
+      {experiences.map((experience) => {
+        const dialogId = `experience-${experience.id}`;
+        const titleId = `${dialogId}-title`;
+        const summaryId = `${dialogId}-summary`;
+        const detailId = `${dialogId}-detail`;
+        const hasDialogSummary = experience.details.length > 1;
+
+        return (
+          <li class="experience-timeline__item">
+            <p class="experience-timeline__meta">
+              <span class="experience-period">{experience.period}</span>
+              <span>{experience.location}</span>
+            </p>
+
+            <div class="experience-card-group">
+              <article class="experience-card">
+                <p class="experience-card__organization">{experience.organization}</p>
+                <h3>{experience.role}</h3>
+                <p>{experience.summary}</p>
+                <button
+                  class="experience-card__button"
+                  type="button"
+                  aria-label={`Read full experience: ${experience.role} at ${experience.organization}`}
+                  aria-controls={dialogId}
+                  aria-haspopup="dialog"
+                  data-experience-open={dialogId}
+                  title="Read full experience"
+                >
+                  <span class="sr-only">Read full experience</span>
+                  <ArrowIcon class="experience-card__button-icon" role="experience" />
+                </button>
+              </article>
+            </div>
+
+            <dialog
+              class="experience-dialog"
+              id={dialogId}
+              aria-labelledby={titleId}
+              aria-describedby={hasDialogSummary ? summaryId : detailId}
+            >
+              <article class="experience-dialog__panel">
+                <header class="experience-dialog__header">
+                  <div>
+                    <p class="eyebrow">{experience.organization}</p>
+                    <h3 id={titleId}>{experience.role}</h3>
+                    <p class="experience-dialog__meta">
+                      <span class="experience-period">{experience.period}</span> · {experience.location}
+                    </p>
+                  </div>
+                  <form method="dialog" class="button-link-group hover-group">
+                    <button
+                      class="button-link button-link--ghost hover-group__target experience-dialog__close"
+                      type="submit"
+                      aria-label={`Close ${experience.role}`}
+                    >
+                      <SemanticIcon name="close" />
+                    </button>
+                  </form>
+                </header>
+
+                <div class="experience-dialog__body">
+                  {hasDialogSummary && (
+                    <p class="experience-dialog__summary" id={summaryId}>{experience.summary}</p>
+                  )}
+                  {experience.details.map((detail, index) => (
+                    <p id={!hasDialogSummary && index === 0 ? detailId : undefined}>{detail}</p>
+                  ))}
+                  {"links" in experience && (
+                    <ul class="link-strip experience-dialog__links">
+                      {experience.links.map((link) => (
+                        <li>
+                          <ExternalLinkButton href={link.href}>{link.label}</ExternalLinkButton>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </article>
+            </dialog>
+          </li>
+        );
+      })}
+    </ol>
+  </section>
+</DetailLayout>
+
+<style>
+  .about-profile-hero {
+    overflow: hidden;
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+  }
+
+  .about-profile-hero__portrait {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--surface-strong);
+  }
+
+  .about-profile-hero__portrait img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .about-profile-hero :global(.detail-facts) {
+    grid-template-columns: 1fr;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .about-profile-hero :global(.detail-facts__links) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 0.75rem;
+  }
+
+  @media (max-width: 720px) {
+    .about-profile-hero {
+      display: grid;
+      grid-template-columns: minmax(112px, 0.8fr) minmax(0, 1.2fr);
+    }
+
+    .about-profile-hero__portrait {
+      min-height: 100%;
+      aspect-ratio: auto;
+    }
+
+    .about-profile-hero :global(.detail-facts) {
+      border-top: 0;
+      border-left: 1px solid var(--line);
+    }
+  }
+</style>

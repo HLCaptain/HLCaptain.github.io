@@ -3,6 +3,7 @@ const author = {
   role: "Software engineer",
   location: "Europe/Budapest",
   email: "pkblazsak@gmail.com",
+  github: "https://github.com/HLCaptain",
   linkedin: "https://www.linkedin.com/in/balazs-puspok-kiss/",
   x: "https://x.com/hlcaptain"
 } as const;
@@ -52,7 +53,7 @@ export const siteConfig = {
       glyph: "network",
       open: true,
       items: [
-        { label: "GitHub", href: "https://github.com/HLCaptain", glyph: "github", external: true },
+        { label: "GitHub", href: author.github, glyph: "github", external: true },
         { label: "LinkedIn", href: author.linkedin, glyph: "linkedin", external: true },
         { label: "X", href: author.x, glyph: "x", external: true },
         { label: "Email", href: `mailto:${author.email}`, glyph: "mail", external: true }

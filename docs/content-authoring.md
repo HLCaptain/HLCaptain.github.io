@@ -86,14 +86,14 @@ decorative.
 
 Plain `.md` files cannot import components. In `.mdx`, the complete supported site component list is:
 
-### `ProjectFacts`
+### `DetailFacts`
 
 A responsive project-facts grid. Import it immediately after the frontmatter:
 
 ```mdx
-import ProjectFacts from "@components/content/ProjectFacts.astro";
+import DetailFacts from "@components/content/DetailFacts.astro";
 
-<ProjectFacts
+<DetailFacts
   items={[
     { label: "Role", value: "Creator and maintainer" },
     { label: "Status", value: "Shipped" },

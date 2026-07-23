@@ -20,6 +20,71 @@ async function resolvedColor(page: Page, token: string) {
 }
 
 test.describe("project case studies", () => {
+  test("detail pages share one content and table-of-contents rail", async ({ page }) => {
+    const contentWidths: number[] = [];
+
+    for (const path of ["/about/", "/work/proto-shape/", "/work/spliteasy/"]) {
+      await page.goto(path);
+
+      const shell = page.locator("[data-detail-shell]");
+      const content = page.locator("[data-detail-content]");
+      const titleRow = page.locator(".page-header__title-row");
+      const mobileToc = page.locator("[data-toc-mobile]");
+      const desktopToc = page.locator("[data-toc-desktop]");
+      await expect(shell).toHaveCount(1);
+      await expect(content).toHaveCount(1);
+
+      const layout = await shell.evaluate((node) => {
+        const shellBounds = node.getBoundingClientRect();
+        const contentBounds = node.querySelector("[data-detail-content]")!.getBoundingClientRect();
+        return {
+          shellWidth: shellBounds.width,
+          contentWidth: contentBounds.width,
+          contentRight: contentBounds.right
+        };
+      });
+      expect(layout.shellWidth).toBeLessThanOrEqual(1041);
+      expect(layout.contentWidth).toBeLessThanOrEqual(781);
+      contentWidths.push(layout.contentWidth);
+
+      const titleLayout = await titleRow.evaluate((node) => {
+        const title = node.querySelector("h1")!;
+        const titleRange = document.createRange();
+        titleRange.selectNodeContents(title);
+        const titleLines = Array.from(titleRange.getClientRects()).filter(({ width, height }) => width && height);
+        const lastTitleLine = titleLines.at(-1)!;
+        const tagline = node.querySelector(".eyebrow")!.getBoundingClientRect();
+        return {
+          titleLineCount: titleLines.length,
+          titleRight: lastTitleLine.right,
+          titleTop: lastTitleLine.top,
+          titleBottom: lastTitleLine.bottom,
+          taglineLeft: tagline.left,
+          taglineTop: tagline.top,
+          taglineBottom: tagline.bottom
+        };
+      });
+      expect(titleLayout.taglineLeft - titleLayout.titleRight).toBeCloseTo(16, 0);
+      expect(titleLayout.taglineTop).toBeGreaterThanOrEqual(titleLayout.titleTop);
+      expect(titleLayout.taglineBottom).toBeLessThanOrEqual(titleLayout.titleBottom);
+      if (path === "/about/" && page.viewportSize()!.width <= 720) {
+        expect(titleLayout.titleLineCount).toBeGreaterThan(1);
+      }
+
+      if (page.viewportSize()!.width <= 720) {
+        await expect(mobileToc).toBeVisible();
+        await expect(desktopToc).toBeHidden();
+      } else {
+        await expect(desktopToc).toBeVisible();
+        await expect(mobileToc).toBeHidden();
+        expect((await desktopToc.boundingBox())!.x).toBeGreaterThanOrEqual(layout.contentRight);
+      }
+      await expectNoHorizontalOverflow(page);
+    }
+
+    expect(Math.max(...contentWidths) - Math.min(...contentWidths)).toBeLessThanOrEqual(1);
+  });
+
   test("work index lists the real projects and removes placeholders", async ({ page }) => {
     await page.goto("/work/");
 
@@ -28,6 +93,19 @@ test.describe("project case studies", () => {
     await expect(page.getByRole("heading", { name: "SplitEasy AI" })).toBeVisible();
     await expect(page.getByText("LexiDash Arena")).toHaveCount(0);
     await expect(page.getByText("Personal publishing system")).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("DetailFacts splits four items evenly when four columns do not fit", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop");
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await page.goto("/work/proto-shape/");
+
+    const rowCounts = await page.locator(".detail-facts__item").evaluateAll((items) => {
+      const tops = items.map((item) => item.getBoundingClientRect().top);
+      return [...new Set(tops)].map((top) => tops.filter((itemTop) => itemTop === top).length);
+    });
+    expect(rowCounts).toEqual([2, 2]);
     await expectNoHorizontalOverflow(page);
   });
 
@@ -81,6 +159,7 @@ test.describe("project case studies", () => {
       (heading as HTMLElement).style.maxWidth = "260px";
       window.dispatchEvent(new Event("resize"));
     });
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
     const headingReferenceGeometry = await markdownHeadings.nth(2).evaluate((heading) => {
       const button = heading.querySelector<HTMLElement>(":scope > .heading-reference")!;
       const range = document.createRange();
@@ -239,8 +318,15 @@ test.describe("project case studies", () => {
     } else {
       expect(
         await desktopToc.evaluate((node) => {
-          const style = getComputedStyle(node);
-          return { position: style.position, overflowY: style.overflowY, rightOfContent: node.getBoundingClientRect().left > document.querySelector(".document-content")!.getBoundingClientRect().right };
+          const rail = node.closest(".detail-sidebar")!;
+          const style = getComputedStyle(rail);
+          return {
+            position: style.position,
+            overflowY: style.overflowY,
+            rightOfContent:
+              node.getBoundingClientRect().left >
+              document.querySelector("[data-detail-content]")!.getBoundingClientRect().right
+          };
         })
       ).toEqual({ position: "sticky", overflowY: "auto", rightOfContent: true });
     }
@@ -325,7 +411,7 @@ test.describe("project case studies", () => {
     await expect(page.getByRole("heading", { name: "Reliability before automation" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Try SplitEasy" })).toHaveAttribute(
       "href",
-      "https://spliteasy-ai-1337.pages.dev/"
+      "https://spliteasy-ai.pages.dev/"
     );
     await expectNoHorizontalOverflow(page);
   });

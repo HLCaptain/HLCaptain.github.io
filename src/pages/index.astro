@@ -12,7 +12,7 @@ const hasArticles = articles.length > 0;
 const featuredArticles = articles.filter((entry) => entry.data.featured).slice(0, 3);
 const featuredProjects = projects.filter((entry) => entry.data.featured).slice(0, 3);
 const thumbnailImages = (src: string) => ({ square: src, landscape: src, wide: src, portrait: src });
-const profileImages = thumbnailImages("/visuals/github-profile-avatar.jpg");
+const profileImages = thumbnailImages("/visuals/github-profile-avatar.webp");
 const previewItems = [
   ...articles.slice(0, 2).map((article) => ({
     kind: "Article",
@@ -37,8 +37,7 @@ const previewItems = [
   {
     kind: "Profile",
     title: "About HLCaptain",
-    description:
-      "A compact profile for the work style behind the portfolio: precise interfaces, fast systems, and durable notes.",
+    description: "Mobile dev by day, perfectionist maker by night. 💖 Love ☕ coffee.",
     href: "/about/",
     meta: "about",
     images: profileImages
@@ -52,8 +51,7 @@ const previewItems = [
       <p class="eyebrow">Portfolio / project archive</p>
       <h1 id="home-title">HLCaptain</h1>
       <p>
-        A compact personal site for interface craft, software projects, and field notes on building
-        fast, legible systems.
+        A stylized personal site featuring recent projects, articles and information about me.
       </p>
       <div class="hero-actions">
         {hasArticles && (

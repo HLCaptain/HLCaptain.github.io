@@ -1,0 +1,16 @@
+---
+import ExternalLinkIcon from "./ExternalLinkIcon.astro";
+
+type Props = {
+  href: string;
+};
+
+const { href } = Astro.props;
+---
+
+<span class="link-strip__item hover-group">
+  <a class="hover-group__target" href={href} target="_blank" rel="noreferrer">
+    <slot />
+    <ExternalLinkIcon />
+  </a>
+</span>

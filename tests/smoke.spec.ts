@@ -8,10 +8,19 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(fits).toBe(true);
 }
 
-async function expectStableHoverTarget(page: Page, target: Locator, offset: { x: number; y: number }) {
-  const group = target.locator("..");
-  await expect(group).toHaveClass(/\bhover-group\b/);
-  await expect(target).toHaveClass(/\bhover-group__target\b/);
+async function expectStableHoverTarget(
+  page: Page,
+  target: Locator,
+  offset: { x: number; y: number },
+  self = false
+) {
+  const group = self ? target : target.locator("..");
+  if (self) {
+    await expect(target).toHaveClass(/\bsidebar-row\b/);
+  } else {
+    await expect(group).toHaveClass(/\bhover-group\b/);
+    await expect(target).toHaveClass(/\bhover-group__target\b/);
+  }
   await group.scrollIntoViewIfNeeded();
 
   const box = await group.boundingBox();
@@ -22,15 +31,15 @@ async function expectStableHoverTarget(page: Page, target: Locator, offset: { x:
   );
 
   const readState = () =>
-    target.evaluate((node) => {
+    target.evaluate((node, targetIsGroup) => {
       const transform = getComputedStyle(node).transform;
       const matrix = transform === "none" ? new DOMMatrixReadOnly() : new DOMMatrixReadOnly(transform);
       return {
-        groupHovered: node.parentElement?.matches(":hover") ?? false,
+        groupHovered: (targetIsGroup ? node : node.parentElement)?.matches(":hover") ?? false,
         x: Math.round(matrix.m41),
         y: Math.round(matrix.m42)
       };
-    });
+    }, self);
 
   await expect.poll(readState).toEqual({ groupHovered: true, ...offset });
   await page.waitForTimeout(260);
@@ -167,9 +176,12 @@ test.describe("site shell", () => {
     const readParallax = () =>
       page.evaluate(() => {
         const rootStyle = getComputedStyle(document.documentElement);
-        const gridStyle = getComputedStyle(document.querySelector(".background-grid")!);
+        const grid = document.querySelector<HTMLElement>(".background-grid")!;
+        const gridStyle = getComputedStyle(grid);
         return {
-          y: rootStyle.getPropertyValue("--grid-parallax-y").trim(),
+          y: gridStyle.getPropertyValue("--grid-parallax-y").trim(),
+          rootInlineY: document.documentElement.style.getPropertyValue("--grid-parallax-y"),
+          gridInlineY: grid.style.getPropertyValue("--grid-parallax-y"),
           transform: gridStyle.transform,
           removedProperties: ["--grid-parallax-x", "--grid-pointer-x", "--grid-pointer-y"].map((property) =>
             rootStyle.getPropertyValue(property).trim()
@@ -179,6 +191,8 @@ test.describe("site shell", () => {
 
     const before = await readParallax();
     expect(before.removedProperties).toEqual(["", "", ""]);
+    expect(before.rootInlineY).toBe("");
+    expect(before.gridInlineY).toBe(before.y);
     await page.evaluate(() => window.scrollTo(0, 420));
     await expect
       .poll(async () => {
@@ -217,7 +231,7 @@ test.describe("site shell", () => {
         const maskUrl = /url\(["']?(.*?)["']?\)/.exec(maskImage)?.[1] ?? "";
         const matrix = new DOMMatrix(gridStyle.transform);
         return {
-          y: rootStyle.getPropertyValue("--grid-parallax-y").trim(),
+          y: gridStyle.getPropertyValue("--grid-parallax-y").trim(),
           gridSize: rootStyle.getPropertyValue("--grid-size").trim(),
           removedProperties: ["--grid-parallax-x", "--grid-pointer-x", "--grid-pointer-y"].map((property) =>
             rootStyle.getPropertyValue(property).trim()
@@ -407,11 +421,29 @@ test.describe("site shell", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("publishes LinkedIn and X profile links", async ({ page }) => {
+  test("publishes a profile hero and compact contact links", async ({ page }) => {
     await page.goto("/about/");
+
+    const header = page.locator(".page-header");
+    await expect(header.getByRole("heading", { name: "Complexity, clarified." })).toBeVisible();
+    await expect(header).toContainText("maker at heart");
+    await expect(header).not.toContainText("OTP Bank");
+    await expect(header).not.toContainText("Püspök-Kiss");
+    await expect(page.locator(".about-direction")).toContainText("Android and mobile developer by day");
+    await expect(page.locator(".about-direction")).toContainText("SplitEasy");
+    await expect(page.locator(".about-direction")).toContainText("ProtoShape");
+    await expect(page.locator(".about-direction").getByRole("link", { name: "SplitEasy" })).toHaveAttribute(
+      "href",
+      "/work/spliteasy/"
+    );
+    await expect(page.locator(".about-direction").getByRole("link", { name: "ProtoShape" })).toHaveAttribute(
+      "href",
+      "/work/proto-shape/"
+    );
 
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
     const profileLinks = [
+      { label: "GitHub", href: "https://github.com/HLCaptain", icon: "github" },
       { label: "LinkedIn", href: "https://www.linkedin.com/in/balazs-puspok-kiss/", icon: "linkedin" },
       { label: "X", href: "https://x.com/hlcaptain", icon: "x" }
     ];
@@ -424,9 +456,336 @@ test.describe("site shell", () => {
       await expect(link.locator(`.semantic-icon[data-icon-name="${icon}"] .semantic-icon__svg`)).toHaveCount(6);
     }
 
-    const facts = page.locator(".fact-panel");
-    await expect(facts.getByRole("link", { name: "balazs-puspok-kiss" })).toHaveAttribute("href", profileLinks[0].href);
-    await expect(facts.getByRole("link", { name: "@hlcaptain" })).toHaveAttribute("href", profileLinks[1].href);
+    const profileHero = page.locator(
+      page.viewportSize()!.width <= 720
+        ? ".detail-toc-lead--mobile .about-profile-hero"
+        : ".detail-toc-lead--desktop .about-profile-hero"
+    );
+    const facts = profileHero.getByLabel("Profile facts");
+    await expect(profileHero).toBeVisible();
+    await expect(profileHero.locator("img")).toHaveAttribute("src", "/visuals/github-profile-avatar.webp");
+    await expect(profileHero).toContainText("Balázs Püspök-Kiss");
+    await expect(profileHero).not.toContainText("HLCaptain");
+    await expect(facts).toHaveClass(/detail-facts/);
+    await expect(facts).toHaveClass(/project-facts/);
+    expect(
+      await facts.evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(" ").length)
+    ).toBe(1);
+    await expect(facts.getByText("Contact / socials")).toBeVisible();
+    await expect(facts.getByRole("link", { name: "Email" })).toHaveAttribute("href", "mailto:pkblazsak@gmail.com");
+
+    for (const { label, href } of profileLinks) {
+      const link = facts.getByRole("link", { name: label, exact: true });
+      await expect(link).toHaveAttribute("href", href);
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noreferrer");
+    }
+
+    const headingReferences = page.locator(".detail-body--sectioned h2[id] > [data-heading-copy]");
+    await expect(headingReferences).toHaveCount(2);
+    await expect(headingReferences.nth(0)).toHaveAttribute("data-copy-path", "/about/#about-me");
+    await expect(headingReferences.nth(1)).toHaveAttribute("data-copy-path", "/about/#experience");
+    await expect(page.locator(".experience-dialog [data-heading-copy]")).toHaveCount(0);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const resizeFrames = await page.evaluate(() => {
+      const state = window as Window & { __hlHeadingReferenceFrame?: number };
+      window.dispatchEvent(new Event("resize"));
+      const first = state.__hlHeadingReferenceFrame;
+      for (let index = 0; index < 7; index += 1) window.dispatchEvent(new Event("resize"));
+      return [first, state.__hlHeadingReferenceFrame];
+    });
+    expect(resizeFrames[0]).toBeGreaterThan(0);
+    expect(resizeFrames[1]).toBe(resizeFrames[0]);
+
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("publishes the complete experience timeline with accessible dialogs", async ({ page }) => {
+    await page.goto("/about/");
+
+    const expectedExperiences = [
+      ["Fizetési Pont", "Android Developer", "January 2026 — Present"],
+      ["OTP Bank Magyarország", "Medior Android Developer", "March 2025 — January 2026"],
+      ["Wizz Air", "Android Developer", "September 2022 — March 2025"],
+      ["Ericsson", "Student Researcher", "June 2023 — September 2023"],
+      ["Budapest University of Technology and Economics", "Demonstrator (Mobile)", "August 2022 — January 2023"],
+      ["AutSoft", "Mobile Software Development Engineer", "June 2022 — August 2022"],
+      ["Nokia Bell Labs", "Research Scholar", "February 2022 — June 2022"],
+      ["Budapest University of Technology and Economics", "Demonstrator (C)", "September 2021 — January 2022"],
+      ["Budapest University of Technology and Economics", "Demonstrator (C++ and OOP)", "February 2021 — July 2021"]
+    ];
+    const dialogSummaryExpected = [true, true, true, false, true, true, true, true, true];
+    const items = page.locator(".experience-timeline__item");
+    await expect(items).toHaveCount(expectedExperiences.length);
+    await expect(items.nth(0)).not.toContainText("experienced product team");
+    await expect(items.nth(0)).toContainText("dual-screen functionality");
+    await expect(items.nth(3)).toContainText("C++ abstract syntax trees");
+
+    const railEdges = await page
+      .locator(".page-header, .about-direction, .experience-section")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const bounds = node.getBoundingClientRect();
+          return { left: bounds.left, right: bounds.right };
+        })
+      );
+    expect(
+      Math.max(...railEdges.map(({ left }) => left)) - Math.min(...railEdges.map(({ left }) => left))
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.max(...railEdges.map(({ right }) => right)) - Math.min(...railEdges.map(({ right }) => right))
+    ).toBeLessThanOrEqual(1);
+
+    const aboutToc = page.locator(page.viewportSize()!.width <= 720 ? "[data-toc-mobile]" : "[data-toc-desktop]");
+    await expect(aboutToc).toBeVisible();
+    const profileHero = page.locator(
+      page.viewportSize()!.width <= 720
+        ? ".detail-toc-lead--mobile .about-profile-hero"
+        : ".detail-toc-lead--desktop .about-profile-hero"
+    );
+    await expect(profileHero).toBeVisible();
+    const [profileBounds, tocBounds] = await Promise.all([profileHero.boundingBox(), aboutToc.boundingBox()]);
+    expect(profileBounds!.y + profileBounds!.height).toBeLessThanOrEqual(tocBounds!.y + 1);
+    expect(
+      await aboutToc.locator("a").evaluateAll((links) => links.map((link) => link.getAttribute("href")))
+    ).toEqual(["#about-me", "#experience"]);
+    if (page.viewportSize()!.width <= 720) {
+      const mobileOrder = await page.evaluate(() => {
+        const header = document.querySelector(".page-header")!.getBoundingClientRect();
+        const profile = document.querySelector(".detail-toc-lead--mobile .about-profile-hero")!.getBoundingClientRect();
+        const toc = document.querySelector("[data-toc-mobile]")!.getBoundingClientRect();
+        const direction = document.querySelector(".about-direction")!.getBoundingClientRect();
+        const experience = document.querySelector(".experience-section")!.getBoundingClientRect();
+        return {
+          headerBottom: header.bottom,
+          profileTop: profile.top,
+          profileBottom: profile.bottom,
+          tocTop: toc.top,
+          tocBottom: toc.bottom,
+          directionTop: direction.top,
+          experienceTop: experience.top
+        };
+      });
+      expect(mobileOrder.profileTop).toBeGreaterThanOrEqual(mobileOrder.headerBottom - 1);
+      expect(mobileOrder.tocTop).toBeGreaterThanOrEqual(mobileOrder.profileBottom - 1);
+      expect(mobileOrder.directionTop).toBeGreaterThanOrEqual(mobileOrder.tocBottom - 1);
+      expect(mobileOrder.experienceTop).toBeGreaterThan(mobileOrder.directionTop);
+    }
+
+    for (const [index, [organization, role, period]] of expectedExperiences.entries()) {
+      const item = items.nth(index);
+      await expect(item.locator(".experience-card__organization")).toHaveText(organization);
+      await expect(item.getByRole("heading", { name: role, exact: true })).toBeVisible();
+      await expect(item.locator(".experience-timeline__meta")).toContainText(period);
+      await expect(item.locator(".experience-card > p:not(.experience-card__organization)")).not.toBeEmpty();
+      const itemDialog = item.locator("dialog");
+      const itemButton = item.getByRole("button", { name: `Read full experience: ${role} at ${organization}` });
+      await expect(itemButton).toHaveAttribute("aria-haspopup", "dialog");
+      await expect(itemButton).toHaveAttribute("aria-controls", (await itemDialog.getAttribute("id"))!);
+      const periodLayout = await item.locator(".experience-period").first().evaluate((node) => {
+        const style = getComputedStyle(node);
+        return {
+          height: node.getBoundingClientRect().height,
+          lineHeight: Number.parseFloat(style.lineHeight),
+          clipped: node.scrollWidth > node.clientWidth + 1
+        };
+      });
+      expect(periodLayout.height).toBeLessThanOrEqual(Math.ceil(periodLayout.lineHeight) + 1);
+      expect(periodLayout.clipped).toBe(false);
+      await expect(item.locator(".experience-dialog__summary")).toHaveCount(dialogSummaryExpected[index] ? 1 : 0);
+      expect(await item.locator(".experience-dialog__body > p").count()).toBeGreaterThanOrEqual(
+        dialogSummaryExpected[index] ? 3 : 1
+      );
+      const descriptionId = await itemDialog.getAttribute("aria-describedby");
+      expect(descriptionId).not.toBeNull();
+      await expect(itemDialog.locator(`#${descriptionId}`)).toHaveCount(1);
+    }
+
+    const geometry = await items.evaluateAll((nodes) =>
+      nodes.map((node, index) => {
+        const item = node.getBoundingClientRect();
+        const card = node.querySelector(".experience-card")!.getBoundingClientRect();
+        const period = node.querySelector(".experience-period")!.getBoundingClientRect();
+        const markerStyle = getComputedStyle(node, "::before");
+        const lineStyle = getComputedStyle(node, "::after");
+        const marker = {
+          x: item.left + Number.parseFloat(markerStyle.left) + Number.parseFloat(markerStyle.width) / 2,
+          y: item.top + Number.parseFloat(markerStyle.top) + Number.parseFloat(markerStyle.height) / 2
+        };
+        return {
+          itemTop: item.top,
+          cardBottom: card.bottom,
+          cardLeft: card.left,
+          cardRight: card.right,
+          periodCenterY: period.top + period.height / 2,
+          marker,
+          line:
+            index < nodes.length - 1
+              ? {
+                  x: item.left + Number.parseFloat(lineStyle.left) + Number.parseFloat(lineStyle.width) / 2,
+                  top: item.top + Number.parseFloat(lineStyle.top),
+                  bottom: item.bottom - Number.parseFloat(lineStyle.bottom)
+                }
+              : null
+        };
+      })
+    );
+    expect(Math.max(...geometry.map(({ cardLeft }) => cardLeft)) - Math.min(...geometry.map(({ cardLeft }) => cardLeft))).toBeLessThanOrEqual(1);
+    expect(Math.max(...geometry.map(({ cardRight }) => cardRight)) - Math.min(...geometry.map(({ cardRight }) => cardRight))).toBeLessThanOrEqual(1);
+    for (const [index, item] of geometry.entries()) {
+      expect(Math.abs(item.marker.y - item.periodCenterY)).toBeLessThanOrEqual(1.1);
+      if (!item.line) continue;
+      expect(Math.abs(item.line.x - item.marker.x)).toBeLessThanOrEqual(0.1);
+      expect(Math.abs(item.line.top - item.marker.y)).toBeLessThanOrEqual(0.1);
+      expect(Math.abs(item.line.bottom - geometry[index + 1].marker.y)).toBeLessThanOrEqual(0.1);
+      expect(geometry[index + 1].itemTop - item.cardBottom).toBeGreaterThanOrEqual(29);
+    }
+
+    const wizzItem = items.nth(2);
+    const openButton = wizzItem.getByRole("button", { name: "Read full experience: Android Developer at Wizz Air" });
+    const card = wizzItem.locator(".experience-card");
+    const cardGroup = wizzItem.locator(".experience-card-group");
+    const dialog = wizzItem.locator("dialog");
+    const beforeHover = await card.evaluate((node) => {
+      const cardStyle = getComputedStyle(node);
+      const icon = node.querySelector(".experience-card__button-icon")!;
+      return {
+        background: cardStyle.backgroundColor,
+        shadow: cardStyle.boxShadow,
+        transform: cardStyle.transform,
+        iconBackground: getComputedStyle(icon).backgroundColor,
+        iconTransform: getComputedStyle(icon).transform
+      };
+    });
+    await expect(card).toHaveCSS("cursor", "pointer");
+    await cardGroup.hover({ position: { x: 16, y: 16 } });
+    await expect
+      .poll(async () =>
+        card.evaluate(
+          (node, before) => {
+            const cardStyle = getComputedStyle(node);
+            const icon = node.querySelector(".experience-card__button-icon")!;
+            return (
+              cardStyle.backgroundColor !== before.background &&
+              cardStyle.boxShadow !== before.shadow &&
+              cardStyle.transform !== before.transform &&
+              getComputedStyle(icon).backgroundColor !== before.iconBackground &&
+              getComputedStyle(icon).transform !== before.iconTransform
+            );
+          },
+          beforeHover
+        )
+      )
+      .toBe(true);
+
+    const cardBox = (await card.boundingBox())!;
+    await page.mouse.click(cardBox.x + 16, cardBox.y + cardBox.height - 16);
+
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveJSProperty("open", true);
+    await expect(dialog).toContainText("development responsibility for the booking user flow");
+    await expect(dialog).toContainText("four separate implementations into one reusable component");
+    await expect(dialog).toContainText("expandable step-status bar");
+    await expect(dialog).toContainText("edge-to-edge support within the legacy UI");
+    const closeButton = dialog.getByRole("button", { name: "Close Android Developer" });
+    await expect(closeButton).toBeFocused();
+    await closeButton.hover();
+    await expect(closeButton).toHaveCSS("box-shadow", "rgba(0, 0, 0, 0.14) 0px 3px 10px 0px");
+    const motion = await dialog.evaluate((node) => ({
+      dialog: getComputedStyle(node).transitionProperty,
+      backdrop: getComputedStyle(node, "::backdrop").transitionProperty,
+      backdropFilter: getComputedStyle(node, "::backdrop").backdropFilter,
+      borderRadius: getComputedStyle(node).borderRadius
+    }));
+    expect(motion.dialog).toContain("opacity");
+    expect(motion.dialog).toContain("overlay");
+    expect(motion.backdrop).toContain("backdrop-filter");
+    expect(motion.backdropFilter).toContain("blur");
+    expect(motion.borderRadius).toBe("0px");
+
+    await closeButton.click();
+    await expect(dialog).not.toBeVisible();
+    await expect(openButton).toBeFocused();
+    await expect
+      .poll(async () =>
+        card.evaluate(
+          (node, before) => {
+            const cardStyle = getComputedStyle(node);
+            const iconStyle = getComputedStyle(node.querySelector(".experience-card__button-icon")!);
+            return (
+              cardStyle.backgroundColor === before.background &&
+              cardStyle.boxShadow === before.shadow &&
+              cardStyle.transform === before.transform &&
+              iconStyle.backgroundColor === before.iconBackground &&
+              iconStyle.transform === before.iconTransform
+            );
+          },
+          beforeHover
+        )
+      )
+      .toBe(true);
+
+    await openButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(openButton).toBeFocused();
+
+    await openButton.click();
+    await expect(dialog).toBeVisible();
+    const dialogBox = (await dialog.boundingBox())!;
+    await page.mouse.click(Math.max(1, dialogBox.x - 4), Math.max(1, dialogBox.y - 4));
+    await expect(dialog).not.toBeVisible();
+    await expect(dialog).toHaveJSProperty("returnValue", "backdrop");
+    await expect(openButton).toBeFocused();
+
+    const nokiaItem = items.nth(6);
+    const nokiaOpenButton = nokiaItem.getByRole("button", {
+      name: "Read full experience: Research Scholar at Nokia Bell Labs"
+    });
+    const nokiaDialog = nokiaItem.locator("dialog");
+    await nokiaOpenButton.click();
+    await expect(nokiaDialog).toBeVisible();
+
+    const jayLink = nokiaDialog.getByRole("link", { name: "Jay on GitHub" });
+    await expect(jayLink).toHaveAttribute("href", "https://github.com/HLCaptain/jay-android");
+    await expect(jayLink).toHaveAttribute("target", "_blank");
+    await expect(jayLink).toHaveAttribute("rel", "noreferrer");
+    await expect(nokiaDialog).toContainText("synthetic sensor data generated in BeamNG simulations");
+    await expect(nokiaDialog.getByRole("link", { name: "Hawk AI on GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/HLCaptain/hawk-ai"
+    );
+    await expect(nokiaDialog.getByRole("link", { name: "BeamNG.tech" })).toHaveAttribute(
+      "href",
+      "https://www.beamng.tech/"
+    );
+    await expect(nokiaDialog.getByRole("link", { name: "Scholarship description" })).toHaveAttribute(
+      "href",
+      "https://www.vik.bme.hu/hir/2877-nokia-bell-labs-palyazati-felhivas"
+    );
+    const beforeLinkHover = await jayLink.evaluate((node) => ({
+      shadow: getComputedStyle(node).boxShadow,
+      transform: getComputedStyle(node).transform,
+      iconTransform: getComputedStyle(node.querySelector(".external-link-icon")!).transform
+    }));
+    await jayLink.hover();
+    await expect
+      .poll(async () =>
+        jayLink.evaluate(
+          (node, before) =>
+            getComputedStyle(node).boxShadow !== before.shadow &&
+            getComputedStyle(node).transform !== before.transform &&
+            getComputedStyle(node.querySelector(".external-link-icon")!).transform !== before.iconTransform,
+          beforeLinkHover
+        )
+      )
+      .toBe(true);
+
+    await page.keyboard.press("Escape");
+    await expect(nokiaDialog).not.toBeVisible();
+    await expect(nokiaOpenButton).toBeFocused();
+    await expectNoHorizontalOverflow(page);
   });
 
   test("active project leaf reopens a remembered closed group", async ({ page }) => {
@@ -617,6 +976,7 @@ test.describe("site shell", () => {
           const rect = node.getBoundingClientRect();
           const edgeTarget = document.elementFromPoint(rect.right - 1, rect.top + rect.height / 2);
           const content = node.querySelector(".sidebar-row__content")!;
+          const style = getComputedStyle(node);
           const translateX = (element: Element) => {
             const transform = getComputedStyle(element).transform;
             return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41;
@@ -624,11 +984,12 @@ test.describe("site shell", () => {
           return {
             rowTranslated: translateX(node),
             contentTranslated: translateX(content),
+            hasBackground: style.backgroundColor !== "rgba(0, 0, 0, 0)",
             edgeVisible: edgeTarget?.closest(".sidebar-row") === node
           };
         })
       )
-      .toEqual({ rowTranslated: 0, contentTranslated: 3, edgeVisible: true });
+      .toEqual({ rowTranslated: 3, contentTranslated: 0, hasBackground: true, edgeVisible: true });
 
     await page.mouse.move(220, 220);
     const actionMetrics = await page.evaluate(() => {
@@ -950,10 +1311,23 @@ test.describe("site shell", () => {
     await aboutLink.hover();
     await expect
       .poll(async () => {
-        const shadow = await aboutLink.evaluate((node) => getComputedStyle(node).boxShadow);
-        return shadow !== "none" && !/rgba\(0, 0, 0, 0\)|\/ 0/.test(shadow);
+        return aboutLink.evaluate((node) => {
+          const content = node.querySelector(".sidebar-row__content")!;
+          const translateX = (element: Element) => {
+            const transform = getComputedStyle(element).transform;
+            return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41;
+          };
+          const style = getComputedStyle(node);
+          const shadow = style.boxShadow;
+          return {
+            rowTranslated: translateX(node),
+            contentTranslated: translateX(content),
+            hasBackground: style.backgroundColor !== "rgba(0, 0, 0, 0)",
+            hasShadow: shadow !== "none" && !/rgba\(0, 0, 0, 0\)|\/ 0/.test(shadow)
+          };
+        });
       })
-      .toBe(true);
+      .toEqual({ rowTranslated: 3, contentTranslated: 0, hasBackground: true, hasShadow: true });
     await page.mouse.move(1000, 520);
 
     const expandedMetrics = await page.locator(".nav-group").nth(1).evaluate((group) => {
@@ -1871,15 +2245,19 @@ test.describe("site shell", () => {
         root.evaluate((node) => getComputedStyle(node).getPropertyValue("--accent").trim())
       )
       .not.toBe(afterAccent);
-    const contrastResult = await page.locator(".entry-card__link").first().evaluate((node) => {
-      const cardStyle = getComputedStyle(node);
-      const icon = node.querySelector(".entry-card__glyph .semantic-icon");
-      if (!icon) return null;
-      const iconStyle = getComputedStyle(icon);
-      return { icon: iconStyle.color, card: cardStyle.backgroundColor, body: getComputedStyle(document.body).backgroundColor };
-    });
-    const body = parseColor(contrastResult!.body);
-    expect(contrast(composite(parseColor(contrastResult!.icon), body), composite(parseColor(contrastResult!.card), body))).toBeGreaterThan(3);
+    await expect
+      .poll(async () => {
+        const contrastResult = await page.locator(".entry-card__link").first().evaluate((node) => {
+          const cardStyle = getComputedStyle(node);
+          const icon = node.querySelector(".entry-card__glyph .semantic-icon");
+          if (!icon) return null;
+          const iconStyle = getComputedStyle(icon);
+          return { icon: iconStyle.color, card: cardStyle.backgroundColor, body: getComputedStyle(document.body).backgroundColor };
+        });
+        const body = parseColor(contrastResult!.body);
+        return contrast(composite(parseColor(contrastResult!.icon), body), composite(parseColor(contrastResult!.card), body));
+      })
+      .toBeGreaterThan(3);
 
     await page.locator("[data-accent-reset]").evaluate((node: HTMLButtonElement) => node.click());
     await expect(page.getByRole("button", { name: "Reset accent to auto" })).toHaveAttribute("aria-pressed", "true");
@@ -1945,10 +2323,7 @@ test.describe("site shell", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expectStableHoverTarget(page, page.getByRole("link", { name: "About", exact: true }).locator(".sidebar-row__content"), {
-      x: 3,
-      y: 0
-    });
+    await expectStableHoverTarget(page, page.getByRole("link", { name: "About", exact: true }), { x: 3, y: 0 }, true);
     await expectStableHoverTarget(page, page.getByRole("link", { name: "View projects", exact: true }), { x: 0, y: -2 });
     await expectStableHoverTarget(page, page.locator(".entry-card__link").first(), { x: 0, y: -4 });
     await expectStableHoverTarget(page, page.locator(".signal__item").first(), { x: 0, y: -4 });

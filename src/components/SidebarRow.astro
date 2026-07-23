@@ -18,8 +18,9 @@ const labelClass = ["sidebar-row__label", type === "group" ? "nav-group__label" 
 ---
 
 {type === "group" ? (
-  <summary class="sidebar-row sidebar-row--group hover-group">
-    <span class="sidebar-row__content hover-group__target">
+  <summary class="sidebar-row sidebar-row--group">
+    <span class="sidebar-row__hit-area" aria-hidden="true"></span>
+    <span class="sidebar-row__content">
       <span class={iconClass}>
         <SemanticIcon name={glyph} />
         <SemanticIcon name="chevron" class="group-toggle-icon" />
@@ -30,14 +31,15 @@ const labelClass = ["sidebar-row__label", type === "group" ? "nav-group__label" 
 ) : (
   <a
     href={href}
-    class:list={["sidebar-row", "sidebar-row--item", "nav-item", "hover-group", active && "is-active"]}
+    class:list={["sidebar-row", "sidebar-row--item", "nav-item", active && "is-active"]}
     aria-label={label}
     aria-current={active ? "page" : undefined}
     target={external ? "_blank" : undefined}
     rel={external ? "noreferrer" : undefined}
     data-nav-index={external ? undefined : navIndex}
   >
-    <span class="sidebar-row__content hover-group__target">
+    <span class="sidebar-row__hit-area" aria-hidden="true"></span>
+    <span class="sidebar-row__content">
       <span class={iconClass}>
         <SemanticIcon name={glyph} />
       </span>

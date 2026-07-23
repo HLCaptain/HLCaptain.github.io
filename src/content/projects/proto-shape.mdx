@@ -14,10 +14,10 @@ links:
     href: "https://youtube.com/playlist?list=PL1C7-40JVAoKh9hsaS_wFPziyKAF1DTJ2&si=0ItpHT7-StKODXbC"
 ---
 
-import ProjectFacts from "../../components/content/ProjectFacts.astro";
+import DetailFacts from "../../components/content/DetailFacts.astro";
 import release from "../../data/proto-shape-release.json";
 
-<ProjectFacts
+<DetailFacts
   items={[
     { label: "Role", value: "Creator and maintainer" },
     { label: "Release", value: `Open source · v${release.version}` },
