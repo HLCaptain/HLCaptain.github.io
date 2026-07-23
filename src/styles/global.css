@@ -7,7 +7,7 @@
   --accent-ink: #171712;
   --accent-readable: color-mix(in srgb, var(--accent) 68%, var(--ink));
   --accent-tint: #b8aa8a;
-  --surface-accent-strength: 18%;
+  --surface-accent-strength: 20%;
   --canvas: color-mix(in srgb, #f1eee2, var(--accent-tint) calc(var(--surface-accent-strength) * 0.45));
   --surface: color-mix(in srgb, #e4dfcd, var(--accent-tint) var(--surface-accent-strength));
   --surface-soft: color-mix(in srgb, #f7f4e8, var(--accent-tint) var(--surface-accent-strength));

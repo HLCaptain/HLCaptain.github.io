@@ -8,7 +8,7 @@ const gridPatternKey = "hlcaptain-grid-pattern";
 const signalLayoutKey = "hlcaptain-signal-layout";
 const signalRatioKey = "hlcaptain-signal-ratio";
 const surfaceAccentKey = "hlcaptain-surface-accent";
-const defaultSurfaceAccent = 18;
+const defaultSurfaceAccent = 20;
 const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const themeModes = new Map([
   ["light", "Light"],

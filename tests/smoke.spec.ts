@@ -2238,7 +2238,7 @@ test.describe("site shell", () => {
 
     await page.getByRole("button", { name: "Open debug menu" }).click();
     const surfaceAccent = page.getByRole("slider", { name: "Accent influence on surfaces" });
-    await expect(surfaceAccent).toHaveValue("18");
+    await expect(surfaceAccent).toHaveValue("20");
     const surfaceBeforeStrength = await page.locator(".entry-card__link").first().evaluate((node) => getComputedStyle(node).backgroundColor);
     await surfaceAccent.evaluate((node: HTMLInputElement) => {
       node.value = "26";

@@ -32,7 +32,7 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
         const signalLayoutKey = "hlcaptain-signal-layout";
         const signalRatioKey = "hlcaptain-signal-ratio";
         const surfaceAccentKey = "hlcaptain-surface-accent";
-        const defaultSurfaceAccent = 18;
+        const defaultSurfaceAccent = 20;
         const hex = (rgb) =>
           `#${[rgb.r, rgb.g, rgb.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
         const parse = (value) => {
@@ -166,11 +166,11 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
             min="0"
             max="30"
             step="1"
-            value="18"
+            value="20"
             data-surface-accent-input
             aria-label="Accent influence on surfaces"
           />
-          <output data-surface-accent-value>18%</output>
+          <output data-surface-accent-value>20%</output>
         </label>
       </fieldset>
       <fieldset>
