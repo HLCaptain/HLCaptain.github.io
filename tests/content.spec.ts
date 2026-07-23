@@ -411,7 +411,7 @@ test.describe("project case studies", () => {
     await expect(page.getByRole("heading", { name: "Reliability before automation" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Try SplitEasy" })).toHaveAttribute(
       "href",
-      "https://spliteasy-ai-1337.pages.dev/"
+      "https://spliteasy-ai.pages.dev/"
     );
     await expectNoHorizontalOverflow(page);
   });

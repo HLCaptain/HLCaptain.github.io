@@ -426,12 +426,12 @@ test.describe("site shell", () => {
 
     const header = page.locator(".page-header");
     await expect(header.getByRole("heading", { name: "Complexity, clarified." })).toBeVisible();
-    await expect(header).toContainText("making difficult workflows easier to understand, use, and trust");
+    await expect(header).toContainText("maker at heart");
     await expect(header).not.toContainText("OTP Bank");
     await expect(header).not.toContainText("Püspök-Kiss");
-    await expect(page.locator(".about-direction")).toContainText("Android remains the center of my professional work");
-    await expect(page.locator(".about-direction")).toContainText("SplitEasy keeps");
-    await expect(page.locator(".about-direction")).toContainText("ProtoShape turns");
+    await expect(page.locator(".about-direction")).toContainText("Android and mobile developer by day");
+    await expect(page.locator(".about-direction")).toContainText("SplitEasy");
+    await expect(page.locator(".about-direction")).toContainText("ProtoShape");
     await expect(page.locator(".about-direction").getByRole("link", { name: "SplitEasy" })).toHaveAttribute(
       "href",
       "/work/spliteasy/"
@@ -483,7 +483,7 @@ test.describe("site shell", () => {
 
     const headingReferences = page.locator(".detail-body--sectioned h2[id] > [data-heading-copy]");
     await expect(headingReferences).toHaveCount(2);
-    await expect(headingReferences.nth(0)).toHaveAttribute("data-copy-path", "/about/#current-direction");
+    await expect(headingReferences.nth(0)).toHaveAttribute("data-copy-path", "/about/#about-me");
     await expect(headingReferences.nth(1)).toHaveAttribute("data-copy-path", "/about/#experience");
     await expect(page.locator(".experience-dialog [data-heading-copy]")).toHaveCount(0);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -548,7 +548,7 @@ test.describe("site shell", () => {
     expect(profileBounds!.y + profileBounds!.height).toBeLessThanOrEqual(tocBounds!.y + 1);
     expect(
       await aboutToc.locator("a").evaluateAll((links) => links.map((link) => link.getAttribute("href")))
-    ).toEqual(["#current-direction", "#experience"]);
+    ).toEqual(["#about-me", "#experience"]);
     if (page.viewportSize()!.width <= 720) {
       const mobileOrder = await page.evaluate(() => {
         const header = document.querySelector(".page-header")!.getBoundingClientRect();

@@ -8,7 +8,7 @@ import DetailLayout from "@layouts/DetailLayout.astro";
 import { siteConfig } from "../site.config";
 
 const aboutHeadings = [
-  { depth: 2, slug: "current-direction", text: "Current direction" },
+  { depth: 2, slug: "about-me", text: "About me" },
   { depth: 2, slug: "experience", text: "Experience" }
 ] satisfies MarkdownHeading[];
 
@@ -35,7 +35,7 @@ const experiences = [
     location: "Budapest, Hungary",
     summary: "Delivered mobile-banking features, resolved architectural issues, and supported modernization work.",
     details: [
-      "Work on OTP Bank’s mobile banking application included implementing “Pénzkérés Simán” QVIK payment requests via NFC and QR codes.",
+      "Work on OTP Bank's mobile banking application included implementing “Pénzkérés Simán” QVIK payment requests via NFC and QR codes.",
       "The role also involved resolving architectural issues, delivering new features and bug fixes, and supporting migrations that made development more efficient."
     ]
   },
@@ -45,7 +45,7 @@ const experiences = [
     role: "Android Developer",
     period: "September 2022 — March 2025",
     location: "Budapest, Hungary",
-    summary: "Owned Wizz Air’s booking flow, unified flight search, and modernized key screens with Jetpack Compose.",
+    summary: "Owned Wizz Air's booking flow, unified flight search, and modernized key screens with Jetpack Compose.",
     details: [
       "The role carried development responsibility for the booking user flow.",
       "The main flight-search screen was refactored from four separate implementations into one reusable component.",
@@ -139,7 +139,7 @@ const experiences = [
   documentTitle="About"
   eyebrow="Profile"
   title="Complexity, clarified."
-  description="I'm Balázs, a product-minded mobile developer making difficult workflows easier to understand, use, and trust."
+  description="I'm a maker at heart, who loves to tinker with stuff and dvelves deep into technical details to get things done just right."
   headings={aboutHeadings}
 >
   <Fragment slot="toc-lead">
@@ -173,18 +173,31 @@ const experiences = [
     </section>
   </Fragment>
 
-  <section class="about-direction" aria-labelledby="current-direction">
-    <h2 id="current-direction">Current direction</h2>
+  <section class="about-direction" aria-labelledby="about-me">
+    <h2 id="about-me">About me</h2>
     <p>
-      Android remains the center of my professional work: modernizing booking, banking, and payment
-      flows with reusable architecture, Jetpack Compose, deliberate motion, and platform features
-      that still work across older devices.
+      Android and mobile developer by day: always learning and using my experiences to enhance user experience
+      across leading airline, banking and fintech applications. Worked on features and apps used by millions,
+      with 4,8+ ratings. From Android, I branched out to Kotlin and Compose Multiplatform development.
     </p>
     <p>
-      Independent projects follow the same product instinct. <a href="/work/spliteasy/">SplitEasy</a>{" "}
-      keeps AI-assisted receipt splitting inspectable and deterministic, while <a href="/work/proto-shape/">ProtoShape</a>
-      {" "}turns repeated 3D editor work into direct, reusable Godot tooling. The common direction is practical
-      software that removes friction without hiding important state.
+      Always eager to improve workflow efficiency. I am <i>very</i> open about limitations, pros & cons, actionable plans for a problem.
+    </p>
+    <p>
+      I love game development as a hobby and even created a plugin for Godot engine. <a href="/work/proto-shape/">ProtoShape</a>{" "}
+      turns repetitive level prototyping more efficient with intuitive, reusable complex shapes and built-in support for Godot editor tooling.
+      The original idea came from having to implement customizable staircases/ramps for a map. Having no good alternative,
+      I experimented with shapes and gizmos to enable game developers to easily customize any shape.
+    </p>
+    <p>
+      I love experimenting with new ideas. AI enables me to code-up practical solutions to existing day-to-day problems.
+      As an example, I created <a href="/work/spliteasy/">SplitEasy</a>{" "} with AI-assisted bill splitting while
+      keeping every step inspectable and deterministic, so the user can overlook and steer any part of the split.
+      It combines OCRs and tiny LLMs which can quickly analyze even multi-page PDF receipts quickly and accurately.
+      The solution is cost-efficient, easy-to-use, fast, punctual, supporting multiple languages and customizable.
+    </p>
+    <p>
+      We live in unprecedented times and I am taking my chance to make the most out of it.
     </p>
   </section>
 

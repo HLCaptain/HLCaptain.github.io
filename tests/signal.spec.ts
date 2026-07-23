@@ -265,9 +265,7 @@ test.describe("Signal", () => {
     const action = media.locator(".signal__media-action");
     const summary = profile.locator("[data-signal-trigger]");
     const copy = profile.locator(".signal__copy");
-    await expect(copy).toHaveText(
-      "Android engineering across payment terminals, mobile banking, airline booking, and product-minded side projects."
-    );
+    await expect(copy).toHaveText("Mobile dev by day, perfectionist maker by night. 💖 Love ☕ coffee.");
     await expect(action).toHaveAttribute("aria-label", /Open profile: About HLCaptain/);
     const [arrowColor, viewProjectsColor] = await Promise.all([
       action.locator(".arrow-icon").evaluate((node) => getComputedStyle(node).color),
