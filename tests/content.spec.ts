@@ -48,17 +48,28 @@ test.describe("project case studies", () => {
       contentWidths.push(layout.contentWidth);
 
       const titleLayout = await titleRow.evaluate((node) => {
-        const title = node.querySelector("h1")!.getBoundingClientRect();
+        const title = node.querySelector("h1")!;
+        const titleRange = document.createRange();
+        titleRange.selectNodeContents(title);
+        const titleLines = Array.from(titleRange.getClientRects()).filter(({ width, height }) => width && height);
+        const lastTitleLine = titleLines.at(-1)!;
         const tagline = node.querySelector(".eyebrow")!.getBoundingClientRect();
         return {
-          titleRight: title.right,
-          titleBottom: title.bottom,
+          titleLineCount: titleLines.length,
+          titleRight: lastTitleLine.right,
+          titleTop: lastTitleLine.top,
+          titleBottom: lastTitleLine.bottom,
           taglineLeft: tagline.left,
+          taglineTop: tagline.top,
           taglineBottom: tagline.bottom
         };
       });
-      expect(titleLayout.taglineLeft).toBeGreaterThan(titleLayout.titleRight);
-      expect(Math.abs(titleLayout.taglineBottom - titleLayout.titleBottom)).toBeLessThanOrEqual(1);
+      expect(titleLayout.taglineLeft - titleLayout.titleRight).toBeCloseTo(16, 0);
+      expect(titleLayout.taglineTop).toBeGreaterThanOrEqual(titleLayout.titleTop);
+      expect(titleLayout.taglineBottom).toBeLessThanOrEqual(titleLayout.titleBottom);
+      if (path === "/about/" && page.viewportSize()!.width <= 720) {
+        expect(titleLayout.titleLineCount).toBeGreaterThan(1);
+      }
 
       if (page.viewportSize()!.width <= 720) {
         await expect(mobileToc).toBeVisible();

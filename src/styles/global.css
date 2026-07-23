@@ -901,23 +901,22 @@ svg {
 }
 
 .page-header__title-row {
-  display: flex;
   width: fit-content;
   max-width: 100%;
-  gap: 10px 16px;
-  align-items: flex-end;
+  text-wrap: balance;
 }
 
 .page-header__title-row h1 {
-  min-width: 0;
+  display: inline;
 }
 
 .page-header__title-row .eyebrow {
-  flex: none;
-  margin: 0;
+  display: inline-block;
+  margin: 0 0 0 16px;
   padding-left: 10px;
   color: var(--accent-readable);
   border-left: 2px solid var(--accent-readable);
+  vertical-align: bottom;
 }
 
 .page-header h1,
