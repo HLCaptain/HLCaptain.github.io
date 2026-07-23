@@ -96,6 +96,19 @@ test.describe("project case studies", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("DetailFacts splits four items evenly when four columns do not fit", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop");
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await page.goto("/work/proto-shape/");
+
+    const rowCounts = await page.locator(".detail-facts__item").evaluateAll((items) => {
+      const tops = items.map((item) => item.getBoundingClientRect().top);
+      return [...new Set(tops)].map((top) => tops.filter((itemTop) => itemTop === top).length);
+    });
+    expect(rowCounts).toEqual([2, 2]);
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("ProtoShape renders MDX facts, decisions, and public links", async ({ page }) => {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.addInitScript(() => window.localStorage.setItem("hlcaptain-sidebar", "collapsed"));

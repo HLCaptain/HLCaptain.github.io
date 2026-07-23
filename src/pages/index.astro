@@ -12,7 +12,7 @@ const hasArticles = articles.length > 0;
 const featuredArticles = articles.filter((entry) => entry.data.featured).slice(0, 3);
 const featuredProjects = projects.filter((entry) => entry.data.featured).slice(0, 3);
 const thumbnailImages = (src: string) => ({ square: src, landscape: src, wide: src, portrait: src });
-const profileImages = thumbnailImages("/visuals/github-profile-avatar.jpg");
+const profileImages = thumbnailImages("/visuals/github-profile-avatar.webp");
 const previewItems = [
   ...articles.slice(0, 2).map((article) => ({
     kind: "Article",

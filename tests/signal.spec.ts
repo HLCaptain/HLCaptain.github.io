@@ -591,7 +591,7 @@ test.describe("Signal", () => {
       { name: "Wide 16:9", value: "wide", aspect: 16 / 9 },
       { name: "Portrait 3:4", value: "portrait", aspect: 3 / 4 }
     ];
-    const avatarSource = "/visuals/github-profile-avatar.jpg";
+    const avatarSource = "/visuals/github-profile-avatar.webp";
     const initialHeight = (await signal.boundingBox())?.height ?? 0;
 
     await expect(page.locator("html")).toHaveAttribute("data-signal-layout", "compact");

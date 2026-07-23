@@ -91,7 +91,7 @@ const { items, label = "Project facts" } = Astro.props;
     list-style: none;
   }
 
-  @media (min-width: 721px) and (max-width: 1040px) {
+  @container (min-width: 33rem) and (max-width: 45rem) {
     .detail-facts {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
