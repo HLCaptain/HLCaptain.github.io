@@ -2210,7 +2210,7 @@ test.describe("site shell", () => {
     await expect(root).toHaveAttribute("data-theme", "black");
     await expect(page.getByRole("button", { name: "Switch to system theme" }).locator("[data-theme-label]")).toHaveText("Dark");
     const blackGridSoft = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--grid-line-soft").trim());
-    expect(blackGridSoft.includes("/ 0.14") || blackGridSoft === "#b9843b24").toBe(true);
+    expect(blackGridSoft.includes("14%") || blackGridSoft.includes("/ 0.14") || blackGridSoft === "#b9843b24").toBe(true);
     await expect
       .poll(async () =>
         page.locator(".entry-card__link").first().evaluate((node) => getComputedStyle(node).backgroundColor)
@@ -2235,6 +2235,33 @@ test.describe("site shell", () => {
     expect(cyanPreview).toBeTruthy();
     const afterAccent = await root.evaluate((node) => getComputedStyle(node).getPropertyValue("--accent").trim());
     expect(afterAccent).toBe(cyanPreview);
+
+    await page.getByRole("button", { name: "Open debug menu" }).click();
+    const surfaceAccent = page.getByRole("slider", { name: "Accent influence on surfaces" });
+    await expect(surfaceAccent).toHaveValue("18");
+    const surfaceBeforeStrength = await page.locator(".entry-card__link").first().evaluate((node) => getComputedStyle(node).backgroundColor);
+    await surfaceAccent.evaluate((node: HTMLInputElement) => {
+      node.value = "26";
+      node.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await expect(page.locator("[data-surface-accent-value]")).toHaveText("26%");
+    await expect
+      .poll(async () => page.evaluate(() => window.localStorage.getItem("hlcaptain-surface-accent")))
+      .toBe("26");
+    await expect
+      .poll(async () =>
+        page.locator(".entry-card__link").first().evaluate((node) => getComputedStyle(node).backgroundColor)
+      )
+      .not.toBe(surfaceBeforeStrength);
+    await page.reload();
+    await page.getByRole("button", { name: "Open debug menu" }).click();
+    await expect(surfaceAccent).toHaveValue("26");
+    await expect(page.locator("[data-surface-accent-value]")).toHaveText("26%");
+    await expect
+      .poll(async () =>
+        root.evaluate((node) => getComputedStyle(node).getPropertyValue("--surface-accent-strength").trim())
+      )
+      .toBe("26%");
 
     await page.locator("[data-accent-input]").evaluate((node: HTMLInputElement) => {
       node.value = "#050505";

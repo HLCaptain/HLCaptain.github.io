@@ -7,6 +7,8 @@ const arrowKey = "hlcaptain-arrow-style";
 const gridPatternKey = "hlcaptain-grid-pattern";
 const signalLayoutKey = "hlcaptain-signal-layout";
 const signalRatioKey = "hlcaptain-signal-ratio";
+const surfaceAccentKey = "hlcaptain-surface-accent";
+const defaultSurfaceAccent = 18;
 const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const themeModes = new Map([
   ["light", "Light"],
@@ -48,10 +50,6 @@ function toHex(rgb) {
   return `#${[rgb.r, rgb.g, rgb.b]
     .map((value) => Math.round(value).toString(16).padStart(2, "0"))
     .join("")}`;
-}
-
-function toRgbChannels(rgb, alpha = 1) {
-  return `rgb(${Math.round(rgb.r)} ${Math.round(rgb.g)} ${Math.round(rgb.b)} / ${alpha})`;
 }
 
 function parseHexColor(value) {
@@ -122,68 +120,17 @@ function normalizeAccent(value, theme) {
   return {
     accent: toHex(accent),
     readable: toHex(readable),
-    tint: toHex(tint),
-    tokens: buildThemeTokens(theme, tint)
+    tint: toHex(tint)
   };
 }
-
-const customThemeProperties = [
-  "--canvas",
-  "--surface",
-  "--surface-soft",
-  "--surface-strong",
-  "--line",
-  "--line-strong",
-  "--panel-hover",
-  "--active-fill",
-  "--grid-line",
-  "--grid-line-soft"
-];
 
 const pageTransitionProperties = ["--page-old-scroll-offset-y"];
 let lastSettledPath = null;
 
-function buildThemeTokens(theme, tint) {
-  const base =
-    theme === "black"
-      ? {
-          canvas: { r: 6, g: 6, b: 4 },
-          surface: { r: 22, g: 21, b: 15 },
-          surfaceSoft: { r: 33, g: 31, b: 22 },
-          surfaceStrong: { r: 44, g: 41, b: 29 },
-          line: { r: 75, g: 68, b: 50 },
-          lineStrong: { r: 151, g: 139, b: 105 }
-        }
-      : {
-          canvas: { r: 241, g: 238, b: 226 },
-          surface: { r: 228, g: 223, b: 205 },
-          surfaceSoft: { r: 247, g: 244, b: 232 },
-          surfaceStrong: { r: 215, g: 207, b: 185 },
-          line: { r: 198, g: 190, b: 168 },
-          lineStrong: { r: 138, g: 128, b: 109 }
-        };
-
-  const mixAmount = theme === "black" ? 0.16 : 0.14;
-  return {
-    "--canvas": toHex(mixRgb(base.canvas, tint, mixAmount * 0.45)),
-    "--surface": toHex(mixRgb(base.surface, tint, mixAmount)),
-    "--surface-soft": toHex(mixRgb(base.surfaceSoft, tint, mixAmount)),
-    "--surface-strong": toHex(mixRgb(base.surfaceStrong, tint, mixAmount * 1.2)),
-    "--line": toHex(mixRgb(base.line, tint, mixAmount * 1.1)),
-    "--line-strong": toHex(mixRgb(base.lineStrong, tint, mixAmount * 1.4)),
-    "--panel-hover": toHex(mixRgb(base.surfaceSoft, tint, mixAmount * 1.35)),
-    "--active-fill": toHex(mixRgb(base.surfaceStrong, tint, mixAmount * 1.6)),
-    "--grid-line": toRgbChannels(tint, theme === "black" ? 0.27 : 0.18),
-    "--grid-line-soft": toRgbChannels(tint, theme === "black" ? 0.14 : 0.09)
-  };
-}
-
-function setCustomThemeTokens(root, tokens) {
-  Object.entries(tokens).forEach(([property, value]) => root.style.setProperty(property, value));
-}
-
-function clearCustomThemeTokens(root) {
-  customThemeProperties.forEach((property) => root.style.removeProperty(property));
+function normalizeSurfaceAccent(value) {
+  if (value === null || value === "") return defaultSurfaceAccent;
+  const strength = Number(value);
+  return Number.isFinite(strength) ? Math.min(30, Math.max(0, strength)) : defaultSurfaceAccent;
 }
 
 function normalizeThemeMode(value) {
@@ -262,17 +209,26 @@ function applyAccent(value, theme = currentTheme()) {
     root.style.setProperty("--accent", normalized.accent);
     root.style.setProperty("--accent-readable", normalized.readable);
     root.style.setProperty("--accent-tint", normalized.tint);
-    setCustomThemeTokens(root, normalized.tokens);
     root.style.setProperty("accent-color", normalized.accent);
   } else {
     delete root.dataset.accent;
     root.style.removeProperty("--accent");
     root.style.removeProperty("--accent-readable");
     root.style.removeProperty("--accent-tint");
-    clearCustomThemeTokens(root);
     root.style.removeProperty("accent-color");
   }
   syncAccentControls(value);
+}
+
+function applySurfaceAccent(value) {
+  const strength = normalizeSurfaceAccent(value);
+  document.documentElement.style.setProperty("--surface-accent-strength", `${strength}%`);
+  document.querySelectorAll("[data-surface-accent-input]").forEach((input) => {
+    input.value = String(strength);
+  });
+  document.querySelectorAll("[data-surface-accent-value]").forEach((output) => {
+    output.replaceChildren(`${strength}%`);
+  });
 }
 
 function applyTheme(value) {
@@ -901,6 +857,7 @@ function initDebugMenu() {
   applyGridPattern(window.localStorage.getItem(gridPatternKey));
   applySignalLayout(window.localStorage.getItem(signalLayoutKey));
   applySignalRatio(window.localStorage.getItem(signalRatioKey));
+  applySurfaceAccent(window.localStorage.getItem(surfaceAccentKey));
 
   const panel = document.querySelector("[data-debug-panel]");
   const toggle = document.querySelector("[data-debug-toggle]");
@@ -921,6 +878,16 @@ function initDebugMenu() {
     close.dataset.bound = "true";
     close.addEventListener("click", () => setOpen(false));
   }
+
+  document.querySelectorAll("[data-surface-accent-input]").forEach((input) => {
+    if (input.dataset.bound) return;
+    input.dataset.bound = "true";
+    input.addEventListener("input", () => {
+      const strength = normalizeSurfaceAccent(input.value);
+      window.localStorage.setItem(surfaceAccentKey, String(strength));
+      applySurfaceAccent(strength);
+    });
+  });
 
   document.querySelectorAll("button[data-arrow-style]").forEach((button) => {
     if (button.dataset.bound) return;
@@ -1038,7 +1005,7 @@ function preserveShellState(event) {
     delete nextRoot.dataset.accent;
   }
 
-  ["--accent", "--accent-readable", "--accent-tint", "accent-color", ...customThemeProperties].forEach((property) => {
+  ["--accent", "--accent-readable", "--accent-tint", "--surface-accent-strength", "accent-color"].forEach((property) => {
     const value = root.style.getPropertyValue(property);
     if (value) {
       nextRoot.style.setProperty(property, value);
