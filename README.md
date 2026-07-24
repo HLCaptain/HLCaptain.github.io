@@ -42,6 +42,7 @@ Create the Pages project once, then add this secret to the `cloudflare-preview` 
 `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_PAGES_PROJECT` are already configured as environment variables for this repository. Without the API token, validation and local UI tests still run, but the external preview is skipped.
 
 Cloudflare preview URLs are public by default; use a Cloudflare Access policy if these previews must remain private.
+When a PR is merged or closed, the cleanup workflow removes older deployments for that exact branch and retains only its newest preview, which Cloudflare does not allow deleting.
 
 For local Wrangler Pages emulation:
 
