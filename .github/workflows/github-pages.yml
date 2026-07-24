@@ -17,6 +17,7 @@ concurrency:
 env:
   NODE_VERSION: "22"
   SITE_URL: https://hlcaptain.github.io
+  CF_WEB_ANALYTICS_TOKEN: ${{ vars.CF_WEB_ANALYTICS_TOKEN }}
 
 jobs:
   build:
@@ -67,6 +68,10 @@ jobs:
 
       - name: Build site
         run: npm run build
+
+      - name: Verify Web Analytics beacon
+        if: env.CF_WEB_ANALYTICS_TOKEN != ''
+        run: grep -Fq "data-cf-beacon" dist/index.html
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6

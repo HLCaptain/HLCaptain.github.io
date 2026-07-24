@@ -29,6 +29,8 @@ The production workflow targets the profile-root repository `HLCaptain/HLCaptain
 
 GitHub Pages must be enabled with **GitHub Actions** as its source. Private repositories require a GitHub Pro, Team, or Enterprise plan for Pages.
 
+To collect production metrics in Cloudflare Web Analytics, add `hlcaptain.github.io` as a Web Analytics site and save its site token as the repository variable `CF_WEB_ANALYTICS_TOKEN`. The GitHub Pages build embeds that token; Cloudflare Pages previews continue to use Pages' automatic analytics injection.
+
 ## Cloudflare Pages previews
 
 The PR workflow uses the `cloudflare-preview` GitHub environment and a Direct Upload Pages project named `hlcaptain-site`. It does not deploy `main`.

@@ -15,6 +15,7 @@ const title = Astro.props.title ? `${Astro.props.title} - ${siteConfig.name}` : 
 const description = Astro.props.description ?? siteConfig.description;
 const canonical = new URL(Astro.url.pathname, siteConfig.url);
 const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toString() : undefined;
+const webAnalyticsToken = import.meta.env.CF_WEB_ANALYTICS_TOKEN;
 ---
 
 <!doctype html>
@@ -215,5 +216,15 @@ const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toS
       (globalThis as typeof globalThis & { __hlNavigate?: typeof navigate }).__hlNavigate = navigate;
     </script>
     <script is:inline src="/scripts/site-shell.js" defer data-astro-rerun></script>
+    {
+      webAnalyticsToken && (
+        <script
+          is:inline
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon={JSON.stringify({ token: webAnalyticsToken })}
+        ></script>
+      )
+    }
   </body>
 </html>
