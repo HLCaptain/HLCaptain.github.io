@@ -17,7 +17,7 @@ concurrency:
 env:
   NODE_VERSION: "22"
   SITE_URL: https://hlcaptain.github.io
-  CF_WEB_ANALYTICS_TOKEN: "9f5cde55c6234cca83b55a4bec65c607"
+  CF_WEB_ANALYTICS_TOKEN: ${{ vars.CF_WEB_ANALYTICS_TOKEN }}
 
 jobs:
   build:
