@@ -17,7 +17,7 @@
     "@astrojs/mdx": "^7.0.3",
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.3",
-    "@iconify-json/fluent": "^1.2.53",
+    "@iconify-json/fluent": "^1.2.57",
     "@iconify-json/lucide": "^1.2.120",
     "@iconify-json/ph": "^1.2.2",
     "@iconify-json/pixelarticons": "^1.2.7",
