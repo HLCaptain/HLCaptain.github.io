@@ -1476,6 +1476,74 @@ function initHeadingReferences() {
   }
 }
 
+function initCodeBlocks() {
+  document.querySelectorAll(".prose pre").forEach((pre) => {
+    if (pre.closest(".code-block")) return;
+    const code = pre.querySelector("code");
+    if (!code) return;
+
+    const language = pre.dataset.language;
+    const title = pre.dataset.title || language || "Code";
+    const block = document.createElement("div");
+    block.className = "code-block";
+    const header = document.createElement("div");
+    header.className = "code-block__header";
+    const label = document.createElement("span");
+    label.className = "code-block__title";
+    label.textContent = title;
+    header.append(label);
+    if (pre.dataset.title && language) {
+      const badge = document.createElement("span");
+      badge.className = "code-block__language";
+      badge.textContent = language;
+      header.append(badge);
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "code-block__copy";
+    button.textContent = "Copy";
+    button.setAttribute("aria-label", "Copy code");
+    const status = document.createElement("span");
+    status.className = "sr-only";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    header.append(button, status);
+
+    const text = code.textContent;
+    let resetTimer;
+    button.addEventListener("click", async () => {
+      if (button.dataset.copyState === "pending") return;
+      window.clearTimeout(resetTimer);
+      status.textContent = "";
+      button.setAttribute("aria-busy", "true");
+      button.dataset.copyState = "pending";
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copied";
+        button.dataset.copyState = "copied";
+        status.textContent = "Code copied to clipboard.";
+      } catch {
+        button.textContent = "Copy failed";
+        button.dataset.copyState = "failed";
+        status.textContent = "Copy failed. Select the code and copy it manually.";
+      }
+      button.removeAttribute("aria-busy");
+      resetTimer = window.setTimeout(() => {
+        button.textContent = "Copy";
+        delete button.dataset.copyState;
+        status.textContent = "";
+      }, 1500);
+    });
+
+    pre.tabIndex = 0;
+    pre.setAttribute("role", "region");
+    pre.setAttribute("aria-label", `${title}${pre.dataset.title && language ? ` (${language})` : ""} code`);
+    pre.before(block);
+    block.append(header, pre);
+  });
+}
+
 function handleExperienceDialogIntent(event) {
   if (!(event.target instanceof Element)) return;
 
@@ -1516,6 +1584,7 @@ function init() {
   initNavGroups();
   initDebugMenu();
   initHeadingReferences();
+  initCodeBlocks();
   initSignals();
   releaseSidebarOverlayTransitionState();
 }

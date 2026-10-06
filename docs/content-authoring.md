@@ -82,6 +82,22 @@ decorative.
 | `links` | projects | no | List of `{ label, href }` links; defaults to `[]`. |
 | `accent` | both | no | Reserved by the schema but not currently rendered. |
 
+## Code blocks
+
+Fenced code blocks use light and dark syntax colors that follow the site theme. Long lines scroll
+horizontally within the block. The Copy button appears on hover or keyboard focus and stays visible
+on touch devices; it copies the original code without the header or display formatting.
+
+Add a filename with double-quoted `title` metadata:
+
+````md
+```kotlin title="HomeIcon.kt"
+// Your code here.
+```
+````
+
+Without a title, the header shows the language instead.
+
 ## Custom content components
 
 Plain `.md` files cannot import components. In `.mdx`, the complete supported site component list is:

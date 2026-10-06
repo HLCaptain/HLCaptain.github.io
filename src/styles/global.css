@@ -1947,13 +1947,107 @@ html:has(.experience-dialog[open]) {
 
 .prose pre {
   padding: 18px;
+  max-width: 100%;
   overflow-x: auto;
-  border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  white-space: pre;
+  tab-size: 4;
 }
 
 .prose pre code {
   padding: 0;
   background: transparent;
+  font-size: inherit;
+}
+
+:root[data-theme="black"] .prose .astro-code,
+:root[data-theme="black"] .prose .astro-code span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}
+
+.code-block {
+  margin: 24px 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.code-block__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.code-block__title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-block__language {
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.code-block__copy {
+  flex-shrink: 0;
+  min-height: 32px;
+  margin-left: auto;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+  transition: opacity 120ms var(--ease), background-color 120ms var(--ease);
+}
+
+.code-block__copy:hover {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--accent-readable);
+}
+
+.code-block__copy:focus-visible,
+.prose pre:focus-visible {
+  outline: 2px solid var(--accent-readable);
+  outline-offset: -3px;
+}
+
+.prose .code-block pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .code-block__copy {
+    opacity: 0;
+  }
+
+  .code-block:hover .code-block__copy,
+  .code-block:focus-within .code-block__copy,
+  .code-block__copy[data-copy-state] {
+    opacity: 1;
+  }
 }
 
 .prose blockquote {

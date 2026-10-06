@@ -137,6 +137,95 @@ test.describe("project case studies", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("code panels scroll, follow the theme, and copy plain code across navigation", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (text: string) => {
+            sessionStorage.setItem("code-copy-calls", String(Number(sessionStorage.getItem("code-copy-calls") ?? 0) + 1));
+            if (sessionStorage.getItem("code-copy-fail")) throw new DOMException("Clipboard unavailable", "NotAllowedError");
+            sessionStorage.setItem("code-copy-text", text);
+          }
+        }
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/work/");
+    await page.locator("#main-content").getByRole("link", { name: "Open Symbols", exact: true }).click();
+    await expect(page).toHaveURL(/\/work\/symbols\/$/);
+
+    const panels = page.locator(".prose .code-block");
+    await expect(panels).toHaveCount(3);
+    await expect(panels.locator(".code-block__header")).toHaveCount(3);
+    await expect(panels.locator(".code-block__title")).toHaveText(["build.gradle.kts", "HomeIcon.kt", "NavigationIcons.kt"]);
+    await expect(panels.first().locator(".code-block__header")).toContainText(/kotlin/i);
+    await expect(panels.locator(".code-block__copy")).toHaveCount(3);
+
+    const panel = panels.first();
+    const pre = panel.locator("pre");
+    const copy = panel.getByRole("button", { name: "Copy code", exact: true });
+    await expect(pre).toHaveAttribute("tabindex", "0");
+    await expect(pre).toHaveAttribute("role", "region");
+    await expect(pre).toHaveAttribute("aria-label", "build.gradle.kts (kotlin) code");
+    await expect(pre).toHaveCSS("white-space", "pre");
+    await expect(pre).toHaveCSS("overflow-x", "auto");
+    expect(await pre.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+    await expectNoHorizontalOverflow(page);
+
+    await panel.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    const hasHover = await page.evaluate(() => matchMedia("(hover: hover) and (pointer: fine)").matches);
+    await expect(copy).toHaveCSS("opacity", hasHover ? "0" : "1");
+    if (hasHover) {
+      await panel.hover();
+      await expect(copy).toHaveCSS("opacity", "1");
+      await page.mouse.move(0, 0);
+      await expect(copy).toHaveCSS("opacity", "0");
+    }
+    await copy.focus();
+    await expect(copy).toHaveCSS("opacity", "1");
+    await pre.focus();
+    await pre.press("ArrowRight");
+    await expect.poll(() => pre.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+
+    const code = await pre.locator("code").textContent();
+    await copy.focus();
+    await copy.press("Enter");
+    await expect(copy).toHaveText("Copied");
+    await expect(copy).toBeFocused();
+    await expect(panel.getByRole("status")).toHaveText("Code copied to clipboard.");
+    expect(await page.evaluate(() => sessionStorage.getItem("code-copy-text"))).toBe(code);
+    await page.evaluate(() => sessionStorage.setItem("code-copy-fail", "1"));
+    await copy.click();
+    await expect(copy).toHaveText("Copy failed");
+    await expect(panel.getByRole("status")).toContainText("Select the code and copy it manually.");
+
+    const palette = () => pre.evaluate((node) => ({
+      background: getComputedStyle(node).backgroundColor,
+      tokens: [...node.querySelectorAll("code span[style]")].map((token) => getComputedStyle(token).color)
+    }));
+    const light = await palette();
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await page.getByRole("button", { name: "Switch to dark theme" }).click();
+    await page.getByRole("button", { name: "Close navigation" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "black");
+    await expect.poll(async () => (await palette()).background).not.toBe(light.background);
+    await expect.poll(async () => (await palette()).tokens).not.toEqual(light.tokens);
+
+    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await expect(page).toHaveURL(/\/work\/$/);
+    await page.locator("#main-content").getByRole("link", { name: "Open Symbols", exact: true }).click();
+    await expect(panels).toHaveCount(3);
+    await expect(panels.locator(".code-block")).toHaveCount(0);
+    await expect(panels.locator(".code-block__copy")).toHaveCount(3);
+    await page.evaluate(() => sessionStorage.removeItem("code-copy-fail"));
+    await copy.click();
+    await expect(copy).toHaveText("Copied");
+    expect(await page.evaluate(() => sessionStorage.getItem("code-copy-calls"))).toBe("3");
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("DetailFacts splits four items evenly when four columns do not fit", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop");
     await page.setViewportSize({ width: 1200, height: 900 });

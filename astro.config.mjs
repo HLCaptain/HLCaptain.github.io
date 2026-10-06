@@ -12,8 +12,17 @@ export default defineConfig({
   integrations: [mdx(), icon(), sitemap()],
   markdown: {
     shikiConfig: {
-      theme: "github-dark-dimmed",
-      wrap: true
+      themes: {
+        light: "github-light",
+        dark: "github-dark-dimmed"
+      },
+      wrap: false,
+      transformers: [{
+        pre(node) {
+          const title = this.options.meta?.__raw?.match(/\btitle="([^"]+)"/)?.[1];
+          if (title) node.properties["data-title"] = title;
+        }
+      }]
     }
   }
 });
