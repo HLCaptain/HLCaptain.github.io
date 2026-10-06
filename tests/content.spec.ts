@@ -23,7 +23,7 @@ test.describe("project case studies", () => {
   test("detail pages share one content and table-of-contents rail", async ({ page }) => {
     const contentWidths: number[] = [];
 
-    for (const path of ["/about/", "/work/proto-shape/", "/work/spliteasy/"]) {
+    for (const path of ["/about/", "/work/symbols/", "/work/proto-shape/", "/work/spliteasy/"]) {
       await page.goto(path);
 
       const shell = page.locator("[data-detail-shell]");
@@ -89,10 +89,51 @@ test.describe("project case studies", () => {
     await page.goto("/work/");
 
     await expect(page.getByRole("heading", { name: "Selected work" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Symbols", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "ProtoShape" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "SplitEasy AI" })).toBeVisible();
     await expect(page.getByText("LexiDash Arena")).toHaveCount(0);
     await expect(page.getByText("Personal publishing system")).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("Symbols is featured with setup, migration, and regular usage examples", async ({ page }) => {
+    await page.goto("/");
+
+    const projectCard = page.getByRole("link", { name: "Open Symbols", exact: true });
+    await expect(projectCard).toBeVisible();
+    await expect(projectCard.locator(".entry-card__glyph .semantic-icon")).toHaveAttribute("data-icon-name", "blocks");
+    await projectCard.click();
+    await expect(page).toHaveURL(/\/work\/symbols\/$/);
+    await expect(page.getByRole("heading", { name: "Symbols", level: 1 })).toBeVisible();
+    await expect(page.locator(".page-header__title-row .eyebrow")).toHaveText("shipped");
+
+    const facts = page.getByLabel("Project facts");
+    for (const fact of [
+      "Creator and maintainer",
+      "Open source · v2.2.0",
+      "Kotlin · Compose Multiplatform · Gradle",
+      "Maven Central"
+    ]) {
+      await expect(facts).toContainText(fact);
+    }
+    const projectLinks = page.getByRole("navigation", { name: "Project links" });
+    await expect(projectLinks.getByRole("link", { name: "GitHub repository" })).toHaveAttribute(
+      "href",
+      "https://github.com/HLCaptain/symbols"
+    );
+    await expect(projectLinks.getByRole("link", { name: "Usage documentation" })).toHaveAttribute(
+      "href",
+      "https://github.com/HLCaptain/symbols/blob/2.2.0/docs/USAGE.md"
+    );
+    for (const section of ["Setup", "Migration", "Regular usage"]) {
+      await expect(page.locator(".prose").getByRole("heading", { name: section })).toBeVisible();
+    }
+    const codeBlocks = page.locator(".prose pre code");
+    await expect(codeBlocks).toHaveCount(3);
+    await expect(codeBlocks.nth(0)).toContainText("io.github.hlcaptain:symbols-material-vectors-rounded:2.2.0");
+    await expect(codeBlocks.nth(1)).toContainText("Icons.Rounded.Home");
+    await expect(codeBlocks.nth(2)).toContainText("Symbols.Material.Rounded.Filled.Home");
     await expectNoHorizontalOverflow(page);
   });
 
