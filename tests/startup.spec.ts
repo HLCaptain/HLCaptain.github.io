@@ -7,6 +7,10 @@ type StartupRun = {
   maxEnd?: number;
   fits: boolean;
   decorative: boolean;
+  visualSamples: number;
+  textFree: boolean;
+  flat: boolean;
+  patterned: boolean;
 };
 type StartupTimeline = { documentId: number; runs: StartupRun[] };
 
@@ -29,7 +33,11 @@ async function observeStartup(page: Page) {
       timeline.runs.push({
         shown: performance.now(),
         fits: bounds.left >= -1 && bounds.top >= -1 && bounds.right <= innerWidth + 1 && bounds.bottom <= innerHeight + 1,
-        decorative: root!.getAttribute("aria-hidden") === "true" && getComputedStyle(root!).pointerEvents === "none"
+        decorative: root!.getAttribute("aria-hidden") === "true" && getComputedStyle(root!).pointerEvents === "none",
+        visualSamples: 0,
+        textFree: true,
+        flat: true,
+        patterned: false
       });
     };
     new MutationObserver(observe).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
@@ -40,6 +48,37 @@ async function observeStartup(page: Page) {
       run.duration = getComputedStyle(event.target).animationDuration;
       run.maxEnd = Math.max(...event.target.getAnimations({ subtree: true }).map((animation) => Number(animation.effect!.getComputedTiming().endTime)));
       run.fits &&= document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1;
+      const root = event.target;
+      const phases = [100, 450, 750];
+      const sample = () => {
+        if (root.hidden || timeline.runs.at(-1) !== run) return;
+        if (performance.now() - run.shown >= phases[run.visualSamples]) {
+          run.visualSamples++;
+          run.textFree &&= !root.textContent?.trim() && !root.querySelector("text, image, .startup__mark");
+          for (const element of [root, ...root.querySelectorAll("*")]) {
+            for (const pseudo of [null, "::before", "::after"]) {
+              const style = getComputedStyle(element, pseudo);
+              run.textFree &&= ["none", "normal", '""'].includes(style.content);
+              run.flat &&= style.perspective === "none" && style.transformStyle !== "preserve-3d"
+                && (style.transform === "none" || new DOMMatrixReadOnly(style.transform).is2D)
+                && style.translate.split(" ").length <= 2 && style.scale.split(" ").length <= 2
+                && !/^(x|y|[-\d.]+\s)/.test(style.rotate);
+            }
+          }
+          const texture = root.querySelector(".startup__texture");
+          if (texture) {
+            const style = getComputedStyle(texture);
+            const bounds = texture.getBoundingClientRect();
+            const patternedBackground = style.backgroundImage !== "none"
+              && (style.maskImage !== "none" || style.backgroundImage.includes("repeating-"));
+            const patternedSvg = Boolean(texture.querySelector("pattern") && texture.querySelector('[fill^="url("], [mask^="url("]'));
+            run.patterned ||= bounds.width > 0 && bounds.height > 0 && Number(style.opacity) > 0
+              && style.visibility === "visible" && (patternedBackground || patternedSvg);
+          }
+        }
+        if (run.visualSamples < phases.length) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
     }, true);
   });
 }
@@ -58,6 +97,10 @@ async function finishStartup(page: Page, count: number) {
   expect(run.hidden! - run.shown).toBeLessThan(1250);
   expect(run.fits).toBe(true);
   expect(run.decorative).toBe(true);
+  expect(run.visualSamples).toBe(3);
+  expect(run.textFree).toBe(true);
+  expect(run.flat).toBe(true);
+  expect(run.patterned).toBe(true);
 }
 
 async function navigateAndSettle(page: Page, action: () => Promise<unknown>) {

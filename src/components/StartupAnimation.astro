@@ -1,40 +1,17 @@
 ---
 type Props = { previewDebug: boolean };
-const tiles = Array.from({ length: 77 }, (_, index) => {
-  const x = index % 11 - 5;
-  const y = Math.floor(index / 11) - 3;
-  const distance = Math.hypot(x, y);
-  return { x, y, delay: Math.round(distance * 20 + (index % 3) * 12), tone: 0.12 + (1 - distance / 6) * 0.3 };
-});
+const square = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><path fill="white" fill-opacity=".65" d="M2 2h20v20H2z"/><path fill="white" fill-opacity=".65" d="M2 2h20L2 22z"/></svg>`;
+const diamond = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><g fill="white" fill-opacity=".65"><path d="M20 2 38 20 20 38 2 20Z M0-18 18 0 0 18-18 0Z M40-18 58 0 40 18 22 0Z M0 22 18 40 0 58-18 40Z M40 22 58 40 40 58 22 40Z"/></g><path fill="white" fill-opacity=".6" d="M20 2 38 20 20 20Z M0-18 18 0 0 0Z M40-18 58 0 40 0Z M0 22 18 40 0 40Z M40 22 58 40 40 40Z"/></svg>`;
+const hexagon = `<svg xmlns="http://www.w3.org/2000/svg" width="54" height="34"><g fill="white" fill-opacity=".65"><path d="M10 2 26 2 35 17 26 32 10 32 1 17Z M37-15 53-15 62 0 53 15 37 15 28 0Z M37 19 53 19 62 34 53 49 37 49 28 34Z M-17-15-1-15 8 0-1 15-17 15-26 0Z M-17 19-1 19 8 34-1 49-17 49-26 34Z"/></g><path fill="white" fill-opacity=".6" d="M10 2 26 2 18 17 1 17Z M37-15 53-15 45 0 28 0Z M37 19 53 19 45 34 28 34Z M-17-15-1-15-9 0-26 0Z M-17 19-1 19-9 34-26 34Z"/></svg>`;
+const patternStyles = Object.entries({ square, diamond, hexagon }).map(([name, svg]) => `--${name}-pattern:url("data:image/svg+xml,${encodeURIComponent(svg)}")`).join(';');
 ---
 
-<div class="startup" data-startup data-variant="lattice" data-preview={Astro.props.previewDebug ? "true" : undefined} aria-hidden="true" hidden transition:persist="startup">
-  <div class="startup__atmosphere"></div>
+<div class="startup" data-startup data-variant="lattice" data-preview={Astro.props.previewDebug ? "true" : undefined} style={patternStyles} aria-hidden="true" hidden transition:persist="startup">
   <div class="startup__field">
-    {tiles.map(({ x, y, delay, tone }) => (
-      <i class="startup__tile" style={`--x:${x};--y:${y};--delay:${delay}ms;--tone:${tone}`}></i>
-    ))}
+    <div class="startup__texture"></div>
+    <div class="startup__reflection"></div>
   </div>
-  <div class="startup__reticle"></div>
-  <div class="startup__signature">
-    <div class="startup__core">
-      <div class="startup__orbit startup__orbit--outer"></div>
-      <div class="startup__orbit startup__orbit--inner"></div>
-      <svg class="startup__mark" viewBox="0 0 64 64" fill="currentColor">
-        <path style="--piece:0" d="M12 12h12v12H12z" />
-        <path style="--piece:1" d="M28 12h24v12H28z" />
-        <path style="--piece:2" d="M12 28h16v8H12z" />
-        <path class="startup__bridge" style="--piece:3" d="M28 28h24v8H28z" />
-        <path style="--piece:4" d="M12 40h12v12H12z" />
-        <path style="--piece:5" d="M28 40h24v12H28z" />
-      </svg>
-      <span class="startup__coordinate startup__coordinate--top">HL / 01</span>
-      <span class="startup__coordinate startup__coordinate--bottom">PERSONAL SYSTEMS</span>
-    </div>
-    <div class="startup__wordmark">HLCaptain<span>DESIGN · CODE · EXPERIMENT</span></div>
-  </div>
-  <div class="startup__edge startup__edge--top"><span>HLC / SYSTEM ONLINE</span><span>001</span></div>
-  <div class="startup__edge startup__edge--bottom"><span>INDEPENDENT BY DESIGN</span><span class="startup__progress"></span></div>
+  <div class="startup__scan"></div>
 </div>
 
 <script is:inline>
@@ -99,238 +76,117 @@ const tiles = Array.from({ length: 77 }, (_, index) => {
 
 <style is:global>
   .startup {
-    --signal: color-mix(in srgb, var(--accent) 70%, #e8ffc9);
-    --glint: #e8f6dc;
-    --flight: cubic-bezier(0.16, 1, 0.3, 1);
+    --pattern: var(--square-pattern);
+    --cell-width: clamp(18px, 2.8vmin, 28px);
+    --cell-height: var(--cell-width);
+    --signal: #8cffe2;
+    --glint: #e8fff7;
     position: fixed;
     inset: 0;
     z-index: 100;
     overflow: hidden;
     pointer-events: none;
     user-select: none;
-    color: var(--glint);
-    background: #080e0d;
+    background: #050d11;
     contain: strict;
   }
   .startup[hidden] { display: none; }
   .startup:not([hidden]) { animation: startup-exit 1000ms linear both; }
-  .startup__atmosphere {
-    position: absolute;
-    inset: -20%;
-    background: radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--signal) 15%, transparent), transparent 52%);
-    animation: startup-atmosphere 1000ms var(--flight) both;
-  }
   .startup__field {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    display: grid;
-    grid-template-columns: repeat(11, 1fr);
-    gap: 7px;
-    width: max(125vw, 760px);
-    aspect-ratio: 11 / 7;
-    transform: translate(-50%, -46%) perspective(1000px) rotateX(48deg) rotateZ(-32deg);
-    mask-image: radial-gradient(ellipse, #000 12%, transparent 68%);
+    inset: 0;
+    animation: startup-power 1000ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
-  .startup__tile {
-    position: relative;
-    display: block;
-    border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
-    border-radius: 3px;
-    background: linear-gradient(145deg, color-mix(in srgb, var(--signal) 16%, #101c19), #0a1110 70%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 9px 0 #050908, 0 10px 0 color-mix(in srgb, var(--signal) 15%, transparent);
-    animation: startup-lattice calc(1000ms - var(--delay)) var(--flight) var(--delay) both;
-  }
-  .startup__tile::before, .startup__tile::after {
-    content: "";
-    position: absolute;
-    inset: 12%;
-    border: 1px solid color-mix(in srgb, var(--signal) 14%, transparent);
-  }
-  .startup__tile::after {
-    inset: auto 12% 12% auto;
-    width: 4px;
-    height: 4px;
-    border: 0;
-    background: var(--signal);
-    box-shadow: -8px 0 0 color-mix(in srgb, var(--signal) 30%, transparent);
-  }
-  .startup__field::after {
-    content: "";
+  .startup__texture, .startup__reflection {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, transparent 30%, color-mix(in srgb, var(--glint) 18%, transparent) 50%, transparent 70%);
-    animation: startup-sheen 1000ms ease both;
+    mask-image: var(--pattern);
+    mask-size: var(--cell-width) var(--cell-height);
+    mask-position: center;
+    mask-repeat: repeat;
   }
-  .startup__reticle {
+  .startup__texture {
+    background: radial-gradient(ellipse, #314a50, #17252b 65%, #0c171d);
+    animation: startup-texture 1000ms ease both;
+  }
+  .startup__reflection::before {
+    content: "";
     position: absolute;
-    inset: 22px;
-    opacity: 0.5;
-    background: linear-gradient(var(--signal), var(--signal)) left top / 24px 1px no-repeat,
-      linear-gradient(var(--signal), var(--signal)) left top / 1px 24px no-repeat,
-      linear-gradient(var(--signal), var(--signal)) right bottom / 24px 1px no-repeat,
-      linear-gradient(var(--signal), var(--signal)) right bottom / 1px 24px no-repeat;
-    animation: startup-reticle 1000ms var(--flight) both;
+    inset: -100% 0;
+    background: linear-gradient(to bottom, transparent 30%, #216c77 40%, var(--signal) 47%, var(--glint) 50%, #57b7cf 54%, #164455 64%, transparent 72%);
+    animation: startup-raster 1000ms linear both;
   }
-  .startup__signature {
+  .startup__scan {
     position: absolute;
     inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 40px;
-    animation: startup-signature 1000ms var(--flight) both;
-  }
-  .startup__core {
-    position: relative;
-    width: clamp(112px, 26vmin, 192px);
-    aspect-ratio: 1;
-    display: grid;
-    place-items: center;
-    border: 1px solid color-mix(in srgb, var(--signal) 60%, transparent);
-    background: linear-gradient(135deg, #1e3028, #080e0d 70%);
-    box-shadow: inset 0 0 32px color-mix(in srgb, var(--signal) 8%, transparent), 0 0 70px color-mix(in srgb, var(--signal) 9%, transparent);
-  }
-  .startup__mark { width: 88%; overflow: visible; }
-  .startup__mark path { transform-origin: 32px 32px; animation: startup-mark 1000ms var(--flight) both; }
-  .startup__bridge { color: var(--signal); }
-  .startup__orbit {
-    position: absolute;
-    inset: -12px;
-    border: 1px solid color-mix(in srgb, var(--signal) 36%, transparent);
-    animation: startup-orbit 1000ms var(--flight) both;
-  }
-  .startup__orbit--outer { inset: -24px; border-style: dashed; opacity: 0.55; }
-  .startup__coordinate {
-    position: absolute;
-    font: 8px var(--font-mono);
-    letter-spacing: 0.12em;
-    color: var(--signal);
-  }
-  .startup__coordinate--top { top: 5px; left: 7px; }
-  .startup__coordinate--bottom { bottom: 5px; right: 7px; font-size: 6px; }
-  .startup__wordmark {
-    text-align: center;
-    font: 600 clamp(20px, 4vmin, 32px) var(--font-body);
-    letter-spacing: 0.2em;
-    padding-left: 0.2em;
-  }
-  .startup__wordmark span {
-    display: block;
-    margin-top: 10px;
-    color: var(--signal);
-    font: 8px var(--font-mono);
-    letter-spacing: 0.24em;
-  }
-  .startup__edge {
-    position: absolute;
-    left: 40px;
-    right: 40px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-    color: var(--signal);
-    font: 8px var(--font-mono);
-    letter-spacing: 0.16em;
-    animation: startup-signature 1000ms var(--flight) both;
-  }
-  .startup__edge--top { top: 40px; }
-  .startup__edge--bottom { bottom: 40px; }
-  .startup__progress {
-    width: 80px;
-    height: 2px;
-    background: var(--signal);
-    transform-origin: left;
-    animation: startup-progress 1000ms var(--flight) both;
+    background: repeating-linear-gradient(to bottom, transparent 0 3px, #0005 3px 4px),
+      linear-gradient(transparent calc(50% - 1px), var(--glint) 50%, transparent calc(50% + 1px));
+    animation: startup-scan 1000ms ease both;
   }
 
-  .startup[data-variant="aperture"] { --signal: #87efcd; --glint: #e3fff5; background: #060f10; }
-  .startup[data-variant="aperture"] .startup__field {
-    width: max(100vw, 660px);
-    transform: translate(-50%, -50%) rotate(45deg);
-    mask-image: radial-gradient(circle, transparent 8%, #000 20%, transparent 67%);
-    gap: 12px;
+  .startup[data-variant="aperture"] {
+    --pattern: var(--diamond-pattern);
+    --cell-width: clamp(28px, 4.5vmin, 44px);
+    --signal: #b9b4ff;
+    --glint: #eff2ff;
+    background: #080b14;
   }
-  .startup[data-variant="aperture"] .startup__tile {
-    border-radius: 12% 2%;
-    background: linear-gradient(145deg, #153a32, #081817);
-    animation-name: startup-aperture;
-    box-shadow: inset 0 1px 0 #87efcd40, 0 0 20px #87efcd0d;
+  .startup[data-variant="aperture"] .startup__texture {
+    background: radial-gradient(ellipse at 65% 35%, #3e425a, #192335 65%, #0c1320);
   }
-  .startup[data-variant="aperture"] .startup__core {
-    border-radius: 22%;
-    background: radial-gradient(circle, #14382d, #06100e 70%);
-    border-color: transparent;
+  .startup[data-variant="aperture"] .startup__reflection::before {
+    inset: -60% -100%;
+    background: linear-gradient(125deg, transparent 35%, #416585 43%, #87e7df 47%, var(--glint) 50%, var(--signal) 53%, #363b75 59%, transparent 67%);
+    animation-name: startup-prism;
   }
-  .startup[data-variant="aperture"] .startup__orbit { inset: -20px; border-radius: 28%; animation-name: startup-iris; }
-  .startup[data-variant="aperture"] .startup__orbit--outer { inset: -42px; border-radius: 32%; border-style: solid; animation-direction: reverse; }
-  .startup[data-variant="aperture"] .startup__coordinate { display: none; }
 
-  .startup[data-variant="flux"] { --signal: #b6acff; --glint: #f2ebff; background: #0c0a15; }
-  .startup[data-variant="flux"] .startup__field {
-    gap: 6px;
-    width: max(110vw, 730px);
-    aspect-ratio: 11 / 6;
-    transform: translate(-50%, -50%) perspective(900px) rotateY(-22deg) rotateZ(-16deg);
-    mask-image: radial-gradient(ellipse, #000 10%, transparent 65%);
+  .startup[data-variant="flux"] {
+    --pattern: var(--hexagon-pattern);
+    --cell-width: clamp(44px, 6vmin, 68px);
+    --cell-height: calc(var(--cell-width) * 34 / 54);
+    --signal: #79e1f9;
+    --glint: #dffcff;
+    background: #050e13;
   }
-  .startup[data-variant="flux"] .startup__tile {
-    background: linear-gradient(135deg, #655b8a, #1b1838 42%, #100f20);
-    border-color: #c9bfff40;
-    border-radius: 8px 2px 8px 2px;
-    box-shadow: inset 0 1px 0 #e1d4ff66, 0 6px 0 #070610;
-    animation-name: startup-flux;
+  .startup[data-variant="flux"] .startup__texture {
+    background: radial-gradient(ellipse, #294654, #132935 65%, #0a1820);
   }
-  .startup[data-variant="flux"] .startup__tile:nth-child(3n) { background: linear-gradient(135deg, #9780a0, #332b49 42%, #141120); }
-  .startup[data-variant="flux"] .startup__core {
-    border-radius: 16px 2px 16px 2px;
-    background: linear-gradient(145deg, #34304b, #100e1c 62%);
-    transform: rotate(-8deg);
+  .startup[data-variant="flux"] .startup__reflection::before {
+    inset: -65%;
+    background: radial-gradient(circle, transparent 24%, #296d87 28%, var(--glint) 31%, var(--signal) 34%, #216277 39%, transparent 46%);
+    animation-name: startup-hive;
   }
-  .startup[data-variant="flux"] .startup__mark { transform: rotate(8deg); }
-  .startup[data-variant="flux"] .startup__orbit { border-radius: 22px 2px; animation-name: startup-flux-orbit; }
 
-  @keyframes startup-exit { 0%, 76% { opacity: 1; } 100% { opacity: 0; } }
-  @keyframes startup-atmosphere { from { opacity: 0; transform: scale(0.7); } 45%, 75% { opacity: 1; } to { opacity: 0; transform: scale(1.3); } }
-  @keyframes startup-lattice {
-    from { opacity: 0; transform: translate3d(calc(var(--x) * 26px), calc(var(--y) * 26px), -200px) rotateX(70deg) scale(0.5); }
-    40%, 68% { opacity: var(--tone); transform: translate3d(0, 0, 0) rotateX(0) scale(1); }
-    to { opacity: 0; transform: translate3d(calc(var(--x) * -12px), calc(var(--y) * -12px), 60px) scale(0.84); }
+  @keyframes startup-exit { 0%, 74% { opacity: 1; } to { opacity: 0; } }
+  @keyframes startup-power {
+    from { clip-path: inset(49.85% 42%); }
+    12% { clip-path: inset(49.6% 0); }
+    30%, to { clip-path: inset(0); }
   }
-  @keyframes startup-aperture {
-    from { opacity: 0; transform: translate(calc(var(--x) * -28px), calc(var(--y) * -28px)) rotate(-35deg) scale(0.4); }
-    38%, 60% { opacity: calc(var(--tone) * 1.4); transform: translate(0, 0) rotate(0) scale(1); }
-    to { opacity: 0; transform: translate(calc(var(--x) * 38px), calc(var(--y) * 38px)) rotate(22deg) scale(1.2); }
+  @keyframes startup-texture { from { opacity: 0.1; } 30% { opacity: 0.7; } 60% { opacity: 1; } to { opacity: 0.3; } }
+  @keyframes startup-raster {
+    from { opacity: 0; transform: translateY(-45%); }
+    18% { opacity: 0.9; }
+    70% { opacity: 1; }
+    to { opacity: 0; transform: translateY(45%); }
   }
-  @keyframes startup-flux {
-    from { opacity: 0; transform: translateX(calc(100px + var(--y) * 30px)) rotateY(70deg) scaleX(0.4); }
-    42%, 64% { opacity: calc(var(--tone) * 1.6); transform: translateX(0) rotateY(0) scaleX(1); }
-    to { opacity: 0; transform: translateX(calc(-130px - var(--x) * 22px)) rotateY(-35deg) scaleX(0.6); }
+  @keyframes startup-prism {
+    from { opacity: 0; transform: translate(-35%, -15%); }
+    18% { opacity: 0.95; }
+    68% { opacity: 1; }
+    to { opacity: 0; transform: translate(35%, 15%); }
   }
-  @keyframes startup-sheen { from { opacity: 0; transform: translateX(-30%); } 40% { opacity: 1; } to { opacity: 0; transform: translateX(30%); } }
-  @keyframes startup-signature {
-    from { opacity: 0; transform: translateY(14px) scale(0.96); }
-    24%, 72% { opacity: 1; transform: translateY(0) scale(1); }
-    to { opacity: 0; transform: translateY(-8px) scale(1.04); }
+  @keyframes startup-hive {
+    from { opacity: 0; transform: scale(0.05); }
+    20% { opacity: 1; }
+    62% { opacity: 0.9; }
+    to { opacity: 0; transform: scale(1.35); }
   }
-  @keyframes startup-mark {
-    from { opacity: 0; transform: translate(calc((var(--piece) - 2.5) * 6px), calc((var(--piece) - 2.5) * -8px)) scale(0.3); }
-    32%, 72% { opacity: 1; transform: translate(0, 0) scale(1); }
-    to { opacity: 0; transform: translate(0, -3px) scale(0.96); }
-  }
-  @keyframes startup-orbit { from { opacity: 0; transform: rotate(-28deg) scale(1.3); } 40%, 68% { opacity: 0.65; transform: rotate(0) scale(1); } to { opacity: 0; transform: rotate(12deg) scale(0.8); } }
-  @keyframes startup-iris { from { opacity: 0; transform: rotate(0) scale(0.5); } 36%, 60% { opacity: 0.75; transform: rotate(45deg) scale(1); } to { opacity: 0; transform: rotate(90deg) scale(1.9); } }
-  @keyframes startup-flux-orbit { from { opacity: 0; transform: translateX(40px) skewX(-15deg); } 36%, 66% { opacity: 0.65; transform: translateX(0) skewX(0); } to { opacity: 0; transform: translateX(-40px) skewX(15deg); } }
-  @keyframes startup-reticle { from { opacity: 0; transform: scale(1.03); } 35%, 70% { opacity: 0.5; transform: scale(1); } to { opacity: 0; transform: scale(0.98); } }
-  @keyframes startup-progress { from { transform: scaleX(0); } 76%, to { transform: scaleX(1); } }
-  @media (max-width: 480px) {
-    .startup__edge { left: 28px; right: 28px; font-size: 6px; }
-    .startup__edge--top { top: 30px; }
-    .startup__edge--bottom { bottom: 30px; }
-    .startup__reticle { inset: 14px; }
-    .startup__signature { gap: 48px; }
+  @keyframes startup-scan {
+    from { opacity: 0; transform: scaleX(0.1); }
+    10% { opacity: 0.85; transform: scaleX(1); }
+    28% { opacity: 0.1; }
+    to { opacity: 0; transform: scaleX(1); }
   }
   @media (prefers-reduced-motion: reduce) { .startup { display: none !important; } }
 </style>
