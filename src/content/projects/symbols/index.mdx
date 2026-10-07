@@ -1,0 +1,115 @@
+---
+title: "Symbols"
+description: "Material Symbols for Compose Multiplatform, with familiar Icon APIs, shrinkable vectors, variable fonts, and custom icon generation."
+publishedAt: 2026-10-06
+tags: ["kotlin", "compose-multiplatform", "icons", "gradle"]
+draft: false
+featured: true
+status: "shipped"
+links:
+  - label: "GitHub repository"
+    href: "https://github.com/HLCaptain/symbols"
+  - label: "Usage documentation"
+    href: "https://github.com/HLCaptain/symbols/blob/2.2.0/docs/USAGE.md"
+---
+
+import DetailFacts from "@components/content/DetailFacts.astro";
+
+<DetailFacts
+  items={[
+    { label: "Role", value: "Creator and maintainer" },
+    { label: "Release", value: "Open source · v2.2.0" },
+    { label: "Stack", value: "Kotlin · Compose Multiplatform · Gradle" },
+    { label: "Distribution", value: "Maven Central" }
+  ]}
+/>
+
+## Overview
+
+Symbols gives Kotlin developers access to Google's Material Symbols across Android, iOS, desktop,
+and web applications. It keeps Compose's familiar `Icon` API while offering Outlined, Rounded, and
+Sharp styles, filled variants, and opt-in mirroring for right-to-left layouts.
+
+The goal is to reduce the work around icons: downloading individual assets, maintaining generated
+sources, or assembling separate solutions for built-in and custom artwork. Prebuilt packs work
+without the Symbols Gradle plugin; custom icon sets can share the same `Symbols` namespace.
+
+## Use in Compose
+
+### Setup
+
+Choose the style your application uses. With `google()` and `mavenCentral()` available, add the
+Rounded vector pack to a Kotlin Multiplatform module:
+
+```kotlin title="build.gradle.kts"
+kotlin {
+    sourceSets.commonMain.dependencies {
+        implementation("io.github.hlcaptain:symbols-material-vectors-rounded:2.2.0")
+    }
+}
+```
+
+For Android-only modules, put the same `implementation(...)` in `dependencies`. Check the
+[consumer requirements](https://github.com/HLCaptain/symbols/blob/2.2.0/docs/TOOLCHAIN_UPGRADE.md#consumer-requirements)
+before upgrading an existing project.
+
+### Migration
+
+Remove the `material-icons-extended` dependency and replace its icon imports. Inside a composable,
+the call remains familiar:
+
+```kotlin title="HomeIcon.kt"
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import io.github.hlcaptain.symbols.material.Icons
+import io.github.hlcaptain.symbols.material.rounded.vectors.Home
+
+@Composable
+fun HomeIcon() {
+    Icon(Icons.Rounded.Home, contentDescription = "Home")
+}
+```
+
+Material Symbols use different artwork, and ordinary getters select unfilled icons. Review the
+result when migrating; choose `.Filled` when a filled appearance is needed.
+
+### Regular usage
+
+The unified namespace supports explicit filled and mirrored variants using the same vector pack:
+
+```kotlin title="NavigationIcons.kt"
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import io.github.hlcaptain.symbols.Symbols
+import io.github.hlcaptain.symbols.material.AutoMirrored
+import io.github.hlcaptain.symbols.material.Filled
+import io.github.hlcaptain.symbols.material.Material
+import io.github.hlcaptain.symbols.material.Rounded
+import io.github.hlcaptain.symbols.material.rounded.vectors.ArrowBack
+import io.github.hlcaptain.symbols.material.rounded.vectors.Home
+
+@Composable
+fun NavigationIcons() {
+    Icon(Symbols.Material.Rounded.Filled.Home, contentDescription = "Home")
+    Icon(Symbols.Material.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+}
+```
+
+Use localized descriptions in applications, or `null` for decorative icons. Mirror directional
+symbols only when their meaning should follow the layout direction.
+
+## Two useful choices
+
+Typed vectors let Android's R8 shrinker remove unused icons independently. Variable fonts offer
+another path: animate fill, weight, grade, and optical size without producing new vectors. Fonts
+ship as a whole payload, so the representation depends on the application's needs.
+
+The optional Gradle generator converts custom icon fonts and monochrome SVGs into typed vectors or
+XML drawables during the build. This keeps generation alongside the assets instead of requiring
+developers to maintain generated files by hand.
+
+## Available now
+
+Symbols is open source under Apache-2.0, with version 2.2.0 published on Maven Central. Native
+Android drawable packs also support Views and XML. The documentation covers artifact selection,
+font rendering, and custom generation; Material artwork remains Google's work.

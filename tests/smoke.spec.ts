@@ -370,7 +370,7 @@ test.describe("site shell", () => {
 
     const root = page.locator("html");
     const nav = page.getByRole("navigation", { name: "Primary navigation" });
-    await expect(page.locator("[data-nav-group='Projects'] a[href^='/work/']")).toHaveCount(3);
+    await expect(page.locator("[data-nav-group='Projects'] a[href^='/work/']")).toHaveCount(4);
 
     if (isMobile) {
       await page.getByRole("button", { name: "Open navigation" }).click();

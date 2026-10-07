@@ -162,15 +162,15 @@ test.describe("Signal", () => {
     await expect(root).toHaveAttribute("data-signal-layout", "compact");
     await expect(root).toHaveAttribute("data-signal-ratio", "square");
     await expect(signal).toHaveCount(1);
-    await expect(items).toHaveCount(3);
-    await expect(items.locator(".signal__title")).toHaveText(["ProtoShape", "SplitEasy AI", "About HLCaptain"]);
+    await expect(items).toHaveCount(4);
+    await expect(items.locator(".signal__title")).toHaveText(["Symbols", "ProtoShape", "SplitEasy AI", "About HLCaptain"]);
     await expect(items.locator("[data-signal-trigger][aria-expanded='true']")).toHaveCount(1);
     await expect(items.locator("[data-signal-panel][aria-hidden='false']")).toHaveCount(1);
-    await expect(items.locator("[data-signal-panel][aria-hidden='true'][inert]")).toHaveCount(2);
+    await expect(items.locator("[data-signal-panel][aria-hidden='true'][inert]")).toHaveCount(3);
     await expect(signal.locator("[data-signal-panel][aria-hidden='false'] [data-signal-link]")).toHaveCount(1);
     const fallback = signal.locator("[data-signal-item].is-active .signal__media-icon");
     await expect(fallback).toBeVisible();
-    await expect(fallback.locator('.semantic-icon[data-icon-name="cube"]')).toBeVisible();
+    await expect(fallback.locator('.semantic-icon[data-icon-name="blocks"]')).toBeVisible();
     await expect(signal.locator("img[data-signal-image]")).toHaveCount(1);
 
     const mediaBox = await signal.locator("[data-signal-item].is-active .signal__media").boundingBox();
@@ -532,7 +532,7 @@ test.describe("Signal", () => {
       { name: "Square 1:1", value: "square", aspect: 1 }
     ];
 
-    await expect(icon).toHaveAttribute("data-icon-name", "cube");
+    await expect(icon).toHaveAttribute("data-icon-name", "blocks");
     for (const choice of choices) {
       await setSignalOption(page, choice.name, "ratio", choice.value);
       await expect(media).toHaveAttribute("data-signal-aspect", choice.name.split(" ").at(-1)!);
