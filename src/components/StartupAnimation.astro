@@ -12,7 +12,7 @@ const tiles = Array.from({ length: 77 }, (_, index) => {
   <div class="startup__atmosphere"></div>
   <div class="startup__field">
     {tiles.map(({ x, y, delay, tone }) => (
-      <i class="startup__tile" style={`--x:${x};--y:${y};--delay:${delay}ms;--tone:${tone}`}><span></span></i>
+      <i class="startup__tile" style={`--x:${x};--y:${y};--delay:${delay}ms;--tone:${tone}`}></i>
     ))}
   </div>
   <div class="startup__reticle"></div>
@@ -155,11 +155,12 @@ const tiles = Array.from({ length: 77 }, (_, index) => {
     background: var(--signal);
     box-shadow: -8px 0 0 color-mix(in srgb, var(--signal) 30%, transparent);
   }
-  .startup__tile span {
+  .startup__field::after {
+    content: "";
     position: absolute;
     inset: 0;
     background: linear-gradient(135deg, transparent 30%, color-mix(in srgb, var(--glint) 18%, transparent) 50%, transparent 70%);
-    animation: startup-sheen calc(1000ms - var(--delay)) ease var(--delay) both;
+    animation: startup-sheen 1000ms ease both;
   }
   .startup__reticle {
     position: absolute;
