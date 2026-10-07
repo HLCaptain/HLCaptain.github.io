@@ -504,7 +504,8 @@ test.describe("site shell", () => {
     await page.goto("/about/");
 
     const expectedExperiences = [
-      ["Fizetési Pont", "Android Developer", "January 2026 — Present"],
+      ["Trax Retail", "Senior Android Developer", "August 2026 — Present"],
+      ["Fizetési Pont", "Android Developer", "January 2026 — August 2026"],
       ["OTP Bank Magyarország", "Medior Android Developer", "March 2025 — January 2026"],
       ["Wizz Air", "Android Developer", "September 2022 — March 2025"],
       ["Ericsson", "Student Researcher", "June 2023 — September 2023"],
@@ -514,12 +515,15 @@ test.describe("site shell", () => {
       ["Budapest University of Technology and Economics", "Demonstrator (C)", "September 2021 — January 2022"],
       ["Budapest University of Technology and Economics", "Demonstrator (C++ and OOP)", "February 2021 — July 2021"]
     ];
-    const dialogSummaryExpected = [true, true, true, false, true, true, true, true, true];
+    const dialogSummaryExpected = [true, true, true, true, false, true, true, true, true, true];
     const items = page.locator(".experience-timeline__item");
     await expect(items).toHaveCount(expectedExperiences.length);
-    await expect(items.nth(0)).not.toContainText("experienced product team");
-    await expect(items.nth(0)).toContainText("dual-screen functionality");
-    await expect(items.nth(3)).toContainText("C++ abstract syntax trees");
+    await expect(items.nth(0)).toContainText("augmented reality");
+    await expect(items.nth(0)).toContainText("technical debt");
+    await expect(items.nth(0)).toContainText("modern, robust architecture");
+    await expect(items.nth(1)).not.toContainText("experienced product team");
+    await expect(items.nth(1)).toContainText("dual-screen functionality");
+    await expect(items.nth(4)).toContainText("C++ abstract syntax trees");
 
     const railEdges = await page
       .locator(".page-header, .about-direction, .experience-section")
@@ -641,7 +645,7 @@ test.describe("site shell", () => {
       expect(geometry[index + 1].itemTop - item.cardBottom).toBeGreaterThanOrEqual(29);
     }
 
-    const wizzItem = items.nth(2);
+    const wizzItem = items.filter({ hasText: "Wizz Air" });
     const openButton = wizzItem.getByRole("button", { name: "Read full experience: Android Developer at Wizz Air" });
     const card = wizzItem.locator(".experience-card");
     const cardGroup = wizzItem.locator(".experience-card-group");
@@ -739,7 +743,7 @@ test.describe("site shell", () => {
     await expect(dialog).toHaveJSProperty("returnValue", "backdrop");
     await expect(openButton).toBeFocused();
 
-    const nokiaItem = items.nth(6);
+    const nokiaItem = items.filter({ hasText: "Nokia Bell Labs" });
     const nokiaOpenButton = nokiaItem.getByRole("button", {
       name: "Read full experience: Research Scholar at Nokia Bell Labs"
     });
