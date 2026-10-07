@@ -14,7 +14,7 @@ npm test
 
 ## Startup animation previews
 
-The one-second, text-free 2D Raster animation plays on each full site load; page transitions skip it. Development and Cloudflare PR previews include three reflective pattern alternatives: Raster (square scan), Prism (diamond sheen), and Hive (hexagonal ripple). Selecting an alternative saves the preview choice, and **Replay selected** plays it again. Production uses Raster and has no debug controls. Reduced-motion preferences skip the animations.
+The one-second, text-free 2D Raster animation plays on each full site load; page transitions skip it. Development and Cloudflare PR previews include three reflective pattern alternatives: Raster (square scan), Prism (crossing diamond reflections), and Hive (paired hexagonal ripples). Each follows the current theme and accent, with paced ignition, an eased crest, and a trailing reflection into the page reveal. Selecting an alternative saves the preview choice, and **Replay selected** plays it again. Production uses Raster and has no debug controls. Reduced-motion preferences skip the animations.
 
 To review a local preview build:
 

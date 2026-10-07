@@ -11,6 +11,9 @@ type StartupRun = {
   textFree: boolean;
   flat: boolean;
   patterned: boolean;
+  transforms: string[];
+  echoVisible: boolean;
+  palette?: { background: number[]; canvas: number[]; signal: number[]; accent: number[]; texture: string; reflection: string; theme: string };
 };
 type StartupTimeline = { documentId: number; runs: StartupRun[] };
 
@@ -37,7 +40,9 @@ async function observeStartup(page: Page) {
         visualSamples: 0,
         textFree: true,
         flat: true,
-        patterned: false
+        patterned: false,
+        transforms: [],
+        echoVisible: false
       });
     };
     new MutationObserver(observe).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
@@ -49,11 +54,37 @@ async function observeStartup(page: Page) {
       run.maxEnd = Math.max(...event.target.getAnimations({ subtree: true }).map((animation) => Number(animation.effect!.getComputedTiming().endTime)));
       run.fits &&= document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1;
       const root = event.target;
+      const probe = document.createElement("i");
+      probe.style.cssText = "display:none;background:var(--canvas);color:var(--accent)";
+      root.append(probe);
+      const native = getComputedStyle(probe);
+      const context = document.createElement("canvas").getContext("2d")!;
+      const rgba = (color: string) => {
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = color;
+        context.fillRect(0, 0, 1, 1);
+        return Array.from(context.getImageData(0, 0, 1, 1).data);
+      };
+      const reflection = root.querySelector(".startup__reflection")!;
+      run.palette = {
+        background: rgba(getComputedStyle(root).backgroundColor),
+        canvas: rgba(native.backgroundColor),
+        signal: rgba(getComputedStyle(reflection).color),
+        accent: rgba(native.color),
+        texture: getComputedStyle(root.querySelector(".startup__texture")!).backgroundImage,
+        reflection: getComputedStyle(reflection, "::before").backgroundImage,
+        theme: document.documentElement.dataset.theme!
+      };
+      probe.remove();
       const phases = [100, 450, 750];
       const sample = () => {
         if (root.hidden || timeline.runs.at(-1) !== run) return;
         if (performance.now() - run.shown >= phases[run.visualSamples]) {
           run.visualSamples++;
+          run.transforms.push(getComputedStyle(reflection, "::before").transform);
+          const echo = root.querySelector(".startup__echo");
+          if (echo) run.echoVisible ||= getComputedStyle(echo).maskImage === getComputedStyle(reflection).maskImage
+            && getComputedStyle(echo).maskImage !== "none" && Number(getComputedStyle(echo, "::before").opacity) > 0;
           run.textFree &&= !root.textContent?.trim() && !root.querySelector("text, image, .startup__mark");
           for (const element of [root, ...root.querySelectorAll("*")]) {
             for (const pseudo of [null, "::before", "::after"]) {
@@ -88,8 +119,8 @@ async function readTimeline(page: Page) {
 }
 
 async function finishStartup(page: Page, count: number) {
-  await expect.poll(async () => (await readTimeline(page)).runs.filter((run) => run.hidden !== undefined).length).toBe(count);
   await expect(page.locator("[data-startup]")).toBeHidden();
+  await expect.poll(async () => (await readTimeline(page)).runs.filter((run) => run.hidden !== undefined).length).toBe(count);
   const run = (await readTimeline(page)).runs.at(-1)!;
   expect(run.duration).toBe("1s");
   expect(run.maxEnd).toBeLessThanOrEqual(1000);
@@ -101,6 +132,10 @@ async function finishStartup(page: Page, count: number) {
   expect(run.textFree).toBe(true);
   expect(run.flat).toBe(true);
   expect(run.patterned).toBe(true);
+  expect(new Set(run.transforms).size).toBeGreaterThan(1);
+  expect(run.echoVisible).toBe(true);
+  expect(run.palette!.background).toEqual(run.palette!.canvas);
+  expect(run.palette!.signal).toEqual(run.palette!.accent);
 }
 
 async function navigateAndSettle(page: Page, action: () => Promise<unknown>) {
@@ -131,6 +166,45 @@ test("plays a one-second startup only on full document loads", async ({ page }) 
   await page.reload();
   await finishStartup(page, 1);
   expect((await readTimeline(page)).documentId).not.toBe(first.documentId);
+});
+
+test("startup follows saved themes and live accent controls for every pattern", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await observeStartup(page);
+  await page.goto("/");
+  await finishStartup(page, 1);
+  let count = 1;
+  for (const theme of ["light", "black"]) {
+    while (await page.locator("html").getAttribute("data-theme-mode") !== theme) {
+      await page.locator("[data-theme-toggle]").evaluate((node: HTMLButtonElement) => node.click());
+    }
+    await page.getByRole("button", { name: "Open debug menu" }).click();
+    for (const variant of ["lattice", "aperture", "flux"]) {
+      const palettes = [];
+      for (const accent of ["#db752b", "#7557d6"]) {
+        await page.locator("[data-accent-input]").evaluate((node: HTMLInputElement, value) => {
+          node.value = value;
+          node.dispatchEvent(new Event("input", { bubbles: true }));
+        }, accent);
+        await page.locator(`[data-startup-variant='${variant}']`).click();
+        await finishStartup(page, ++count);
+        palettes.push((await readTimeline(page)).runs.at(-1)!.palette!);
+      }
+      expect(palettes[0].texture).not.toBe(palettes[1].texture);
+      expect(palettes[0].reflection).not.toBe(palettes[1].reflection);
+      expect(palettes[1].theme).toBe(theme);
+    }
+    const saved = (await readTimeline(page)).runs.at(-1)!.palette;
+    await page.reload();
+    await finishStartup(page, 1);
+    count = 1;
+    expect((await readTimeline(page)).runs.at(-1)!.palette).toEqual(saved);
+  }
+  await page.locator("[data-theme-toggle]").evaluate((node: HTMLButtonElement) => node.click());
+  await expect(page.locator("html")).toHaveAttribute("data-theme-mode", "system");
+  await page.reload();
+  await finishStartup(page, 1);
+  expect((await readTimeline(page)).runs.at(-1)!.palette!.theme).toBe("black");
 });
 
 test("preview controls replay all three alternatives and preserve the selection", async ({ page }) => {
