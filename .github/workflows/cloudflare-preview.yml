@@ -12,6 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  PUBLIC_SITE_PREVIEW: "true"
   NODE_VERSION: "22"
   CLOUDFLARE_PAGES_PROJECT: hlcaptain-site
   SITE_URL: https://hlcaptain.github.io
@@ -42,6 +43,9 @@ jobs:
 
       - name: Build site
         run: npm run build
+
+      - name: Verify preview startup shell
+        run: node --test tests/startup-build.mjs
 
   cloudflare-config:
     name: Check Cloudflare configuration
@@ -107,6 +111,9 @@ jobs:
       - name: Build site
         run: npm run build
 
+      - name: Verify preview startup shell
+        run: node --test tests/startup-build.mjs
+
       - name: Deploy preview branch
         id: deploy
         env:
@@ -154,6 +161,9 @@ jobs:
 
       - name: Build site for UI tests
         run: npm run build
+
+      - name: Verify preview startup shell
+        run: node --test tests/startup-build.mjs
 
       - name: Select UI test target
         id: ui-target

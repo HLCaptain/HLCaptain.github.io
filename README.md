@@ -12,6 +12,17 @@ npm run build
 npm test
 ```
 
+## Startup animation previews
+
+The one-second Lattice animation plays on each full site load; page transitions skip it. Development and Cloudflare PR previews include a debug menu with Lattice, Aperture, and Flux alternatives. Selecting an alternative saves the preview choice, and **Replay selected** plays it again. Production uses Lattice and has no debug controls. Reduced-motion preferences skip the animations.
+
+To review a local preview build:
+
+```sh
+PUBLIC_SITE_PREVIEW=true npm run build
+npm run preview
+```
+
 ## Publishing Content
 
 Add `.md` or `.mdx` files to:

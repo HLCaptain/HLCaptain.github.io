@@ -17,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  PUBLIC_SITE_PREVIEW: "false"
   NODE_VERSION: "22"
   SITE_URL: https://hlcaptain.github.io
   CF_WEB_ANALYTICS_TOKEN: ${{ vars.CF_WEB_ANALYTICS_TOKEN }}
@@ -70,6 +71,9 @@ jobs:
 
       - name: Build site
         run: npm run build
+
+      - name: Verify production startup shell
+        run: node --test tests/startup-build.mjs
 
       - name: Verify Web Analytics beacon
         if: env.CF_WEB_ANALYTICS_TOKEN != ''

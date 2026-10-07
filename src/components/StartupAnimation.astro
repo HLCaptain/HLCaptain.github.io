@@ -1,0 +1,335 @@
+---
+type Props = { previewDebug: boolean };
+const tiles = Array.from({ length: 77 }, (_, index) => {
+  const x = index % 11 - 5;
+  const y = Math.floor(index / 11) - 3;
+  const distance = Math.hypot(x, y);
+  return { x, y, delay: Math.round(distance * 20 + (index % 3) * 12), tone: 0.12 + (1 - distance / 6) * 0.3 };
+});
+---
+
+<div class="startup" data-startup data-variant="lattice" data-preview={Astro.props.previewDebug ? "true" : undefined} aria-hidden="true" hidden transition:persist="startup">
+  <div class="startup__atmosphere"></div>
+  <div class="startup__field">
+    {tiles.map(({ x, y, delay, tone }) => (
+      <i class="startup__tile" style={`--x:${x};--y:${y};--delay:${delay}ms;--tone:${tone}`}><span></span></i>
+    ))}
+  </div>
+  <div class="startup__reticle"></div>
+  <div class="startup__signature">
+    <div class="startup__core">
+      <div class="startup__orbit startup__orbit--outer"></div>
+      <div class="startup__orbit startup__orbit--inner"></div>
+      <svg class="startup__mark" viewBox="0 0 64 64" fill="currentColor">
+        <path style="--piece:0" d="M12 12h12v12H12z" />
+        <path style="--piece:1" d="M28 12h24v12H28z" />
+        <path style="--piece:2" d="M12 28h16v8H12z" />
+        <path class="startup__bridge" style="--piece:3" d="M28 28h24v8H28z" />
+        <path style="--piece:4" d="M12 40h12v12H12z" />
+        <path style="--piece:5" d="M28 40h24v12H28z" />
+      </svg>
+      <span class="startup__coordinate startup__coordinate--top">HL / 01</span>
+      <span class="startup__coordinate startup__coordinate--bottom">PERSONAL SYSTEMS</span>
+    </div>
+    <div class="startup__wordmark">HLCaptain<span>DESIGN · CODE · EXPERIMENT</span></div>
+  </div>
+  <div class="startup__edge startup__edge--top"><span>HLC / SYSTEM ONLINE</span><span>001</span></div>
+  <div class="startup__edge startup__edge--bottom"><span>INDEPENDENT BY DESIGN</span><span class="startup__progress"></span></div>
+</div>
+
+<script is:inline>
+  (() => {
+    // Window survives Astro navigation; a new document gets a new startup.
+    if (window.__hlStartupBooted) return;
+    window.__hlStartupBooted = true;
+    const startup = document.querySelector("[data-startup]");
+    const preview = startup.dataset.preview === "true";
+    const variants = ["lattice", "aperture", "flux"];
+    const key = "hlcaptain-startup-variant";
+    const motion = matchMedia("(prefers-reduced-motion: reduce)");
+    let selected = "lattice";
+    let timer;
+    if (preview) {
+      try {
+        const saved = localStorage.getItem(key);
+        if (variants.includes(saved)) selected = saved;
+      } catch {}
+    }
+    const finish = () => {
+      clearTimeout(timer);
+      startup.hidden = true;
+    };
+    const play = () => {
+      finish();
+      startup.dataset.variant = selected;
+      if (motion.matches) return;
+      // Commit the hidden state so replay also restarts the CSS timeline.
+      startup.getBoundingClientRect();
+      startup.hidden = false;
+      timer = setTimeout(finish, 1000);
+    };
+    const sync = () => {
+      document.querySelectorAll("[data-startup-variant]").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.startupVariant === selected));
+      });
+      document.querySelectorAll("[data-startup-motion-note]").forEach((note) => { note.hidden = !motion.matches; });
+    };
+    startup.addEventListener("animationend", (event) => { if (event.target === startup) finish(); });
+    document.addEventListener("astro:before-preparation", finish);
+    window.addEventListener("pagehide", finish);
+    motion.addEventListener("change", () => { if (motion.matches) finish(); sync(); });
+    if (preview) {
+      document.addEventListener("astro:page-load", sync);
+      document.addEventListener("click", (event) => {
+        const button = event.target instanceof Element ? event.target.closest("[data-startup-variant], [data-startup-replay]") : null;
+        if (!button?.closest("[data-debug-panel]")) return;
+        const variant = button.dataset.startupVariant;
+        if (variant) {
+          if (!variants.includes(variant)) return;
+          selected = variant;
+          try { localStorage.setItem(key, selected); } catch {}
+        }
+        sync();
+        play();
+      });
+    }
+    play();
+  })();
+</script>
+
+<style is:global>
+  .startup {
+    --signal: color-mix(in srgb, var(--accent) 70%, #e8ffc9);
+    --glint: #e8f6dc;
+    --flight: cubic-bezier(0.16, 1, 0.3, 1);
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    color: var(--glint);
+    background: #080e0d;
+    contain: strict;
+  }
+  .startup[hidden] { display: none; }
+  .startup:not([hidden]) { animation: startup-exit 1000ms linear both; }
+  .startup__atmosphere {
+    position: absolute;
+    inset: -20%;
+    background: radial-gradient(ellipse at 50% 55%, color-mix(in srgb, var(--signal) 15%, transparent), transparent 52%);
+    animation: startup-atmosphere 1000ms var(--flight) both;
+  }
+  .startup__field {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 7px;
+    width: max(125vw, 760px);
+    aspect-ratio: 11 / 7;
+    transform: translate(-50%, -46%) perspective(1000px) rotateX(48deg) rotateZ(-32deg);
+    mask-image: radial-gradient(ellipse, #000 12%, transparent 68%);
+  }
+  .startup__tile {
+    position: relative;
+    display: block;
+    border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
+    border-radius: 3px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--signal) 16%, #101c19), #0a1110 70%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 9px 0 #050908, 0 10px 0 color-mix(in srgb, var(--signal) 15%, transparent);
+    animation: startup-lattice calc(1000ms - var(--delay)) var(--flight) var(--delay) both;
+  }
+  .startup__tile::before, .startup__tile::after {
+    content: "";
+    position: absolute;
+    inset: 12%;
+    border: 1px solid color-mix(in srgb, var(--signal) 14%, transparent);
+  }
+  .startup__tile::after {
+    inset: auto 12% 12% auto;
+    width: 4px;
+    height: 4px;
+    border: 0;
+    background: var(--signal);
+    box-shadow: -8px 0 0 color-mix(in srgb, var(--signal) 30%, transparent);
+  }
+  .startup__tile span {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 30%, color-mix(in srgb, var(--glint) 18%, transparent) 50%, transparent 70%);
+    animation: startup-sheen calc(1000ms - var(--delay)) ease var(--delay) both;
+  }
+  .startup__reticle {
+    position: absolute;
+    inset: 22px;
+    opacity: 0.5;
+    background: linear-gradient(var(--signal), var(--signal)) left top / 24px 1px no-repeat,
+      linear-gradient(var(--signal), var(--signal)) left top / 1px 24px no-repeat,
+      linear-gradient(var(--signal), var(--signal)) right bottom / 24px 1px no-repeat,
+      linear-gradient(var(--signal), var(--signal)) right bottom / 1px 24px no-repeat;
+    animation: startup-reticle 1000ms var(--flight) both;
+  }
+  .startup__signature {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    animation: startup-signature 1000ms var(--flight) both;
+  }
+  .startup__core {
+    position: relative;
+    width: clamp(112px, 26vmin, 192px);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--signal) 60%, transparent);
+    background: linear-gradient(135deg, #1e3028, #080e0d 70%);
+    box-shadow: inset 0 0 32px color-mix(in srgb, var(--signal) 8%, transparent), 0 0 70px color-mix(in srgb, var(--signal) 9%, transparent);
+  }
+  .startup__mark { width: 88%; overflow: visible; }
+  .startup__mark path { transform-origin: 32px 32px; animation: startup-mark 1000ms var(--flight) both; }
+  .startup__bridge { color: var(--signal); }
+  .startup__orbit {
+    position: absolute;
+    inset: -12px;
+    border: 1px solid color-mix(in srgb, var(--signal) 36%, transparent);
+    animation: startup-orbit 1000ms var(--flight) both;
+  }
+  .startup__orbit--outer { inset: -24px; border-style: dashed; opacity: 0.55; }
+  .startup__coordinate {
+    position: absolute;
+    font: 8px var(--font-mono);
+    letter-spacing: 0.12em;
+    color: var(--signal);
+  }
+  .startup__coordinate--top { top: 5px; left: 7px; }
+  .startup__coordinate--bottom { bottom: 5px; right: 7px; font-size: 6px; }
+  .startup__wordmark {
+    text-align: center;
+    font: 600 clamp(20px, 4vmin, 32px) var(--font-body);
+    letter-spacing: 0.2em;
+    padding-left: 0.2em;
+  }
+  .startup__wordmark span {
+    display: block;
+    margin-top: 10px;
+    color: var(--signal);
+    font: 8px var(--font-mono);
+    letter-spacing: 0.24em;
+  }
+  .startup__edge {
+    position: absolute;
+    left: 40px;
+    right: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    color: var(--signal);
+    font: 8px var(--font-mono);
+    letter-spacing: 0.16em;
+    animation: startup-signature 1000ms var(--flight) both;
+  }
+  .startup__edge--top { top: 40px; }
+  .startup__edge--bottom { bottom: 40px; }
+  .startup__progress {
+    width: 80px;
+    height: 2px;
+    background: var(--signal);
+    transform-origin: left;
+    animation: startup-progress 1000ms var(--flight) both;
+  }
+
+  .startup[data-variant="aperture"] { --signal: #87efcd; --glint: #e3fff5; background: #060f10; }
+  .startup[data-variant="aperture"] .startup__field {
+    width: max(100vw, 660px);
+    transform: translate(-50%, -50%) rotate(45deg);
+    mask-image: radial-gradient(circle, transparent 8%, #000 20%, transparent 67%);
+    gap: 12px;
+  }
+  .startup[data-variant="aperture"] .startup__tile {
+    border-radius: 12% 2%;
+    background: linear-gradient(145deg, #153a32, #081817);
+    animation-name: startup-aperture;
+    box-shadow: inset 0 1px 0 #87efcd40, 0 0 20px #87efcd0d;
+  }
+  .startup[data-variant="aperture"] .startup__core {
+    border-radius: 22%;
+    background: radial-gradient(circle, #14382d, #06100e 70%);
+    border-color: transparent;
+  }
+  .startup[data-variant="aperture"] .startup__orbit { inset: -20px; border-radius: 28%; animation-name: startup-iris; }
+  .startup[data-variant="aperture"] .startup__orbit--outer { inset: -42px; border-radius: 32%; border-style: solid; animation-direction: reverse; }
+  .startup[data-variant="aperture"] .startup__coordinate { display: none; }
+
+  .startup[data-variant="flux"] { --signal: #b6acff; --glint: #f2ebff; background: #0c0a15; }
+  .startup[data-variant="flux"] .startup__field {
+    gap: 6px;
+    width: max(110vw, 730px);
+    aspect-ratio: 11 / 6;
+    transform: translate(-50%, -50%) perspective(900px) rotateY(-22deg) rotateZ(-16deg);
+    mask-image: radial-gradient(ellipse, #000 10%, transparent 65%);
+  }
+  .startup[data-variant="flux"] .startup__tile {
+    background: linear-gradient(135deg, #655b8a, #1b1838 42%, #100f20);
+    border-color: #c9bfff40;
+    border-radius: 8px 2px 8px 2px;
+    box-shadow: inset 0 1px 0 #e1d4ff66, 0 6px 0 #070610;
+    animation-name: startup-flux;
+  }
+  .startup[data-variant="flux"] .startup__tile:nth-child(3n) { background: linear-gradient(135deg, #9780a0, #332b49 42%, #141120); }
+  .startup[data-variant="flux"] .startup__core {
+    border-radius: 16px 2px 16px 2px;
+    background: linear-gradient(145deg, #34304b, #100e1c 62%);
+    transform: rotate(-8deg);
+  }
+  .startup[data-variant="flux"] .startup__mark { transform: rotate(8deg); }
+  .startup[data-variant="flux"] .startup__orbit { border-radius: 22px 2px; animation-name: startup-flux-orbit; }
+
+  @keyframes startup-exit { 0%, 76% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes startup-atmosphere { from { opacity: 0; transform: scale(0.7); } 45%, 75% { opacity: 1; } to { opacity: 0; transform: scale(1.3); } }
+  @keyframes startup-lattice {
+    from { opacity: 0; transform: translate3d(calc(var(--x) * 26px), calc(var(--y) * 26px), -200px) rotateX(70deg) scale(0.5); }
+    40%, 68% { opacity: var(--tone); transform: translate3d(0, 0, 0) rotateX(0) scale(1); }
+    to { opacity: 0; transform: translate3d(calc(var(--x) * -12px), calc(var(--y) * -12px), 60px) scale(0.84); }
+  }
+  @keyframes startup-aperture {
+    from { opacity: 0; transform: translate(calc(var(--x) * -28px), calc(var(--y) * -28px)) rotate(-35deg) scale(0.4); }
+    38%, 60% { opacity: calc(var(--tone) * 1.4); transform: translate(0, 0) rotate(0) scale(1); }
+    to { opacity: 0; transform: translate(calc(var(--x) * 38px), calc(var(--y) * 38px)) rotate(22deg) scale(1.2); }
+  }
+  @keyframes startup-flux {
+    from { opacity: 0; transform: translateX(calc(100px + var(--y) * 30px)) rotateY(70deg) scaleX(0.4); }
+    42%, 64% { opacity: calc(var(--tone) * 1.6); transform: translateX(0) rotateY(0) scaleX(1); }
+    to { opacity: 0; transform: translateX(calc(-130px - var(--x) * 22px)) rotateY(-35deg) scaleX(0.6); }
+  }
+  @keyframes startup-sheen { from { opacity: 0; transform: translateX(-30%); } 40% { opacity: 1; } to { opacity: 0; transform: translateX(30%); } }
+  @keyframes startup-signature {
+    from { opacity: 0; transform: translateY(14px) scale(0.96); }
+    24%, 72% { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(-8px) scale(1.04); }
+  }
+  @keyframes startup-mark {
+    from { opacity: 0; transform: translate(calc((var(--piece) - 2.5) * 6px), calc((var(--piece) - 2.5) * -8px)) scale(0.3); }
+    32%, 72% { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(0, -3px) scale(0.96); }
+  }
+  @keyframes startup-orbit { from { opacity: 0; transform: rotate(-28deg) scale(1.3); } 40%, 68% { opacity: 0.65; transform: rotate(0) scale(1); } to { opacity: 0; transform: rotate(12deg) scale(0.8); } }
+  @keyframes startup-iris { from { opacity: 0; transform: rotate(0) scale(0.5); } 36%, 60% { opacity: 0.75; transform: rotate(45deg) scale(1); } to { opacity: 0; transform: rotate(90deg) scale(1.9); } }
+  @keyframes startup-flux-orbit { from { opacity: 0; transform: translateX(40px) skewX(-15deg); } 36%, 66% { opacity: 0.65; transform: translateX(0) skewX(0); } to { opacity: 0; transform: translateX(-40px) skewX(15deg); } }
+  @keyframes startup-reticle { from { opacity: 0; transform: scale(1.03); } 35%, 70% { opacity: 0.5; transform: scale(1); } to { opacity: 0; transform: scale(0.98); } }
+  @keyframes startup-progress { from { transform: scaleX(0); } 76%, to { transform: scaleX(1); } }
+  @media (max-width: 480px) {
+    .startup__edge { left: 28px; right: 28px; font-size: 6px; }
+    .startup__edge--top { top: 30px; }
+    .startup__edge--bottom { bottom: 30px; }
+    .startup__reticle { inset: 14px; }
+    .startup__signature { gap: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .startup { display: none !important; } }
+</style>

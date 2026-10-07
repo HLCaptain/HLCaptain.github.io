@@ -8,7 +8,7 @@
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
     "check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
-    "pretest": "npm run build",
+    "pretest": "PUBLIC_SITE_PREVIEW=true npm run build",
     "test": "playwright test",
     "test:ui": "playwright test --ui"
   },
