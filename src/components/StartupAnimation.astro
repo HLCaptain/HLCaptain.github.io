@@ -1,238 +1,30 @@
 ---
 type Props = { previewDebug: boolean };
-const square = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><path fill="white" fill-opacity=".65" d="M2 2h20v20H2z"/><path fill="white" fill-opacity=".65" d="M2 2h20L2 22z"/></svg>`;
-const diamond = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><g fill="white" fill-opacity=".65"><path d="M20 2 38 20 20 38 2 20Z M0-18 18 0 0 18-18 0Z M40-18 58 0 40 18 22 0Z M0 22 18 40 0 58-18 40Z M40 22 58 40 40 58 22 40Z"/></g><path fill="white" fill-opacity=".6" d="M20 2 38 20 20 20Z M0-18 18 0 0 0Z M40-18 58 0 40 0Z M0 22 18 40 0 40Z M40 22 58 40 40 40Z"/></svg>`;
-const hexagon = `<svg xmlns="http://www.w3.org/2000/svg" width="54" height="34"><g fill="white" fill-opacity=".65"><path d="M10 2 26 2 35 17 26 32 10 32 1 17Z M37-15 53-15 62 0 53 15 37 15 28 0Z M37 19 53 19 62 34 53 49 37 49 28 34Z M-17-15-1-15 8 0-1 15-17 15-26 0Z M-17 19-1 19 8 34-1 49-17 49-26 34Z"/></g><path fill="white" fill-opacity=".6" d="M10 2 26 2 18 17 1 17Z M37-15 53-15 45 0 28 0Z M37 19 53 19 45 34 28 34Z M-17-15-1-15-9 0-26 0Z M-17 19-1 19-9 34-26 34Z"/></svg>`;
-const patternStyles = Object.entries({ square, diamond, hexagon }).map(([name, svg]) => `--${name}-pattern:url("data:image/svg+xml,${encodeURIComponent(svg)}")`).join(';');
+const colors = { canvas: 'canvas', surface: 'surface', soft: 'surface-soft', strong: 'surface-strong', line: 'line', ink: 'ink', accent: 'accent', accentInk: 'accent-readable' };
 ---
 
-<div class="startup" data-startup data-variant="lattice" data-preview={Astro.props.previewDebug ? "true" : undefined} style={patternStyles} aria-hidden="true" hidden transition:persist="startup">
-  <div class="startup__field">
-    <div class="startup__texture"></div>
-    <div class="startup__reflection"></div>
-    <div class="startup__echo"></div>
+<div class="startup" data-startup data-variant="lattice" data-preview={Astro.props.previewDebug ? "true" : undefined} aria-hidden="true" hidden transition:persist="startup">
+  <canvas class="startup__canvas"></canvas>
+  <div class="startup__palette" hidden>
+    {Object.entries(colors).map(([name, token]) => <i data-startup-color={name} style={`color:var(--${token})`}></i>)}
   </div>
-  <div class="startup__scan"></div>
 </div>
 
 <script is:inline>
-  (() => {
-    // Window survives Astro navigation; a new document gets a new startup.
-    if (window.__hlStartupBooted) return;
+  if (!window.__hlStartupBooted) {
     window.__hlStartupBooted = true;
-    const startup = document.querySelector("[data-startup]");
-    const preview = startup.dataset.preview === "true";
-    const variants = ["lattice", "aperture", "flux"];
-    const key = "hlcaptain-startup-variant";
-    const motion = matchMedia("(prefers-reduced-motion: reduce)");
-    let selected = "lattice";
-    let timer;
-    if (preview) {
-      try {
-        const saved = localStorage.getItem(key);
-        if (variants.includes(saved)) selected = saved;
-      } catch {}
-    }
-    const finish = () => {
-      clearTimeout(timer);
-      startup.hidden = true;
-    };
-    const play = () => {
-      finish();
-      startup.dataset.variant = selected;
-      if (motion.matches) return;
-      // Commit the hidden state so replay also restarts the CSS timeline.
-      startup.getBoundingClientRect();
-      startup.hidden = false;
-      timer = setTimeout(finish, 1000);
-    };
-    const sync = () => {
-      document.querySelectorAll("[data-startup-variant]").forEach((button) => {
-        button.setAttribute("aria-pressed", String(button.dataset.startupVariant === selected));
-      });
-      document.querySelectorAll("[data-startup-motion-note]").forEach((note) => { note.hidden = !motion.matches; });
-    };
-    startup.addEventListener("animationend", (event) => { if (event.target === startup) finish(); });
-    document.addEventListener("astro:before-preparation", finish);
-    window.addEventListener("pagehide", finish);
-    motion.addEventListener("change", () => { if (motion.matches) finish(); sync(); });
-    if (preview) {
-      document.addEventListener("astro:page-load", sync);
-      document.addEventListener("click", (event) => {
-        const button = event.target instanceof Element ? event.target.closest("[data-startup-variant], [data-startup-replay]") : null;
-        if (!button?.closest("[data-debug-panel]")) return;
-        const variant = button.dataset.startupVariant;
-        if (variant) {
-          if (!variants.includes(variant)) return;
-          selected = variant;
-          try { localStorage.setItem(key, selected); } catch {}
-        }
-        sync();
-        play();
-      });
-    }
-    play();
-  })();
+    window.__hlStartupPending = true;
+    // A late module download must never start the intro during navigation.
+    document.addEventListener("astro:before-preparation", () => { window.__hlStartupPending = false; }, { once: true });
+  }
+</script>
+<script>
+  import "../scripts/startup-animation";
 </script>
 
-<style is:global>
-  .startup {
-    --pattern: var(--square-pattern);
-    --cell-width: clamp(18px, 2.8vmin, 28px);
-    --cell-height: var(--cell-width);
-    --signal: var(--accent);
-    --glint: color-mix(in srgb, var(--accent) 20%, var(--surface-soft));
-    --signal-soft: color-mix(in srgb, var(--accent) 65%, var(--surface-strong));
-    --signal-deep: color-mix(in srgb, var(--accent-readable) 55%, var(--surface));
-    --cell-bright: color-mix(in srgb, var(--accent) 28%, var(--surface-strong));
-    --cell-base: color-mix(in srgb, var(--accent) 12%, var(--surface));
-    --motion: cubic-bezier(0.22, 1, 0.36, 1);
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    overflow: hidden;
-    pointer-events: none;
-    user-select: none;
-    background: var(--canvas);
-    contain: strict;
-  }
-  .startup[hidden] { display: none; }
-  :root[data-theme="black"] .startup { --glint: color-mix(in srgb, var(--accent) 35%, var(--ink)); }
-  .startup:not([hidden]) { animation: startup-exit 1000ms linear both; }
-  .startup__field {
-    position: absolute;
-    inset: 0;
-    animation: startup-power 1000ms var(--motion) both;
-  }
-  .startup__texture, .startup__reflection, .startup__echo {
-    position: absolute;
-    inset: 0;
-    mask-image: var(--pattern);
-    mask-size: var(--cell-width) var(--cell-height);
-    mask-position: center;
-    mask-repeat: repeat;
-  }
-  .startup__texture {
-    background: radial-gradient(ellipse at 35% 35%, var(--cell-bright), var(--cell-base) 65%, var(--surface));
-    animation: startup-texture 1000ms ease both;
-  }
-  .startup__reflection, .startup__echo { color: var(--accent); }
-  .startup__reflection::before, .startup__echo::before {
-    content: "";
-    position: absolute;
-    inset: -100% 0;
-    background: linear-gradient(to bottom, transparent 37%, var(--signal-deep) 44%, var(--signal) 48%, var(--glint) 49.5%, var(--signal) 51%, var(--signal-soft) 55%, transparent 63%);
-    animation: startup-raster 1000ms var(--motion) both;
-  }
-  .startup__echo::before {
-    background: linear-gradient(to bottom, transparent 43%, var(--signal-soft) 47%, var(--signal) 49%, var(--glint) 50%, var(--signal-soft) 52%, transparent 56%);
-    animation-name: startup-raster-echo;
-  }
-  .startup__scan {
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(to bottom, transparent 0 3px, color-mix(in srgb, var(--ink) 9%, transparent) 3px 4px),
-      linear-gradient(transparent calc(50% - 1px), var(--signal) 50%, transparent calc(50% + 1px));
-    animation: startup-scan 1000ms var(--motion) both;
-  }
-
-  .startup[data-variant="aperture"] {
-    --pattern: var(--diamond-pattern);
-    --cell-width: clamp(28px, 4.5vmin, 44px);
-  }
-  .startup[data-variant="aperture"] .startup__field { animation-name: startup-prism-power; }
-  .startup[data-variant="aperture"] .startup__reflection::before {
-    inset: -60% -100%;
-    background: linear-gradient(125deg, transparent 39%, var(--signal-deep) 44%, var(--signal) 48%, var(--glint) 50%, var(--signal) 52%, var(--signal-soft) 56%, transparent 64%);
-    animation-name: startup-prism;
-  }
-  .startup[data-variant="aperture"] .startup__echo::before {
-    inset: -60% -100%;
-    background: linear-gradient(55deg, transparent 43%, var(--signal-soft) 47%, var(--signal) 49%, var(--glint) 50%, var(--signal-soft) 53%, transparent 58%);
-    animation-name: startup-prism-echo;
-  }
-
-  .startup[data-variant="flux"] {
-    --pattern: var(--hexagon-pattern);
-    --cell-width: clamp(44px, 6vmin, 68px);
-    --cell-height: calc(var(--cell-width) * 34 / 54);
-  }
-  .startup[data-variant="flux"] .startup__field { animation-name: startup-hive-power; }
-  .startup[data-variant="flux"] .startup__reflection::before,
-  .startup[data-variant="flux"] .startup__echo::before {
-    inset: -65%;
-    background: radial-gradient(circle, transparent 25%, var(--signal-deep) 28%, var(--signal) 30%, var(--glint) 31%, var(--signal) 32.5%, var(--signal-soft) 35%, transparent 40%);
-    animation-name: startup-hive;
-  }
-  .startup[data-variant="flux"] .startup__echo::before { animation-name: startup-hive-echo; }
-
-  @keyframes startup-exit {
-    0%, 72% { opacity: 1; background-color: var(--canvas); }
-    90% { opacity: 0.85; background-color: transparent; }
-    to { opacity: 0; background-color: transparent; }
-  }
-  @keyframes startup-power {
-    from { clip-path: inset(49.85% 42%); }
-    10% { clip-path: inset(49.6% 0); }
-    28%, 72% { clip-path: inset(0); }
-    to { clip-path: inset(0 0 100% 0); }
-  }
-  @keyframes startup-prism-power {
-    from { clip-path: polygon(0 0, 0 0, 0 0, 0 0); }
-    12% { clip-path: polygon(0 0, 100% 0, 0 100%, 0 100%); }
-    30%, 72% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
-    to { clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%); }
-  }
-  @keyframes startup-hive-power {
-    from { clip-path: circle(0% at 50% 50%); }
-    30%, 72% { clip-path: circle(72% at 50% 50%); }
-    to { clip-path: circle(100% at 50% 50%); }
-  }
-  @keyframes startup-texture { from { opacity: 0.12; } 28% { opacity: 0.8; } 48%, 70% { opacity: 1; } to { opacity: 0; } }
-  @keyframes startup-raster {
-    from { opacity: 0; transform: translateY(-34%); }
-    14% { opacity: 0; transform: translateY(-38%); }
-    48% { opacity: 1; transform: translateY(0); }
-    66% { opacity: 0.85; transform: translateY(17%); }
-    84%, to { opacity: 0; transform: translateY(44%); }
-  }
-  @keyframes startup-raster-echo {
-    0%, 30% { opacity: 0; transform: translateY(-33%); }
-    54% { opacity: 0.6; transform: translateY(-3%); }
-    78% { opacity: 0.45; transform: translateY(31%); }
-    to { opacity: 0; transform: translateY(44%); }
-  }
-  @keyframes startup-prism {
-    from { opacity: 0; transform: translate(-28%, -15%); }
-    12% { opacity: 0; transform: translate(-31%, -16%); }
-    44% { opacity: 1; transform: translate(-2%, -1%); }
-    58% { opacity: 0.9; transform: translate(7%, 4%); }
-    82%, to { opacity: 0; transform: translate(35%, 20%); }
-  }
-  @keyframes startup-prism-echo {
-    0%, 32% { opacity: 0; transform: translate(24%, -9%); }
-    58% { opacity: 0.65; transform: translate(0, 0); }
-    78% { opacity: 0.4; transform: translate(-18%, 6%); }
-    to { opacity: 0; transform: translate(-30%, 10%); }
-  }
-  @keyframes startup-hive {
-    from { opacity: 0; transform: scale(0.03); }
-    12% { opacity: 0; transform: scale(0.04); }
-    44% { opacity: 1; transform: scale(0.55); }
-    72% { opacity: 0.85; transform: scale(1.1); }
-    to { opacity: 0; transform: scale(1.3); }
-  }
-  @keyframes startup-hive-echo {
-    0%, 32% { opacity: 0; transform: scale(0.03); }
-    58% { opacity: 0.8; transform: scale(0.46); }
-    86% { opacity: 0.4; transform: scale(1.1); }
-    to { opacity: 0; transform: scale(1.2); }
-  }
-  @keyframes startup-scan {
-    from { opacity: 0; transform: scaleX(0.08); }
-    10% { opacity: 0.9; transform: scaleX(1); }
-    22% { opacity: 0.08; transform: scaleX(1); }
-    72%, to { opacity: 0; transform: scaleX(1); }
-  }
+<style>
+  .startup { position: fixed; inset: 0; z-index: 100; overflow: hidden; pointer-events: none; user-select: none; contain: strict; }
+  .startup[hidden], .startup__palette { display: none; }
+  .startup__canvas { display: block; width: 100%; height: 100%; }
   @media (prefers-reduced-motion: reduce) { .startup { display: none !important; } }
 </style>

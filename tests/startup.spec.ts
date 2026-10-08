@@ -3,111 +3,133 @@ import { expect, test, type Page } from "@playwright/test";
 type StartupRun = {
   shown: number;
   hidden?: number;
-  duration?: string;
-  maxEnd?: number;
+  ended?: number;
+  duration: number;
+  variant: string;
   fits: boolean;
   decorative: boolean;
-  visualSamples: number;
   textFree: boolean;
   flat: boolean;
-  patterned: boolean;
-  transforms: string[];
-  echoVisible: boolean;
-  palette?: { background: number[]; canvas: number[]; signal: number[]; accent: number[]; texture: string; reflection: string; theme: string };
+  hashes: number[];
+  colorCounts: number[];
+  accentPixels: number;
+  accentVisible: boolean;
+  surfacePixels: number;
+  palette: { colors: Record<string, number[]>; expected: Record<string, number[]>; theme: string };
 };
-type StartupTimeline = { documentId: number; runs: StartupRun[] };
+type StartupTimeline = { documentId: number; runs: StartupRun[]; textDraws: number };
 
 async function observeStartup(page: Page) {
   await page.addInitScript(() => {
     const state = window as unknown as Window & { __startupTimeline: StartupTimeline };
-    const timeline: StartupTimeline = { documentId: Math.random(), runs: [] };
+    const timeline: StartupTimeline = { documentId: Math.random(), runs: [], textDraws: 0 };
     state.__startupTimeline = timeline;
-    let active = false;
-    const observe = () => {
-      const root = document.querySelector<HTMLElement>("[data-startup]");
-      const shown = Boolean(root && !root.hidden);
-      if (shown === active) return;
-      active = shown;
-      if (!shown) {
-        timeline.runs.at(-1)!.hidden = performance.now();
-        return;
-      }
-      const bounds = root!.getBoundingClientRect();
-      timeline.runs.push({
-        shown: performance.now(),
-        fits: bounds.left >= -1 && bounds.top >= -1 && bounds.right <= innerWidth + 1 && bounds.bottom <= innerHeight + 1,
-        decorative: root!.getAttribute("aria-hidden") === "true" && getComputedStyle(root!).pointerEvents === "none",
-        visualSamples: 0,
-        textFree: true,
-        flat: true,
-        patterned: false,
-        transforms: [],
-        echoVisible: false
-      });
-    };
-    new MutationObserver(observe).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
-    document.addEventListener("animationstart", (event) => {
-      if (!(event.target instanceof HTMLElement) || !event.target.matches("[data-startup]") || event.animationName !== "startup-exit") return;
+    for (const method of ["fillText", "strokeText"] as const) {
+      const original = CanvasRenderingContext2D.prototype[method];
+      CanvasRenderingContext2D.prototype[method] = function (...args: Parameters<typeof original>) {
+        if (this.canvas instanceof HTMLCanvasElement && this.canvas.matches(".startup__canvas")) timeline.textDraws++;
+        original.apply(this, args);
+      };
+    }
+    new MutationObserver(() => {
       const run = timeline.runs.at(-1);
-      if (!run) return;
-      run.duration = getComputedStyle(event.target).animationDuration;
-      run.maxEnd = Math.max(...event.target.getAnimations({ subtree: true }).map((animation) => Number(animation.effect!.getComputedTiming().endTime)));
-      run.fits &&= document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1;
-      const root = event.target;
-      const probe = document.createElement("i");
-      probe.style.cssText = "display:none;background:var(--canvas);color:var(--accent)";
-      root.append(probe);
-      const native = getComputedStyle(probe);
-      const context = document.createElement("canvas").getContext("2d")!;
+      if (run && run.hidden === undefined && document.querySelector<HTMLElement>("[data-startup]")?.hidden) {
+        run.hidden = performance.now();
+      }
+    }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+    document.addEventListener("startup:end", () => {
+      const run = timeline.runs.at(-1);
+      if (run) run.ended = performance.now();
+    }, true);
+    document.addEventListener("startup:begin", (event) => {
+      const root = event.target as HTMLElement;
+      const canvas = root.querySelector<HTMLCanvasElement>(".startup__canvas")!;
+      const bounds = root.getBoundingClientRect();
+      const pixel = document.createElement("canvas").getContext("2d")!;
       const rgba = (color: string) => {
-        context.clearRect(0, 0, 1, 1);
-        context.fillStyle = color;
-        context.fillRect(0, 0, 1, 1);
-        return Array.from(context.getImageData(0, 0, 1, 1).data);
+        pixel.clearRect(0, 0, 1, 1);
+        pixel.fillStyle = color;
+        pixel.fillRect(0, 0, 1, 1);
+        return Array.from(pixel.getImageData(0, 0, 1, 1).data);
       };
-      const reflection = root.querySelector(".startup__reflection")!;
-      run.palette = {
-        background: rgba(getComputedStyle(root).backgroundColor),
-        canvas: rgba(native.backgroundColor),
-        signal: rgba(getComputedStyle(reflection).color),
-        accent: rgba(native.color),
-        texture: getComputedStyle(root.querySelector(".startup__texture")!).backgroundImage,
-        reflection: getComputedStyle(reflection, "::before").backgroundImage,
-        theme: document.documentElement.dataset.theme!
-      };
+      const colors: Record<string, number[]> = {};
+      const expected: Record<string, number[]> = {};
+      const probe = document.createElement("i");
+      probe.hidden = true;
+      root.append(probe);
+      for (const [name, variable] of Object.entries({ canvas: "canvas", surface: "surface", soft: "surface-soft", strong: "surface-strong", line: "line", accent: "accent" })) {
+        const entry = root.querySelector<HTMLElement>(`[data-startup-color="${name}"]`)!;
+        colors[name] = rgba(getComputedStyle(entry).color);
+        probe.style.color = `var(--${variable})`;
+        expected[name] = rgba(getComputedStyle(probe).color);
+      }
       probe.remove();
+      const run: StartupRun = {
+        shown: performance.now(),
+        duration: (event as CustomEvent).detail.duration,
+        variant: (event as CustomEvent).detail.variant,
+        fits: bounds.left >= -1 && bounds.top >= -1 && bounds.right <= innerWidth + 1 && bounds.bottom <= innerHeight + 1,
+        decorative: root.getAttribute("aria-hidden") === "true" && getComputedStyle(root).pointerEvents === "none",
+        textFree: !root.textContent?.trim() && !root.querySelector("text, image, .startup__mark"),
+        flat: root.querySelectorAll("canvas").length === 1 && Boolean(canvas.getContext("2d")),
+        hashes: [],
+        colorCounts: [],
+        accentPixels: 0,
+        accentVisible: false,
+        surfacePixels: 0,
+        palette: { colors, expected, theme: document.documentElement.dataset.theme! }
+      };
+      timeline.runs.push(run);
+      const sampleCanvas = document.createElement("canvas");
+      sampleCanvas.width = 120;
+      sampleCanvas.height = 80;
+      const context = sampleCanvas.getContext("2d", { willReadFrequently: true })!;
+      context.imageSmoothingEnabled = false;
       const phases = [100, 450, 750];
       const sample = () => {
         if (root.hidden || timeline.runs.at(-1) !== run) return;
-        if (performance.now() - run.shown >= phases[run.visualSamples]) {
-          run.visualSamples++;
-          run.transforms.push(getComputedStyle(reflection, "::before").transform);
-          const echo = root.querySelector(".startup__echo");
-          if (echo) run.echoVisible ||= getComputedStyle(echo).maskImage === getComputedStyle(reflection).maskImage
-            && getComputedStyle(echo).maskImage !== "none" && Number(getComputedStyle(echo, "::before").opacity) > 0;
-          run.textFree &&= !root.textContent?.trim() && !root.querySelector("text, image, .startup__mark");
-          for (const element of [root, ...root.querySelectorAll("*")]) {
-            for (const pseudo of [null, "::before", "::after"]) {
-              const style = getComputedStyle(element, pseudo);
-              run.textFree &&= ["none", "normal", '""'].includes(style.content);
-              run.flat &&= style.perspective === "none" && style.transformStyle !== "preserve-3d"
-                && (style.transform === "none" || new DOMMatrixReadOnly(style.transform).is2D)
-                && style.translate.split(" ").length <= 2 && style.scale.split(" ").length <= 2
-                && !/^(x|y|[-\d.]+\s)/.test(style.rotate);
+        if (performance.now() - run.shown >= phases[run.hashes.length]) {
+          context.clearRect(0, 0, 120, 80);
+          context.drawImage(canvas, 0, 0, 120, 80);
+          const pixels = context.getImageData(0, 0, 120, 80).data;
+          let hash = 0;
+          let accentPixels = 0;
+          let surfacePixels = 0;
+          const distinct = new Set<number>();
+          for (let i = 0; i < pixels.length; i += 4) {
+            hash = Math.imul(hash, 31) + pixels[i] + pixels[i + 1] * 256 + pixels[i + 2] * 65536 + pixels[i + 3] | 0;
+            if (pixels[i + 3] > 128) {
+              distinct.add((pixels[i] >> 3) * 1024 + (pixels[i + 1] >> 3) * 32 + (pixels[i + 2] >> 3));
+              if (colors.accent.slice(0, 3).every((channel, index) => Math.abs(channel - pixels[i + index]) < 24)) accentPixels++;
+              if ([colors.canvas, colors.surface, colors.soft, colors.strong].some((color) => color.slice(0, 3).every((channel, index) => Math.abs(channel - pixels[i + index]) < 24))) surfacePixels++;
             }
           }
-          const texture = root.querySelector(".startup__texture");
-          if (texture) {
-            const style = getComputedStyle(texture);
-            const bounds = texture.getBoundingClientRect();
-            const patternedBackground = style.backgroundImage !== "none"
-              && (style.maskImage !== "none" || style.backgroundImage.includes("repeating-"));
-            const patternedSvg = Boolean(texture.querySelector("pattern") && texture.querySelector('[fill^="url("], [mask^="url("]'));
-            run.patterned ||= bounds.width > 0 && bounds.height > 0 && Number(style.opacity) > 0
-              && style.visibility === "visible" && (patternedBackground || patternedSvg);
+          run.accentVisible ||= accentPixels > 0;
+          if (!run.accentVisible) {
+            // Thin accent strokes can fall between the coarse sample's pixels.
+            const full = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let i = 0; i < full.length; i += 4) {
+              if (full[i + 3] > 128 && Math.abs(colors.accent[0] - full[i]) < 24
+                && Math.abs(colors.accent[1] - full[i + 1]) < 24 && Math.abs(colors.accent[2] - full[i + 2]) < 24) {
+                run.accentVisible = true;
+                break;
+              }
+            }
+          }
+          run.hashes.push(hash);
+          run.colorCounts.push(distinct.size);
+          run.accentPixels = Math.max(run.accentPixels, accentPixels);
+          run.surfacePixels = Math.max(run.surfacePixels, surfacePixels);
+          run.fits &&= document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1;
+          const canvasBounds = canvas.getBoundingClientRect();
+          run.fits &&= Math.abs(canvasBounds.width - innerWidth) <= 1 && Math.abs(canvasBounds.height - innerHeight) <= 1;
+          for (const element of [root, ...root.querySelectorAll("*")]) {
+            const style = getComputedStyle(element);
+            run.flat &&= style.perspective === "none" && style.transformStyle !== "preserve-3d"
+              && (style.transform === "none" || new DOMMatrixReadOnly(style.transform).is2D);
           }
         }
-        if (run.visualSamples < phases.length) requestAnimationFrame(sample);
+        if (run.hashes.length < phases.length) requestAnimationFrame(sample);
       };
       requestAnimationFrame(sample);
     }, true);
@@ -121,21 +143,24 @@ async function readTimeline(page: Page) {
 async function finishStartup(page: Page, count: number) {
   await expect(page.locator("[data-startup]")).toBeHidden();
   await expect.poll(async () => (await readTimeline(page)).runs.filter((run) => run.hidden !== undefined).length).toBe(count);
-  const run = (await readTimeline(page)).runs.at(-1)!;
-  expect(run.duration).toBe("1s");
-  expect(run.maxEnd).toBeLessThanOrEqual(1000);
+  const timeline = await readTimeline(page);
+  const run = timeline.runs.at(-1)!;
+  expect(run.duration).toBe(1000);
+  expect(run.ended).toBeDefined();
   expect(run.hidden! - run.shown).toBeGreaterThanOrEqual(850);
   expect(run.hidden! - run.shown).toBeLessThan(1250);
   expect(run.fits).toBe(true);
   expect(run.decorative).toBe(true);
-  expect(run.visualSamples).toBe(3);
   expect(run.textFree).toBe(true);
+  expect(timeline.textDraws).toBe(0);
   expect(run.flat).toBe(true);
-  expect(run.patterned).toBe(true);
-  expect(new Set(run.transforms).size).toBeGreaterThan(1);
-  expect(run.echoVisible).toBe(true);
-  expect(run.palette!.background).toEqual(run.palette!.canvas);
-  expect(run.palette!.signal).toEqual(run.palette!.accent);
+  expect(run.hashes).toHaveLength(3);
+  expect(new Set(run.hashes).size).toBe(3);
+  expect(Math.max(...run.colorCounts)).toBeGreaterThan(4);
+  expect(run.surfacePixels).toBeGreaterThan(120 * 80 * 0.65);
+  expect(run.accentVisible).toBe(true);
+  expect(run.accentPixels).toBeLessThan(120 * 80 * 0.2);
+  expect(run.palette.colors).toEqual(run.palette.expected);
 }
 
 async function navigateAndSettle(page: Page, action: () => Promise<unknown>) {
@@ -168,6 +193,41 @@ test("plays a one-second startup only on full document loads", async ({ page }) 
   expect((await readTimeline(page)).documentId).not.toBe(first.documentId);
 });
 
+test("a delayed animation download never starts during navigation", async ({ page }) => {
+  let release!: () => void;
+  const delayed = new Promise<void>((resolve) => { release = resolve; });
+  let requested = false;
+  await page.route("**/StartupAnimation.*.js", async (route) => {
+    requested = true;
+    await delayed;
+    await route.continue();
+  });
+  await observeStartup(page);
+  await page.goto("/", { waitUntil: "commit" });
+  await expect.poll(() => requested).toBe(true);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.locator("[data-startup]")).toBeHidden();
+  const first = await readTimeline(page);
+  const navigating = page.evaluate(() => new Promise<void>((resolve) => {
+    document.addEventListener("astro:before-preparation", () => resolve(), { once: true });
+  }));
+  const settled = page.evaluate(() => new Promise<void>((resolve) => {
+    document.addEventListener("astro:page-load", () => resolve(), { once: true });
+  }));
+  await page.getByRole("link", { name: "View projects", exact: true }).click({ noWaitAfter: true });
+  await navigating;
+  release();
+  await settled;
+  await expect(page).toHaveURL(/\/work\/$/);
+  await expect(page.getByRole("heading", { name: "Selected work", level: 1 })).toBeVisible();
+  expect(await readTimeline(page)).toEqual(first);
+  await expect(page.locator("[data-startup]")).toBeHidden();
+  // A working replay proves the delayed module initialized after navigation.
+  await page.getByRole("button", { name: "Open debug menu" }).click();
+  await page.locator("[data-startup-replay]").click();
+  await finishStartup(page, 1);
+});
+
 test("startup follows saved themes and live accent controls for every pattern", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await observeStartup(page);
@@ -190,8 +250,8 @@ test("startup follows saved themes and live accent controls for every pattern", 
         await finishStartup(page, ++count);
         palettes.push((await readTimeline(page)).runs.at(-1)!.palette!);
       }
-      expect(palettes[0].texture).not.toBe(palettes[1].texture);
-      expect(palettes[0].reflection).not.toBe(palettes[1].reflection);
+      expect(palettes[0].colors.surface).not.toEqual(palettes[1].colors.surface);
+      expect(palettes[0].colors.accent).not.toEqual(palettes[1].colors.accent);
       expect(palettes[1].theme).toBe(theme);
     }
     const saved = (await readTimeline(page)).runs.at(-1)!.palette;

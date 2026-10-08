@@ -14,7 +14,7 @@ npm test
 
 ## Startup animation previews
 
-The one-second, text-free 2D Raster animation plays on each full site load; page transitions skip it. Development and Cloudflare PR previews include three reflective pattern alternatives: Raster (square scan), Prism (crossing diamond reflections), and Hive (paired hexagonal ripples). Each follows the current theme and accent, with paced ignition, an eased crest, and a trailing reflection into the page reveal. Selecting an alternative saves the preview choice, and **Replay selected** plays it again. Production uses Raster and has no debug controls. Reduced-motion preferences skip the animations.
+The one-second, text-free Anime.js startup plays on each full site load; page transitions skip it. Development and Cloudflare PR previews offer three Canvas 2D scenes: Quilt (a rippling mosaic that peels away), Iris (a segmented aperture), and Current (woven tile ribbons and small accent comets). The scenes use the active theme's surfaces with restrained, contrasting accent details. Selecting an alternative saves the preview choice, and **Replay selected** plays it again. Production uses Quilt and has no debug controls. Reduced-motion preferences skip the animations. A delayed or failed animation download leaves the page usable and never starts an intro during navigation.
 
 To review a local preview build:
 
