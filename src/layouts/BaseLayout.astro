@@ -2,6 +2,7 @@
 import { ClientRouter } from "astro:transitions";
 import SemanticIcon from "@components/SemanticIcon.astro";
 import Sidebar from "@components/Sidebar.astro";
+import StartupAnimation from "@components/StartupAnimation.astro";
 import { siteConfig } from "../site.config";
 import "@styles/global.css";
 
@@ -16,6 +17,7 @@ const description = Astro.props.description ?? siteConfig.description;
 const canonical = new URL(Astro.url.pathname, siteConfig.url);
 const image = Astro.props.image ? new URL(Astro.props.image, siteConfig.url).toString() : undefined;
 const webAnalyticsToken = import.meta.env.CF_WEB_ANALYTICS_TOKEN;
+const previewDebug = import.meta.env.DEV || import.meta.env.PUBLIC_SITE_PREVIEW === "true";
 ---
 
 <!doctype html>
@@ -137,6 +139,7 @@ const webAnalyticsToken = import.meta.env.CF_WEB_ANALYTICS_TOKEN;
     <ClientRouter />
   </head>
   <body>
+    <StartupAnimation previewDebug={previewDebug} />
     <div class="background-grid" aria-hidden="true"></div>
     <template data-heading-reference-icon>
       <SemanticIcon name="link" class="heading-reference__icon" inline />
@@ -149,6 +152,7 @@ const webAnalyticsToken = import.meta.env.CF_WEB_ANALYTICS_TOKEN;
         <slot />
       </main>
     </div>
+    {previewDebug && <>
     <button class="debug-fab" type="button" data-debug-toggle aria-expanded="false" aria-controls="debug-panel">
       <SemanticIcon name="debug" />
       <span class="sr-only">Open debug menu</span>
@@ -158,6 +162,15 @@ const webAnalyticsToken = import.meta.env.CF_WEB_ANALYTICS_TOKEN;
         <p class="eyebrow">Debug</p>
         <button type="button" data-debug-close aria-label="Close debug menu">Close</button>
       </header>
+      <fieldset>
+        <legend>Startup animation</legend>
+        <p class="debug-current">1 second · full loads only</p>
+        <button class="debug-startup" type="button" data-startup-variant="lattice" aria-pressed="true">01 / Quilt · Mosaic</button>
+        <button class="debug-startup" type="button" data-startup-variant="aperture" aria-pressed="false">02 / Iris · Aperture</button>
+        <button class="debug-startup" type="button" data-startup-variant="flux" aria-pressed="false">03 / Current · Ribbons</button>
+        <button class="debug-startup" type="button" data-startup-replay>Replay selected</button>
+        <p class="debug-current" data-startup-motion-note hidden>Reduced motion is on; startup animations are skipped.</p>
+      </fieldset>
       <fieldset>
         <legend>Accent on surfaces</legend>
         <label class="debug-range">
@@ -210,6 +223,7 @@ const webAnalyticsToken = import.meta.env.CF_WEB_ANALYTICS_TOKEN;
         <button type="button" data-signal-ratio="portrait">Portrait 3:4</button>
       </fieldset>
     </section>
+    </>}
     <script>
       import { navigate } from "astro:transitions/client";
 
@@ -228,3 +242,9 @@ const webAnalyticsToken = import.meta.env.CF_WEB_ANALYTICS_TOKEN;
     }
   </body>
 </html>
+
+<style>
+  .debug-startup {
+    grid-column: 1 / -1;
+  }
+</style>

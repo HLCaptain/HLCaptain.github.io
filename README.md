@@ -12,6 +12,17 @@ npm run build
 npm test
 ```
 
+## Startup animation previews
+
+The one-second, text-free Anime.js startup plays on each full site load; page transitions skip it. Development and Cloudflare PR previews offer three Canvas 2D scenes: Quilt (a rippling mosaic that peels away), Iris (a segmented aperture), and Current (woven tile ribbons and small accent comets). The scenes use the active theme's surfaces with restrained, contrasting accent details. Selecting an alternative saves the preview choice, and **Replay selected** plays it again. Production uses Quilt and has no debug controls. Reduced-motion preferences skip the animations. A delayed or failed animation download leaves the page usable and never starts an intro during navigation.
+
+To review a local preview build:
+
+```sh
+PUBLIC_SITE_PREVIEW=true npm run build
+npm run preview
+```
+
 ## Publishing Content
 
 Add `.md` or `.mdx` files to:

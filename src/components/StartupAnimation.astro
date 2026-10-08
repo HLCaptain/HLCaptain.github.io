@@ -1,0 +1,30 @@
+---
+type Props = { previewDebug: boolean };
+const colors = { canvas: 'canvas', surface: 'surface', soft: 'surface-soft', strong: 'surface-strong', line: 'line', ink: 'ink', accent: 'accent', accentInk: 'accent-readable' };
+---
+
+<div class="startup" data-startup data-variant="lattice" data-preview={Astro.props.previewDebug ? "true" : undefined} aria-hidden="true" hidden transition:persist="startup">
+  <canvas class="startup__canvas"></canvas>
+  <div class="startup__palette" hidden>
+    {Object.entries(colors).map(([name, token]) => <i data-startup-color={name} style={`color:var(--${token})`}></i>)}
+  </div>
+</div>
+
+<script is:inline>
+  if (!window.__hlStartupBooted) {
+    window.__hlStartupBooted = true;
+    window.__hlStartupPending = true;
+    // A late module download must never start the intro during navigation.
+    document.addEventListener("astro:before-preparation", () => { window.__hlStartupPending = false; }, { once: true });
+  }
+</script>
+<script>
+  import "../scripts/startup-animation";
+</script>
+
+<style>
+  .startup { position: fixed; inset: 0; z-index: 100; overflow: hidden; pointer-events: none; user-select: none; contain: strict; }
+  .startup[hidden], .startup__palette { display: none; }
+  .startup__canvas { display: block; width: 100%; height: 100%; }
+  @media (prefers-reduced-motion: reduce) { .startup { display: none !important; } }
+</style>

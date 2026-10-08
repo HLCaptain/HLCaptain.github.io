@@ -720,11 +720,10 @@ test.describe("Signal", () => {
 
     await items.last().locator("[data-signal-trigger]").click();
     await expect(items.last()).toHaveClass(/is-active/);
-    await page.waitForTimeout(420);
-    const [lastTrackBox, lastMarkerBox] = await Promise.all([track.boundingBox(), marker.boundingBox()]);
-    const trackBottom = (lastTrackBox?.y ?? 0) + (lastTrackBox?.height ?? 0);
-    const markerBottom = (lastMarkerBox?.y ?? 0) + (lastMarkerBox?.height ?? 0);
-    expect(Math.abs(markerBottom - trackBottom)).toBeLessThanOrEqual(1);
+    await expect.poll(() => marker.evaluate((node) => {
+      const track = node.closest("[data-signal]")!.querySelector(".signal__track")!.getBoundingClientRect();
+      return Math.abs(node.getBoundingClientRect().bottom - track.bottom);
+    })).toBeLessThanOrEqual(1);
   });
 
   test("persists layout and ratio choices through Astro navigation", async ({ page }) => {

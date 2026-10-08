@@ -8,7 +8,7 @@
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
     "check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
-    "pretest": "npm run build",
+    "pretest": "PUBLIC_SITE_PREVIEW=true npm run build",
     "test": "playwright test",
     "test:ui": "playwright test --ui"
   },
@@ -24,6 +24,7 @@
     "@iconify-json/ri": "^1.2.10",
     "@iconify-json/tabler": "^1.2.37",
     "@playwright/test": "^1.61.1",
+    "animejs": "4.5.0",
     "astro": "^7.1.1",
     "astro-icon": "^1.1.5",
     "typescript": "^6.0.3"

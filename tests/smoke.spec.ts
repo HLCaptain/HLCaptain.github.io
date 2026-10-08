@@ -1999,6 +1999,7 @@ test.describe("site shell", () => {
   test("reverses an interrupted sidebar group collapse", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await expect(page.locator("[data-startup]")).toBeHidden();
 
     if ((page.viewportSize()?.width ?? 0) <= 720) {
       await page.getByRole("button", { name: "Open navigation" }).click();
@@ -2043,6 +2044,7 @@ test.describe("site shell", () => {
   test("sidebar group item lists animate open and closed", async ({ page }) => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
+    await expect(page.locator("[data-startup]")).toBeHidden();
 
     if ((page.viewportSize()?.width ?? 0) <= 720) {
       await page.getByRole("button", { name: "Open navigation" }).click();
