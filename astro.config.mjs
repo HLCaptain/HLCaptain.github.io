@@ -10,6 +10,12 @@ export default defineConfig({
   output: "static",
   trailingSlash: "always",
   integrations: [mdx(), icon(), sitemap()],
+  // Small framework scripts must not become inline JavaScript blocked by CSP.
+  vite: {
+    build: {
+      assetsInlineLimit: 0
+    }
+  },
   markdown: {
     shikiConfig: {
       themes: {
